@@ -286,6 +286,7 @@ void servicePendingTx() {
 
 void setup() {
   Serial.begin(9600);
+  randomSeed(analogRead(A0) ^ micros() ^ millis());
   while (!Serial) { }
   loadOrCreateDeviceId();
   memset(peers, 0, sizeof(peers));
