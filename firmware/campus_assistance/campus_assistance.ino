@@ -47,6 +47,7 @@
 #define CART_OFFLINE_TIMEOUT_MS      30000UL
 #define CLAIM_WINDOW_MS                900UL
 #define BUTTON_HOLD_CANCEL_MS         3000UL
+#define BUTTON_DEBOUNCE_MS               40UL
 #define MAX_PENDING_REQUESTS             10
 #define MAX_REQUEST_RETRIES               3
 #define CLAIM_RETRY_INTERVAL_MS        2500UL
@@ -55,6 +56,7 @@
 
 #include <SPI.h>
 #include <LoRa.h>
+#include <EEPROM.h>
 #include <string.h>
 #include <stddef.h>
 #if DEVICE_ROLE == DEVICE_ROLE_CART
@@ -94,6 +96,20 @@ CampusPacket txPacket;
 CampusPacket rxPacket;
 uint16_t nextRequestId = 1;
 unsigned long lastRadioSendAt = 0;
+
+bool debouncedButtonState(uint8_t pin, uint8_t slot) {
+  static bool stableState[4] = {false, false, false, false};
+  static bool lastReading[4] = {false, false, false, false};
+  static unsigned long lastChangeAt[4] = {0, 0, 0, 0};
+  bool reading = (digitalRead(pin) == LOW);
+  if (reading != lastReading[slot]) {
+    lastReading[slot] = reading;
+    lastChangeAt[slot] = millis();
+  }
+  if (millis() - lastChangeAt[slot] >= BUTTON_DEBOUNCE_MS)
+    stableState[slot] = lastReading[slot];
+  return stableState[slot];
+}
 
 #if DEVICE_ROLE == DEVICE_ROLE_STATION
 bool requestActive = false;
@@ -177,6 +193,7 @@ void startRequest() {
   assignmentConfirmed = false;
   claimWindowOpen = false;
   activeRequestId = nextRequestId++;
+  EEPROM.put(0, nextRequestId);
   assignedCartId = 0;
   candidateCartId = 0;
   assignmentGeneration = 1;
@@ -265,7 +282,7 @@ void handleStationPacket(const CampusPacket &p) {
 void serviceStation() {
   if (receivePacket(rxPacket)) handleStationPacket(rxPacket);
 
-  bool down = digitalRead(STATION_BUTTON_PIN) == LOW;
+  bool down = debouncedButtonState(STATION_BUTTON_PIN, 0);
   if (down && !buttonWasDown) buttonPressedAt = millis();
   if (!down && buttonWasDown) {
     unsigned long held = millis() - buttonPressedAt;
@@ -462,11 +479,11 @@ void updateCartLcd() {
 void serviceCart() {
   if (receivePacket(rxPacket)) handleCartPacket(rxPacket);
 
-  bool acceptDown = digitalRead(CART_ACCEPT_PIN) == LOW;
+  bool acceptDown = debouncedButtonState(CART_ACCEPT_PIN, 0);
   if (acceptDown && !acceptWasDown) claimNextRequest();
   acceptWasDown = acceptDown;
 
-  bool cancelDown = digitalRead(CART_CANCEL_PIN) == LOW;
+  bool cancelDown = debouncedButtonState(CART_CANCEL_PIN, 1);
   if (cancelDown && !cancelWasDown) {
     cancelPressedAt = millis();
     cancelHandled = false;
@@ -488,7 +505,7 @@ void serviceCart() {
   }
   cancelWasDown = cancelDown;
 
-  bool completeDown = digitalRead(CART_COMPLETE_PIN) == LOW;
+  bool completeDown = debouncedButtonState(CART_COMPLETE_PIN, 2);
   if (completeDown && !completeWasDown && assignmentActive) {
     CampusPacket p;
     initPacket(p, PKT_COMPLETE);
@@ -538,6 +555,8 @@ void setup() {
   pinMode(STATION_LED_G_PIN, OUTPUT);
   pinMode(STATION_LED_B_PIN, OUTPUT);
   pinMode(STATION_BUZZER_PIN, OUTPUT);
+  EEPROM.get(0, nextRequestId);
+  if (nextRequestId == 0 || nextRequestId == 0xFFFF) nextRequestId = 1;
   Serial.println(F("Campus assistance - STATION role"));
   Serial.print(F("Station ID: ")); Serial.println(DEVICE_ID);
   Serial.print(F("Location: ")); Serial.println(LOCATION_NAME);
