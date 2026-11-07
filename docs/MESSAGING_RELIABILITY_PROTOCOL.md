@@ -141,7 +141,7 @@ A newly powered-on peer may receive a broadcast but is not part of the sender's 
 - Full ACK queue: report overflow and rely on DATA retry for another ACK opportunity; never claim delivery.
 - Full peer table: report discovery capacity; never silently evict a live peer.
 - Active outgoing transaction slot: return BUSY; do not overwrite it.
-- Oversized serial line: discard the entire line through newline, then recover for the next line.
+- Oversized or embedded-NUL serial line: reject and discard the entire line through newline, then recover for the next line.
 - Packet buffers MUST be bounds-checked and terminated before string operations.
 - Measure SRAM and stack headroom on the actual board. Successful compilation alone does not prove runtime memory safety.
 
