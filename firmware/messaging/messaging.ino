@@ -62,8 +62,7 @@ struct Peer {
   bool used;
 };
 
-RadioPacket txPacket;
-RadioPacket rxPacket;
+RadioPacket rxPacket; // Single reusable receive buffer; keep AVR SRAM use bounded.
 Peer peers[MAX_PEERS];
 uint16_t deviceId = 0;
 uint32_t nextMessageId = 1;
@@ -471,6 +470,7 @@ void setup() {
     while (true) delay(1000);
   }
   LoRa.enableCrc();
+  static_assert(sizeof(RadioPacket) == 172, "RMP v1 wire frame layout changed; increment protocol version");
   static_assert(sizeof(RadioPacket) <= 255, "LoRa packet exceeds PHY payload limit");
   static_assert(MAX_MESSAGE_CHARS <= 128, "RMP payload exceeds 128-byte limit");
   static_assert(MAX_RETRIES <= 10, "Retry count must remain tightly bounded");
