@@ -44,14 +44,12 @@
 // Timings are starting values; tune after measured campus RF tests.
 #define REQUEST_TIMEOUT_MS          600000UL
 #define REQUEST_RETRY_INTERVAL_MS     5000UL
-#define REQUEST_ACK_TIMEOUT_MS        3000UL
 #define CART_HEARTBEAT_INTERVAL_MS    5000UL
 #define CART_OFFLINE_TIMEOUT_MS      30000UL
 #define CLAIM_WINDOW_MS                900UL
 #define BUTTON_HOLD_CANCEL_MS         3000UL
 #define BUTTON_DEBOUNCE_MS               40UL
 #define MAX_PENDING_REQUESTS             10
-#define MAX_REQUEST_RETRIES               3
 #define CLAIM_RETRY_INTERVAL_MS        2500UL
 #define ASSIGN_RETRY_INTERVAL_MS       1500UL
 // ====================================================================
@@ -97,7 +95,6 @@ struct PendingRequest {
 CampusPacket txPacket;
 CampusPacket rxPacket;
 uint16_t nextRequestId = 1;
-unsigned long lastRadioSendAt = 0;
 
 bool debouncedButtonState(uint8_t pin, uint8_t slot) {
   static bool stableState[4] = {false, false, false, false};
@@ -129,7 +126,6 @@ unsigned long assignedCartLastSeenAt = 0;
 unsigned long lastAssignmentTxAt = 0;
 unsigned long buttonPressedAt = 0;
 bool buttonWasDown = false;
-uint8_t retryCount = 0;
 #else
 PendingRequest queueItems[MAX_PENDING_REQUESTS];
 uint8_t queueCount = 0;
@@ -164,7 +160,6 @@ void sendPacket(const CampusPacket &p) {
   LoRa.beginPacket();
   LoRa.write((const uint8_t *)&p, sizeof(p));
   LoRa.endPacket();
-  lastRadioSendAt = millis();
 }
 
 bool receivePacket(CampusPacket &p) {
@@ -199,7 +194,6 @@ void startRequest() {
   assignedCartId = 0;
   candidateCartId = 0;
   assignmentGeneration = 1;
-  retryCount = 0;
   requestStartedAt = millis();
   lastRequestTxAt = 0;
   Serial.print(F("[REQUEST] Created "));
@@ -304,7 +298,6 @@ void serviceStation() {
       Serial.println(F("[EXPIRED] No cart accepted before timeout"));
       tone(STATION_BUZZER_PIN, 500, 800);
     } else if (millis() - lastRequestTxAt >= REQUEST_RETRY_INTERVAL_MS) {
-      if (retryCount < MAX_REQUEST_RETRIES) retryCount++;
       broadcastRequest();
     }
   }
@@ -386,12 +379,6 @@ void enqueueRequest(const CampusPacket &p) {
     if (p.generation > queueItems[existing].generation) queueItems[existing].generation = p.generation;
     sendRequestAck(p);
     return;
-  }
-  if (assignmentActive && activeRequest.stationId == p.stationId &&
-      activeRequest.requestId == p.requestId && p.generation > activeRequest.generation) {
-    assignmentActive = false;
-    activeRequest.used = false;
-    Serial.println(F("[REVOKED] Previous assignment generation superseded"));
   }
   if (queueCount >= MAX_PENDING_REQUESTS) {
     Serial.println(F("[QUEUE FULL] Request not added"));
