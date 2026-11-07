@@ -360,10 +360,31 @@ int findQueued(uint16_t stationId, uint16_t requestId) {
   return -1;
 }
 
+void sendRequestAck(const CampusPacket &p) {
+  CampusPacket ack;
+  initPacket(ack, PKT_REQUEST_ACK);
+  ack.stationId = p.stationId; ack.requestId = p.requestId;
+  ack.generation = p.generation;
+  delay((unsigned long)random(40, 350));
+  sendPacket(ack);
+}
+
 void enqueueRequest(const CampusPacket &p) {
+  if (assignmentActive && activeRequest.stationId == p.stationId &&
+      activeRequest.requestId == p.requestId) {
+    if (p.generation > activeRequest.generation) {
+      assignmentActive = false;
+      activeRequest.used = false;
+      Serial.println(F("[REVOKED] Previous assignment generation superseded"));
+    } else {
+      sendRequestAck(p);
+      return;
+    }
+  }
   int existing = findQueued(p.stationId, p.requestId);
   if (existing >= 0) {
     if (p.generation > queueItems[existing].generation) queueItems[existing].generation = p.generation;
+    sendRequestAck(p);
     return;
   }
   if (assignmentActive && activeRequest.stationId == p.stationId &&
@@ -387,12 +408,7 @@ void enqueueRequest(const CampusPacket &p) {
   item.generation = p.generation;
   copyField(item.location, sizeof(item.location), p.location);
   item.used = true;
-  CampusPacket ack;
-  initPacket(ack, PKT_REQUEST_ACK);
-  ack.stationId = p.stationId; ack.requestId = p.requestId;
-  ack.generation = p.generation;
-  delay((unsigned long)random(40, 350));
-  sendPacket(ack);
+  sendRequestAck(p);
   tone(CART_BUZZER_PIN, 1200, 100);
   Serial.print(F("[NEW REQUEST] ")); Serial.println(item.location);
 }
