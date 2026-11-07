@@ -24,6 +24,9 @@ jobs:
           arduino-cli lib install LoRa
           arduino-cli lib install "LiquidCrystal I2C"
 
+      - name: Run source-contract tests
+        run: python3 -m unittest discover -s tests -v
+
       - name: Compile group messaging firmware
         run: arduino-cli compile --fqbn arduino:avr:uno firmware/messaging
 
