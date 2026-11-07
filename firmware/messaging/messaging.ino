@@ -187,7 +187,10 @@ bool readPacket(RadioPacket &p) {
   uint8_t *dst = (uint8_t *)&p;
   size_t i = 0;
   while (LoRa.available() && i < sizeof(RadioPacket)) dst[i++] = (uint8_t)LoRa.read();
-  return i == sizeof(RadioPacket) && p.magic == 0x4C52 && p.networkId == NETWORK_ID;
+  if (i != sizeof(RadioPacket)) return false;
+  p.userName[sizeof(p.userName)-1]='\\0';
+  p.text[MAX_MESSAGE_CHARS]='\\0';
+  return p.magic == 0x4C52 && p.networkId == NETWORK_ID;
 }
 
 void serviceIncoming(bool acknowledgeText) {
@@ -272,6 +275,10 @@ void servicePendingTx() {
     pendingTx.active=false; return;
   }
   if ((long)(millis()-pendingTx.nextTxAt)<0) return;
+  if (pendingTx.expectedCount==0 && pendingTx.attempts>0) {
+    Serial.println(F("[STATUS] NO_KNOWN_RECIPIENTS; one best-effort broadcast sent"));
+    pendingTx.active=false; return;
+  }
   if (pendingTx.attempts>MAX_RETRIES) {
     Serial.print(F("[STATUS] EXPIRED; confirmed ")); Serial.print(pendingTx.ackCount);
     Serial.print(F(" of ")); Serial.println(pendingTx.expectedCount);
