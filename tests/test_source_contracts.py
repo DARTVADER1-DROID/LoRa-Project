@@ -88,8 +88,8 @@ class CampusSourceContracts(unittest.TestCase):
         self.assertIn("pendingTx.expectedBootIds[pendingTx.expectedCount]=peers[i].bootId;", MESSAGING)
 
     def test_received_packet_strings_are_null_terminated(self):
-        self.assertIn(r"p.userName[sizeof(p.userName)-1]='\0';", MESSAGING)
-        self.assertIn(r"p.text[MAX_MESSAGE_CHARS]='\0';", MESSAGING)
+        self.assertIn("p.userName[sizeof(p.userName) - 1] = '\\0';", MESSAGING)
+        self.assertIn("p.text[MAX_MESSAGE_CHARS] = '\\0';", MESSAGING)
 
     def test_radio_transmit_failures_are_not_silently_consumed(self):
         self.assertIn("bool transmitPacket(const RadioPacket &p)", MESSAGING)
