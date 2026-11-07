@@ -1,0 +1,34 @@
+name: Arduino firmware build
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+
+      - name: Install AVR core and libraries
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install arduino:avr
+          arduino-cli lib update-index
+          arduino-cli lib install LoRa
+          arduino-cli lib install "LiquidCrystal I2C"
+
+      - name: Compile group messaging firmware
+        run: arduino-cli compile --fqbn arduino:avr:uno firmware/messaging
+
+      - name: Compile campus station firmware
+        run: arduino-cli compile --fqbn arduino:avr:uno firmware/campus_assistance
+
+      - name: Compile campus cart firmware
+        run: arduino-cli compile --fqbn arduino:avr:uno --build-property "compiler.cpp.extra_flags=-DDEVICE_ROLE=2" firmware/campus_assistance
