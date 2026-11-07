@@ -119,7 +119,8 @@ class CampusSourceContracts(unittest.TestCase):
         self.assertIn("if (!LoRa.beginPacket()) return false;", MESSAGING)
         self.assertIn("written != sizeof(p)", MESSAGING)
         self.assertIn("LoRa.endPacket() == 1", MESSAGING)
-        self.assertIn("[ACK TX ERROR] Retaining ACK for retry", MESSAGING)
+        self.assertIn("[ACK TX ERROR] Retaining message", MESSAGING)
+        self.assertIn("[ACK DROPPED]", MESSAGING)
         self.assertIn("[TX RADIO ERROR] Attempt will be retried", MESSAGING)
         self.assertIn("static_assert(sizeof(RadioPacket) <= 255", MESSAGING)
 
