@@ -204,7 +204,7 @@ bool receivePacket(CampusPacket &p) {
 void setStationStatus(bool active, bool assigned) {
   bool blink = active && ((millis() / 250) % 2);
   digitalWrite(STATION_LED_R_PIN, LOW);
-  digitalWrite(STATION_LED_G_PIN, assigned ? HIGH : LOW);
+  digitalWrite(STATION_LED_G_PIN, assigned && assignmentConfirmed ? HIGH : LOW);
   digitalWrite(STATION_LED_B_PIN, (!assigned && blink) ? HIGH : LOW);
 }
 
@@ -383,7 +383,7 @@ void serviceStation() {
     assignedCartLastSeenAt = millis();
     lastAssignmentTxAt = millis();
     claimWindowOpen = false;
-    Serial.print(F("[ASSIGNED] Cart ")); Serial.println(assignedCartId);
+    Serial.print(F("[ASSIGNING] Awaiting MCU confirmation from cart ")); Serial.println(assignedCartId);
     tone(STATION_BUZZER_PIN, 1300, 180);
     }
   }
@@ -472,14 +472,15 @@ void enqueueRequest(const CampusPacket &p) {
       assignmentActive = false;
       activeRequest.used = false;
       Serial.println(F("[REVOKED] Previous assignment generation superseded"));
-    } else {
+    } else if (p.generation == activeRequest.generation) {
       sendRequestAck(p);
       return;
-    }
+    } else return;
   }
   int existing = findQueued(p.stationId, p.requestId);
   if (existing >= 0) {
     if (generationIsNewer(p.generation, queueItems[existing].generation)) queueItems[existing].generation = p.generation;
+    else if (p.generation != queueItems[existing].generation) return;
     sendRequestAck(p);
     return;
   }
@@ -542,9 +543,7 @@ void handleCartPacket(const CampusPacket &p) {
       Serial.print(F("[ASSIGNED] Proceed to ")); Serial.println(activeRequest.location);
       tone(CART_BUZZER_PIN, 1400, 250);
     }
-  } else if (p.type == PKT_STUDENT_CANCEL || p.type == PKT_EXPIRE ||
-             p.type == PKT_CART_CANCEL || p.type == PKT_COMPLETE) {
-    if (p.type==PKT_CART_CANCEL && (p.senderId!=p.cartId || !assignmentActive || activeRequest.stationId!=p.stationId || activeRequest.requestId!=p.requestId || activeRequest.generation!=p.generation)) return;
+  } else if ((p.type == PKT_STUDENT_CANCEL || p.type == PKT_EXPIRE) && p.senderId == p.stationId) {
     rememberTombstone(p.stationId,p.requestId,p.generation);
     sendCancelAck(p);
     removeQueuedGeneration(p.stationId, p.requestId, p.generation);
@@ -668,7 +667,7 @@ void serviceCart() {
 
 void setup() {
   Serial.begin(9600);
-  randomSeed(analogRead(A0) ^ micros());
+  randomSeed(analogRead(A0) ^ micros() ^ millis());
 #if DEVICE_ROLE == DEVICE_ROLE_STATION
   pinMode(STATION_BUTTON_PIN, INPUT_PULLUP);
   pinMode(STATION_LED_R_PIN, OUTPUT);
