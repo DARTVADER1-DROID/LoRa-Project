@@ -196,7 +196,11 @@ Release gates:
 
 Host tests and compilation are necessary, not substitutes for hardware validation.
 
-## 13. Implementation status
+## 13. Firmware interoperability and rollout
+
+RMP v1 changes the fixed-size wire envelope and is not backward-compatible with the earlier prototype packet layout. Every messaging node that is expected to exchange messages MUST be flashed with the same RMP v1 firmware before a mixed-node network is tested. Older firmware will fail the new exact-frame-length/version checks; it must not be treated as a compatible peer. Confirm the configured network ID, manually assigned user name, unique device ID, RF frequency and legal radio settings on every node before powering up the test network.
+
+## 14. Implementation status
 
 Implemented in the current messaging sketch:
 - 128-byte input limit and whole-line overflow discard.
