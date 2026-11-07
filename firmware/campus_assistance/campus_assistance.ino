@@ -206,10 +206,10 @@ bool receivePacket(CampusPacket &p) {
 #if DEVICE_ROLE == DEVICE_ROLE_STATION
 
 void setStationStatus(bool active, bool assigned) {
-  bool blink = active && ((millis() / 250) % 2);
+  bool blink = active && (!assigned || !assignmentConfirmed) && ((millis() / 250) % 2);
   digitalWrite(STATION_LED_R_PIN, LOW);
   digitalWrite(STATION_LED_G_PIN, assigned && assignmentConfirmed ? HIGH : LOW);
-  digitalWrite(STATION_LED_B_PIN, (!assigned && blink) ? HIGH : LOW);
+  digitalWrite(STATION_LED_B_PIN, ((!assigned || !assignmentConfirmed) && blink) ? HIGH : LOW);
 }
 
 void startRequest() {
@@ -291,7 +291,7 @@ void handleStationPacket(const CampusPacket &p) {
 
   if (p.type == PKT_REQUEST_ACK) {
     Serial.print(F("[RECEIVED] Cart ")); Serial.println(p.senderId);
-  } else if (p.type == PKT_CLAIM && requestActive && !requestAssigned) {
+  } else if (p.type == PKT_CLAIM && requestActive && !requestAssigned && p.cartId == p.senderId) {
     bool known=false;
     for(uint8_t i=0;i<claimantCount;i++) if(claimantIds[i]==p.senderId) known=true;
     if(!known && claimantCount<MAX_CLAIMANTS) claimantIds[claimantCount++]=p.senderId;
@@ -303,7 +303,7 @@ void handleStationPacket(const CampusPacket &p) {
     Serial.println(F("[ASSIGN ACK] Cart confirmed assignment"));
   } else if (p.type == PKT_CANCEL_ACK && cancellationPending &&
              p.requestId == cancellingRequestId && p.generation == cancellingGeneration &&
-             (cancellingCartId==0 || p.senderId==cancellingCartId)) {
+             (cancellingCartId==0 || p.senderId==cancellingCartId) && p.cartId==p.senderId) {
     cancellationPending = false;
     Serial.print(F("[CANCEL MCU ACK] Cart ")); Serial.println(p.senderId);
   } else if (p.type == PKT_QUEUE_FULL) {
