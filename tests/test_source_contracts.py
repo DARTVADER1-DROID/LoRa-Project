@@ -76,6 +76,15 @@ class CampusSourceContracts(unittest.TestCase):
         self.assertIn(r"p.userName[sizeof(p.userName)-1]='\0';", MESSAGING)
         self.assertIn(r"p.text[MAX_MESSAGE_CHARS]='\0';", MESSAGING)
 
+    def test_radio_transmit_failures_are_not_silently_consumed(self):
+        self.assertIn("bool transmitPacket(const RadioPacket &p)", MESSAGING)
+        self.assertIn("if (!LoRa.beginPacket()) return false;", MESSAGING)
+        self.assertIn("written != sizeof(p)", MESSAGING)
+        self.assertIn("LoRa.endPacket() == 1", MESSAGING)
+        self.assertIn("[ACK TX ERROR] Retaining ACK for retry", MESSAGING)
+        self.assertIn("[TX RADIO ERROR] Attempt will be retried", MESSAGING)
+        self.assertIn("static_assert(sizeof(RadioPacket) <= 255", MESSAGING)
+
     def test_packet_identity_and_type_are_validated(self):
         self.assertIn("p.senderId == 0", MESSAGING)
         self.assertIn("p.type == PKT_HELLO || p.type == PKT_TEXT || p.type == PKT_ACK", MESSAGING)
