@@ -181,6 +181,32 @@ class TerminalLedger:
         return "APPLIED"
 
 
+
+
+class OfflineGuard:
+    def __init__(self):
+        self.assigned = True
+        self.blocked = False
+        self.generation = 9
+        self.redispatches = 0
+
+    def heartbeat_timeout(self):
+        if self.assigned and not self.blocked:
+            self.blocked = True
+
+    def heartbeat_restored(self):
+        if self.blocked:
+            self.blocked = False
+            self.assigned = True
+
+    def operator_confirms_physical_inspection(self):
+        if self.blocked:
+            self.blocked = False
+            self.assigned = False
+            self.generation = (self.generation + 1) & 0xFF
+            self.redispatches += 1
+
+
 class ReliabilitySimulationTests(unittest.TestCase):
     def test_generation_wrap_forward(self):
         self.assertTrue(generation_newer(0, 255))
@@ -401,6 +427,29 @@ class ReliabilitySimulationTests(unittest.TestCase):
         receiver.receive(1, 5, 3, "three")
         receiver.receive(1, 5, 1, "one replay after eviction")
         self.assertEqual(len(receiver.displayed), 4)
+
+    def test_cart_offline_timeout_blocks_automatic_redispatch(self):
+        guard = OfflineGuard()
+        guard.heartbeat_timeout()
+        self.assertTrue(guard.blocked)
+        self.assertEqual(guard.redispatches, 0)
+
+    def test_heartbeat_recovery_restores_same_assignment(self):
+        guard = OfflineGuard()
+        guard.heartbeat_timeout()
+        guard.heartbeat_restored()
+        self.assertFalse(guard.blocked)
+        self.assertTrue(guard.assigned)
+        self.assertEqual(guard.generation, 9)
+
+    def test_redispatch_requires_explicit_physical_inspection_confirmation(self):
+        guard = OfflineGuard()
+        guard.heartbeat_timeout()
+        guard.operator_confirms_physical_inspection()
+        self.assertFalse(guard.blocked)
+        self.assertFalse(guard.assigned)
+        self.assertEqual(guard.generation, 10)
+        self.assertEqual(guard.redispatches, 1)
 
 
 if __name__ == "__main__":
