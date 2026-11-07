@@ -85,6 +85,7 @@ struct PendingTx {
   unsigned long startedAt;
   unsigned long deadline;
   unsigned long nextTxAt;
+  bool bestEffortTxSucceeded;
   bool active;
 } pendingTx;
 unsigned long lastHelloAt = 0;
@@ -161,7 +162,7 @@ bool updatePeer(uint16_t id, uint32_t peerBootId, const char *name) {
   }
   if (slot < 0) {
     peerTableFullCount++;
-    if (millis() - lastPeerFullDiagnosticAt >= 10000UL) {
+    if (lastPeerFullDiagnosticAt == 0 || millis() - lastPeerFullDiagnosticAt >= 10000UL) {
       Serial.print(F("[PEER TABLE FULL] New peer not recorded; overflow count "));
       Serial.println(peerTableFullCount);
       lastPeerFullDiagnosticAt = millis();
@@ -383,7 +384,10 @@ void startText(const char *text) {
 
 void finishPendingTx() {
   if (pendingTx.expectedCount == 0) {
-    Serial.println(F("[STATUS] NO_KNOWN_RECIPIENTS; one best-effort broadcast sent"));
+    if (pendingTx.bestEffortTxSucceeded)
+      Serial.println(F("[STATUS] NO_KNOWN_RECIPIENTS; one best-effort broadcast transmitted, no delivery confirmation possible"));
+    else
+      Serial.println(F("[STATUS] NO_KNOWN_RECIPIENTS; best-effort broadcast failed locally"));
   } else if (pendingTx.ackCount == pendingTx.expectedCount) {
     Serial.print(F("[STATUS] CONFIRMED_TO_")); Serial.println(pendingTx.ackCount);
   } else if (pendingTx.ackCount > 0) {
@@ -424,6 +428,7 @@ void servicePendingTx() {
 
   bool txOk = transmitPacket(pendingTx.packet);
   pendingTx.attempts++;
+  if (txOk && pendingTx.expectedCount == 0) pendingTx.bestEffortTxSucceeded = true;
   if (!txOk) Serial.println(F("[TX RADIO ERROR] Attempt will be retried"));
 
   pendingTx.deadline = millis() + ACK_TIMEOUT_MS;
