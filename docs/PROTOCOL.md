@@ -18,8 +18,8 @@ Both firmware applications use LoRa point-to-multipoint broadcasts on a configur
 - One common broadcast group.
 - Text payload limit: 128 bytes in the initial ASCII-oriented implementation. Multi-byte UTF-8 text consumes multiple bytes; a later iteration should make that explicit in UI validation.
 - Device HELLO packets maintain a local, temporary peer table.
-- Each valid new text message is acknowledged automatically.
-- Receivers suppress duplicate display while still acknowledging retries.
+- Each valid new text message is acknowledged automatically. ACKs carry the original sender ID as well as message ID, preventing unrelated senders' same-numbered messages from satisfying delivery.
+- Receivers suppress duplicate display using a bounded sender + message ID cache while still acknowledging retries.
 - Sender collects acknowledging device IDs for a bounded window and retries up to the configured limit.
 - Peer tables expire after a configurable heartbeat timeout.
 - No encryption or message history in this prototype.
@@ -54,5 +54,7 @@ A cart must not assume it owns a request merely because it transmitted a claim. 
 
 - A station can only arbitrate claims for requests it originated; multi-station state reconciliation needs field testing.
 - LoRa is half-duplex and broadcast packets/ACKs can collide. Random backoff is not a guarantee.
+- Cancellation broadcasts are retried a bounded number of times until a cart MCU acknowledges; the station reports an unconfirmed cancellation if no acknowledgement arrives. Acknowledgement confirms MCU packet processing only, not human awareness.
+- Carts keep a bounded recent-cancellation tombstone cache keyed by station, request and generation to prevent delayed broadcasts from resurrecting closed requests. Tombstones are finite and can be evicted; a power cycle clears volatile tombstones.
 - A cart that disappears while physically moving may still be moving; reassignment requires operator warning and an explicit revoked-generation check.
 - Timeouts need tuning against actual spreading factor, bandwidth, coding rate, airtime, campus range and regulatory duty-cycle.
