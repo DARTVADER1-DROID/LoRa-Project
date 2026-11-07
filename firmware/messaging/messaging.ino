@@ -205,7 +205,7 @@ void serviceIncoming(bool acknowledgeText) {
   }
 
   if (rxPacket.type == PKT_TEXT) {
-    updatePeer(rxPacket.senderId, rxPacket.userName);
+    updatePeer(rxPacket.senderId, rxPacket.senderBootId, rxPacket.userName);
     bool duplicate = wasMessageSeen(rxPacket.senderId, rxPacket.senderBootId, rxPacket.messageId);
     if (!duplicate) {
       rememberMessage(rxPacket.senderId, rxPacket.senderBootId, rxPacket.messageId);
