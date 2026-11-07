@@ -103,8 +103,15 @@ All values MUST be configurable and bounded. Initial bench profile (not certifie
 |---|---:|
 | Maximum retries | 3 |
 | Total attempts | 4 (initial + 3 retries) |
-| ACK collection timeout | 1,800 ms |
-| Additional retry jitter | 100–350 ms |
+| ACK collection timeout | 4,200 ms |
+| Minimum ACK turnaround | 50 ms |
+| ACK response slot spacing | 450 ms |
+| ACK slot jitter | 0–50 ms |
+| ACK TX failures per queued response | 4 total attempts |
+| ACK TX retry delay | 250 ms |
+| Additional DATA retry backoff | 150 ms base, capped at 1,200 ms |
+| Maximum transaction lifetime | 22,000 ms |
+| Modem profile | SF7, 125 kHz bandwidth, coding rate 4/5, preamble 8 |
 | HELLO interval | 20,000 ms |
 | Peer expiry | 90,000 ms |
 | Known peers | 8 |
@@ -116,12 +123,12 @@ Tune these values using measured airtime for the selected frequency, spreading f
 Recommended evolution:
 - Capped randomized exponential backoff rather than a single fixed retry delay.
 - Maximum transaction lifetime as well as attempt count.
-- Deterministic ACK response slots derived from transaction key + receiver ID, with small jitter. This reduces simultaneous ACK collisions but cannot eliminate hidden-node collisions.
+- Deterministic ACK response slots derived from transaction key + receiver ID, with a minimum radio turnaround delay and a slot width sized above the configured modem profile's packet airtime. This reduces simultaneous ACK collisions but cannot eliminate hidden-node collisions.
 - Coalesce queued ACKs for the same transaction.
 - Randomize HELLO phase to avoid synchronized discovery bursts.
 - Account for half-duplex operation, TX airtime and legal duty-cycle.
 
-The LoRa library's synchronous `endPacket()` still occupies the MCU during transmission. ACK waits and scheduling MUST remain non-blocking.
+The LoRa library's synchronous `endPacket()` still occupies the MCU during transmission. ACK waits and scheduling MUST remain non-blocking. The bench profile is explicitly fixed to SF7/BW125 kHz/CR4/5/preamble 8 on every messaging node; changing any modem parameter requires recalculating packet airtime, ACK slot spacing, ACK timeout, and transaction lifetime. The 4,200 ms ACK timeout covers the worst configured response slot (50 ms turnaround + 7 × 450 ms + 50 ms jitter) plus the configured profile's packet airtime and processing margin. This is a bench timing profile, not a range or regulatory certification.
 
 ## 8. Peer discovery and recipient semantics
 
@@ -208,7 +215,10 @@ Implemented in the current messaging sketch:
 - 32-bit persistent EEPROM boot/session epoch and 32-bit message IDs; message IDs are not reused after wrap within one boot session.
 - Expected-peer snapshot with both device ID and boot/session ID.
 - Automatic ACK correlated by explicit original sender ID, sender session ID and original message ID.
-- Bounded non-blocking sender state machine with configurable retry count, ACK timeout, capped randomized exponential backoff and a 10-second transaction lifetime.
+- Bounded non-blocking sender state machine with configurable retry count, 4.2-second ACK timeout, capped randomized exponential backoff and a 22-second transaction lifetime.
+- Explicit SF7/BW125 kHz/CR4/5/preamble-8 modem profile shared by all messaging nodes.
+- Minimum 50 ms ACK turnaround, 450 ms response slots plus up to 50 ms jitter, four bounded ACK transmit attempts, and queue/TX/RX/accept/reject diagnostics.
+- ACK reception diagnostics distinguish no active transaction, correlation mismatch, unexpected peer/session, and duplicate ACK.
 - Distinct final outcomes: CONFIRMED_TO_N, PARTIALLY_CONFIRMED, UNCONFIRMED and NO_KNOWN_RECIPIENTS.
 - 12-entry volatile duplicate cache; duplicate DATA is not displayed twice while cached.
 - Four-entry ACK queue with transaction coalescing, deterministic pseudo-slot selection and jitter; queue overflow is counted and reported.
