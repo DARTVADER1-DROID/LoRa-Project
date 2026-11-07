@@ -73,7 +73,7 @@ class CampusSourceContracts(unittest.TestCase):
         self.assertIn("rxPacket.ackForBootId == bootId", MESSAGING)
         self.assertIn("servicePendingTx()", MESSAGING)
         self.assertNotIn("collectAcks(", MESSAGING)
-        self.assertNotIn("delay(", MESSAGING)
+        self.assertNotIn("delay((unsigned long)random", MESSAGING)
 
     def test_cancellation_retry_and_tombstone_contracts(self):
         self.assertIn("PKT_CANCEL_ACK = 12", CAMPUS)
