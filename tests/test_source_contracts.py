@@ -106,6 +106,11 @@ class CampusSourceContracts(unittest.TestCase):
         self.assertIn("p.version != PROTOCOL_VERSION", MESSAGING)
         self.assertIn("p.payloadLength > MAX_MESSAGE_CHARS", MESSAGING)
 
+    def test_embedded_nul_is_rejected_without_sending_prefix(self):
+        self.assertIn("c == '\\0'", MESSAGING)
+        self.assertIn("NUL byte in input", MESSAGING)
+        self.assertIn("REJECTED_LOCAL", MESSAGING)
+
     def test_oversized_serial_line_is_discarded_until_newline(self):
         self.assertIn("discardUntilNewline", MESSAGING)
         self.assertIn("inputLength < MAX_MESSAGE_CHARS", MESSAGING)
