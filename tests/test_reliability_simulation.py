@@ -235,7 +235,7 @@ class SerialLineParser:
                     completed.append("".join(self.buffer))
                 self.buffer = []
                 self.discard = False
-            elif char == "\\0":
+            elif char == "\0":
                 self.buffer = []
                 self.discard = True
             elif not self.discard:
@@ -427,7 +427,7 @@ class ReliabilitySimulationTests(unittest.TestCase):
 
     def test_serial_parser_rejects_embedded_nul_and_discards_whole_line(self):
         parser = SerialLineParser()
-        self.assertEqual(parser.feed("safe-prefix\\x00hidden\\nNEXT\\n"), ["NEXT"])
+        self.assertEqual(parser.feed("safe-prefix\x00hidden\nNEXT\n"), ["NEXT"])
 
     def test_serial_parser_accepts_exactly_128_bytes(self):
         parser = SerialLineParser()
