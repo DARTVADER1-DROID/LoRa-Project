@@ -304,7 +304,7 @@ void handleStationPacket(const CampusPacket &p) {
         p.stationId == DEVICE_ID && p.requestId == activeRequestId &&
         p.generation == assignmentGeneration) {
       assignedCartLastSeenAt = millis();
-      if (offlineRecoveryBlocked) { offlineRecoveryBlocked=false; assignmentConfirmed=true; Serial.println(F("[CART RESTORED] Existing assignment heartbeat recovered")); }
+      if (offlineRecoveryBlocked) Serial.println(F("[HEARTBEAT RETURNED] Safety lock remains until operator inspection"));
     }
     return;
   }
