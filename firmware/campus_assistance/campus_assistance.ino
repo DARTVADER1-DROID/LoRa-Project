@@ -737,6 +737,7 @@ void setup() {
   pinMode(STATION_LED_G_PIN, OUTPUT);
   pinMode(STATION_LED_B_PIN, OUTPUT);
   pinMode(STATION_BUZZER_PIN, OUTPUT);
+  memset(terminalRecords,0,sizeof(terminalRecords));
   EEPROM.get(0, nextRequestId);
   if (nextRequestId == 0 || nextRequestId == 0xFFFF) nextRequestId = 1;
   Serial.println(F("Campus assistance - STATION role"));
@@ -751,7 +752,6 @@ void setup() {
   memset(queueItems, 0, sizeof(queueItems));
   memset(tombstones, 0, sizeof(tombstones));
   memset(replyQueue,0,sizeof(replyQueue));
-  memset(terminalRecords,0,sizeof(terminalRecords));
   Wire.begin();
   lcd.init();
   lcd.backlight();
