@@ -208,7 +208,7 @@ Implemented in the current messaging sketch:
 - Distinct final outcomes: CONFIRMED_TO_N, PARTIALLY_CONFIRMED, UNCONFIRMED and NO_KNOWN_RECIPIENTS.
 - 12-entry volatile duplicate cache; duplicate DATA is not displayed twice while cached.
 - Four-entry ACK queue with transaction coalescing, deterministic pseudo-slot selection and jitter; queue overflow is counted and reported.
-- Peer-table saturation is counted and reported; live peers are not silently overwritten.
+- Peer-table saturation and stale/duplicate/unexpected ACKs are counted and reported; live peers are not silently overwritten.
 - Basic identity-collision warning for duplicate 16-bit device IDs.
 - Local radio TX error checks and bounded packet-size assertion.
 
