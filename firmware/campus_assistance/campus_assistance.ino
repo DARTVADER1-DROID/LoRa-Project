@@ -10,7 +10,9 @@
 // ======================== USER CONFIGURATION ========================
 #define DEVICE_ROLE_STATION 1
 #define DEVICE_ROLE_CART    2
-#define DEVICE_ROLE         DEVICE_ROLE_STATION  // Change to DEVICE_ROLE_CART on cart
+#ifndef DEVICE_ROLE
+#define DEVICE_ROLE         DEVICE_ROLE_STATION  // Override with -DDEVICE_ROLE=2 for cart build
+#endif
 
 #define DEVICE_ID           1                    // Must be unique per physical device
 #define NETWORK_ID          2001
