@@ -195,9 +195,8 @@ class OfflineGuard:
             self.blocked = True
 
     def heartbeat_restored(self):
-        if self.blocked:
-            self.blocked = False
-            self.assigned = True
+        # A radio heartbeat alone is not proof of physical safety.
+        return self.blocked
 
     def operator_confirms_physical_inspection(self):
         if self.blocked:
@@ -434,11 +433,11 @@ class ReliabilitySimulationTests(unittest.TestCase):
         self.assertTrue(guard.blocked)
         self.assertEqual(guard.redispatches, 0)
 
-    def test_heartbeat_recovery_restores_same_assignment(self):
+    def test_returning_heartbeat_does_not_clear_physical_safety_lock(self):
         guard = OfflineGuard()
         guard.heartbeat_timeout()
-        guard.heartbeat_restored()
-        self.assertFalse(guard.blocked)
+        self.assertTrue(guard.heartbeat_restored())
+        self.assertTrue(guard.blocked)
         self.assertTrue(guard.assigned)
         self.assertEqual(guard.generation, 9)
 
