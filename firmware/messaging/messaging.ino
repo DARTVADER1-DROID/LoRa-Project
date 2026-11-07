@@ -26,6 +26,9 @@
 #define HELLO_INTERVAL_MS     20000UL
 #define PEER_TIMEOUT_MS       90000UL
 #define MAX_PEERS                  8
+#define ACK_QUEUE_SIZE              4
+#define ACK_JITTER_MIN_MS           40UL
+#define ACK_JITTER_MAX_MS          420UL
 #define EEPROM_MAGIC          0x4C52
 
 enum PacketType : uint8_t { PKT_HELLO = 1, PKT_TEXT = 2, PKT_ACK = 3 };
@@ -37,10 +40,13 @@ struct __attribute__((packed)) RadioPacket {
   uint16_t senderId;
   uint16_t messageId;
   uint16_t ackForSenderId;
+  uint16_t senderBootId;
+  uint16_t ackForBootId;
   char userName[16];
   char text[MAX_MESSAGE_CHARS + 1];
 };
 
+struct PendingAck { uint16_t messageId; uint16_t targetId; uint16_t targetBootId; unsigned long dueAt; bool used; };
 struct Peer {
   uint16_t id;
   char name[16];
@@ -53,8 +59,12 @@ RadioPacket rxPacket;
 Peer peers[MAX_PEERS];
 uint16_t deviceId = 0;
 uint16_t nextMessageId = 1;
+uint16_t bootId = 0;
+PendingAck ackQueue[ACK_QUEUE_SIZE];
+uint8_t ackQueueNext = 0;
+struct PendingTx { RadioPacket packet; uint16_t expected[MAX_PEERS]; uint16_t acknowledged[MAX_PEERS]; uint8_t expectedCount; uint8_t ackCount; uint8_t attempts; unsigned long deadline; unsigned long nextTxAt; bool active; } pendingTx;
 unsigned long lastHelloAt = 0;
-struct SeenMessage { uint16_t senderId; uint16_t messageId; bool used; };
+struct SeenMessage { uint16_t senderId; uint16_t senderBootId; uint16_t messageId; bool used; };
 #define SEEN_CACHE_SIZE 12
 SeenMessage seenMessages[SEEN_CACHE_SIZE];
 uint8_t seenNext = 0;
@@ -91,6 +101,7 @@ void initPacket(RadioPacket &p, PacketType type) {
   p.networkId = NETWORK_ID;
   p.type = (uint8_t)type;
   p.senderId = deviceId;
+  p.senderBootId = bootId;
   copyText(p.userName, sizeof(p.userName), USER_NAME);
 }
 
@@ -123,27 +134,48 @@ void updatePeer(uint16_t id, const char *name) {
   peers[slot].used = true;
 }
 
-bool wasMessageSeen(uint16_t senderId, uint16_t messageId) {
+bool wasMessageSeen(uint16_t senderId, uint16_t senderBootId, uint16_t messageId) {
   for (uint8_t i=0; i<SEEN_CACHE_SIZE; ++i)
     if (seenMessages[i].used && seenMessages[i].senderId==senderId &&
-        seenMessages[i].messageId==messageId) return true;
+        seenMessages[i].senderBootId==senderBootId && seenMessages[i].messageId==messageId) return true;
   return false;
 }
 
-void rememberMessage(uint16_t senderId, uint16_t messageId) {
+void rememberMessage(uint16_t senderId, uint16_t senderBootId, uint16_t messageId) {
   SeenMessage &entry=seenMessages[seenNext];
-  entry.senderId=senderId; entry.messageId=messageId; entry.used=true;
+  entry.senderId=senderId; entry.senderBootId=senderBootId; entry.messageId=messageId; entry.used=true;
   seenNext=(uint8_t)((seenNext+1)%SEEN_CACHE_SIZE);
 }
 
-void sendAck(uint16_t messageId, uint16_t originalSenderId) {
-  RadioPacket ack;
-  initPacket(ack, PKT_ACK);
-  ack.messageId = messageId;
-  ack.ackForSenderId = originalSenderId;
-  // Randomized response delay reduces simultaneous ACK collisions.
-  delay((unsigned long)random(40, 420));
-  transmitPacket(ack);
+void scheduleAck(const RadioPacket &original) {
+  for (uint8_t n=0; n<ACK_QUEUE_SIZE; ++n) {
+    uint8_t slot=(uint8_t)((ackQueueNext+n)%ACK_QUEUE_SIZE);
+    if (!ackQueue[slot].used) {
+      ackQueue[slot].messageId=original.messageId;
+      ackQueue[slot].targetId=original.senderId;
+      ackQueue[slot].targetBootId=original.senderBootId;
+      ackQueue[slot].dueAt=millis()+(unsigned long)random(ACK_JITTER_MIN_MS, ACK_JITTER_MAX_MS+1);
+      ackQueue[slot].used=true;
+      ackQueueNext=(uint8_t)((slot+1)%ACK_QUEUE_SIZE);
+      return;
+    }
+  }
+  Serial.println(F("[ACK BUSY] ACK queue full; sender retry can recover"));
+}
+
+void serviceAckQueue() {
+  for (uint8_t i=0; i<ACK_QUEUE_SIZE; ++i) {
+    PendingAck &item=ackQueue[i];
+    if (!item.used || (long)(millis()-item.dueAt)<0) continue;
+    RadioPacket ack;
+    initPacket(ack, PKT_ACK);
+    ack.messageId=item.messageId;
+    ack.ackForSenderId=item.targetId;
+    ack.ackForBootId=item.targetBootId;
+    transmitPacket(ack);
+    item.used=false;
+    return;
+  }
 }
 
 bool readPacket(RadioPacket &p) {
@@ -169,9 +201,9 @@ void serviceIncoming(bool acknowledgeText) {
 
   if (rxPacket.type == PKT_TEXT) {
     updatePeer(rxPacket.senderId, rxPacket.userName);
-    bool duplicate = wasMessageSeen(rxPacket.senderId, rxPacket.messageId);
+    bool duplicate = wasMessageSeen(rxPacket.senderId, rxPacket.senderBootId, rxPacket.messageId);
     if (!duplicate) {
-      rememberMessage(rxPacket.senderId, rxPacket.messageId);
+      rememberMessage(rxPacket.senderId, rxPacket.senderBootId, rxPacket.messageId);
       Serial.print("[MESSAGE] ");
       Serial.print(rxPacket.userName);
       Serial.print(" (");
@@ -179,12 +211,22 @@ void serviceIncoming(bool acknowledgeText) {
       Serial.print("): ");
       Serial.println(rxPacket.text);
     }
-    if (acknowledgeText) sendAck(rxPacket.messageId, rxPacket.senderId);
+    if (acknowledgeText) scheduleAck(rxPacket);
     return;
   }
 
-  if (rxPacket.type == PKT_ACK) {
-    // ACK packets are consumed by the sender's collection loop.
+  if (rxPacket.type == PKT_ACK && pendingTx.active &&
+      rxPacket.messageId == pendingTx.packet.messageId &&
+      rxPacket.ackForSenderId == deviceId && rxPacket.ackForBootId == bootId &&
+      rxPacket.senderId != deviceId) {
+    bool expected=false, known=false;
+    for (uint8_t i=0;i<pendingTx.expectedCount;i++) if (pendingTx.expected[i]==rxPacket.senderId) expected=true;
+    for (uint8_t i=0;i<pendingTx.ackCount;i++) if (pendingTx.acknowledged[i]==rxPacket.senderId) known=true;
+    if (expected && !known && pendingTx.ackCount<MAX_PEERS) {
+      pendingTx.acknowledged[pendingTx.ackCount++]=rxPacket.senderId;
+      updatePeer(rxPacket.senderId,rxPacket.userName);
+      Serial.print(F("[ACK] Device ")); Serial.println(rxPacket.senderId);
+    }
   }
 }
 
@@ -195,32 +237,6 @@ void sendHello() {
   lastHelloAt = millis();
 }
 
-void collectAcks(uint16_t messageId, uint16_t *ackIds, uint8_t &ackCount) {
-  unsigned long started = millis();
-  while (millis() - started < ACK_TIMEOUT_MS) {
-    int packetSize = LoRa.parsePacket();
-    if (packetSize == (int)sizeof(RadioPacket)) {
-      uint8_t *dst = (uint8_t *)&rxPacket;
-      size_t i = 0;
-      while (LoRa.available() && i < sizeof(RadioPacket)) dst[i++] = (uint8_t)LoRa.read();
-      if (i == sizeof(RadioPacket) && rxPacket.magic == 0x4C52 &&
-          rxPacket.networkId == NETWORK_ID && rxPacket.type == PKT_ACK &&
-          rxPacket.messageId == messageId && rxPacket.ackForSenderId == deviceId &&
-          rxPacket.senderId != deviceId) {
-        bool known = false;
-        for (uint8_t j = 0; j < ackCount; ++j) if (ackIds[j] == rxPacket.senderId) known = true;
-        if (!known && ackCount < MAX_PEERS) {
-          ackIds[ackCount++] = rxPacket.senderId;
-          updatePeer(rxPacket.senderId, rxPacket.userName);
-          Serial.print("[ACK] Device ");
-          Serial.println(rxPacket.senderId);
-        }
-      }
-    } else {
-      while (LoRa.available()) LoRa.read();
-    }
-  }
-}
 
 uint8_t activePeerCount() {
   uint8_t count = 0;
@@ -230,51 +246,42 @@ uint8_t activePeerCount() {
   return count;
 }
 
-void sendText(const char *text) {
-  if (!text || text[0] == '\0') {
-    Serial.println("[ERROR] Empty messages are not sent.");
-    return;
+void startText(const char *text) {
+  if (!text || text[0]=='\\0') { Serial.println(F("[ERROR] Empty messages are not sent.")); return; }
+  size_t length=strlen(text);
+  if (length>MAX_MESSAGE_CHARS) { Serial.println(F("[ERROR] Message exceeds 128 bytes.")); return; }
+  if (pendingTx.active) { Serial.println(F("[BUSY] Previous message still awaiting bounded delivery result.")); return; }
+  memset(&pendingTx,0,sizeof(pendingTx));
+  initPacket(pendingTx.packet,PKT_TEXT);
+  pendingTx.packet.messageId=nextMessageId++;
+  copyText(pendingTx.packet.text,sizeof(pendingTx.packet.text),text);
+  for(uint8_t i=0;i<MAX_PEERS;i++) {
+    if(peers[i].used && millis()-peers[i].lastSeen<=PEER_TIMEOUT_MS)
+      pendingTx.expected[pendingTx.expectedCount++]=peers[i].id;
   }
-  if (strlen(text) > MAX_MESSAGE_CHARS) {
-    Serial.println("[ERROR] Message exceeds 128 bytes.");
-    return;
+  pendingTx.active=true;
+  pendingTx.nextTxAt=millis();
+  Serial.print(F("[TX QUEUED] Message ID ")); Serial.println(pendingTx.packet.messageId);
+  if (!pendingTx.expectedCount) Serial.println(F("[STATUS] No known peers; best-effort broadcast only."));
+}
+
+void servicePendingTx() {
+  if (!pendingTx.active) return;
+  if (pendingTx.ackCount>=pendingTx.expectedCount && pendingTx.expectedCount>0) {
+    Serial.print(F("[STATUS] CONFIRMED_TO_")); Serial.println(pendingTx.ackCount);
+    pendingTx.active=false; return;
   }
-
-  uint16_t messageId = nextMessageId++;
-  uint16_t ackIds[MAX_PEERS];
-  uint8_t ackCount = 0;
-
-  RadioPacket message;
-  initPacket(message, PKT_TEXT);
-  message.messageId = messageId;
-  copyText(message.text, sizeof(message.text), text);
-
-  Serial.print("[TX] Message ID ");
-  Serial.println(messageId);
-  for (uint8_t attempt = 0; attempt <= MAX_RETRIES; ++attempt) {
-    transmitPacket(message);
-    collectAcks(messageId, ackIds, ackCount);
-    uint8_t expectedPeers = activePeerCount();
-    if ((expectedPeers > 0 && ackCount >= expectedPeers) ||
-        (expectedPeers == 0 && ackCount > 0)) break;
-    if (attempt < MAX_RETRIES) {
-      Serial.print("[RETRY] Attempt ");
-      Serial.println(attempt + 1);
-      delay((unsigned long)random(100, RETRY_BACKOFF_MS + 1));
-    }
+  if ((long)(millis()-pendingTx.nextTxAt)<0) return;
+  if (pendingTx.attempts>MAX_RETRIES) {
+    Serial.print(F("[STATUS] EXPIRED; confirmed ")); Serial.print(pendingTx.ackCount);
+    Serial.print(F(" of ")); Serial.println(pendingTx.expectedCount);
+    pendingTx.active=false; return;
   }
-
-  Serial.print("[SUMMARY] Acknowledgements: ");
-  Serial.println(ackCount);
-  if (ackCount == 0) Serial.println("[STATUS] No delivery acknowledgement received.");
-  else {
-    Serial.print("[STATUS] Confirmed device IDs: ");
-    for (uint8_t i = 0; i < ackCount; ++i) {
-      Serial.print(ackIds[i]);
-      if (i + 1 < ackCount) Serial.print(", ");
-    }
-    Serial.println();
-  }
+  transmitPacket(pendingTx.packet);
+  pendingTx.attempts++;
+  pendingTx.deadline=millis()+ACK_TIMEOUT_MS;
+  pendingTx.nextTxAt=pendingTx.deadline+(unsigned long)random(100,RETRY_BACKOFF_MS+1);
+  Serial.print(F("[TX] Attempt ")); Serial.println(pendingTx.attempts);
 }
 
 void setup() {
@@ -283,6 +290,9 @@ void setup() {
   loadOrCreateDeviceId();
   memset(peers, 0, sizeof(peers));
   memset(seenMessages, 0, sizeof(seenMessages));
+  memset(ackQueue,0,sizeof(ackQueue));
+  memset(&pendingTx,0,sizeof(pendingTx));
+  bootId=(uint16_t)random(1,65535); if(!bootId) bootId=1;
   Serial.println(F("LoRa Group Messaging - prototype"));
   Serial.print(F("User: ")); Serial.println(USER_NAME);
   Serial.print(F("Device ID: ")); Serial.println(deviceId);
@@ -302,6 +312,8 @@ void loop() {
 
   // Service a single incoming packet when not waiting for ACKs.
   serviceIncoming(true);
+  serviceAckQueue();
+  servicePendingTx();
 
   static char input[MAX_MESSAGE_CHARS + 2];
   static uint8_t inputLength = 0;
@@ -310,7 +322,7 @@ void loop() {
     if (c == '\r') continue;
     if (c == '\n') {
       input[inputLength] = '\0';
-      sendText(input);
+      startText(input);
       inputLength = 0;
     } else if (inputLength < sizeof(input) - 1) {
       input[inputLength++] = c;
