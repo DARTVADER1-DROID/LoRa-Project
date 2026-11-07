@@ -21,7 +21,7 @@ class MessagingSourceContracts(unittest.TestCase):
         self.assertIn("EEPROM.put(2, deviceId)", MESSAGING)
 
     def test_automatic_ack_and_retry_configuration(self):
-        self.assertIn("sendAck(rxPacket.messageId)", MESSAGING)
+        self.assertIn("sendAck(rxPacket.messageId, rxPacket.senderId)", MESSAGING)
         self.assertIn("#define MAX_RETRIES", MESSAGING)
         self.assertIn("#define ACK_TIMEOUT_MS", MESSAGING)
         self.assertIn("activePeerCount()", MESSAGING)
