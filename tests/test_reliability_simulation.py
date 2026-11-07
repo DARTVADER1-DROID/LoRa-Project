@@ -244,7 +244,64 @@ class SerialLineParser:
         return completed
 
 
+def validate_rmp_frame(version, expected_version, packet_type, sender_id,
+                        boot_id, message_id, payload=b"", ack_target=None):
+    if version != expected_version or sender_id == 0 or boot_id == 0:
+        return False
+    if packet_type == "DATA":
+        return 0 < message_id <= 0xFFFFFFFF and 1 <= len(payload) <= 128 and b"\\x00" not in payload
+    if packet_type == "HELLO":
+        return len(payload) == 0
+    if packet_type == "ACK":
+        return len(payload) == 0 and ack_target is not None and all(x != 0 for x in ack_target)
+    return False
+
+
+def retry_backoff(attempt, base=150, cap=1200):
+    return min(base * (2 ** max(0, attempt - 1)), cap)
+
+
+def terminal_message_status(expected, confirmed):
+    if not expected:
+        return "NO_KNOWN_RECIPIENTS"
+    if confirmed >= expected:
+        return "CONFIRMED_TO_N"
+    if confirmed:
+        return "PARTIALLY_CONFIRMED"
+    return "UNCONFIRMED"
+
+
 class ReliabilitySimulationTests(unittest.TestCase):
+    def test_rmp_rejects_unknown_wire_version(self):
+        self.assertFalse(validate_rmp_frame(2, 1, "DATA", 1, 10, 1, b"x"))
+
+    def test_rmp_rejects_zero_sender_or_session_identity(self):
+        self.assertFalse(validate_rmp_frame(1, 1, "DATA", 0, 10, 1, b"x"))
+        self.assertFalse(validate_rmp_frame(1, 1, "DATA", 1, 0, 1, b"x"))
+
+    def test_rmp_accepts_exact_128_byte_payload(self):
+        self.assertTrue(validate_rmp_frame(1, 1, "DATA", 1, 10, 1, b"x" * 128))
+
+    def test_rmp_rejects_empty_or_oversized_or_nul_payload(self):
+        self.assertFalse(validate_rmp_frame(1, 1, "DATA", 1, 10, 1, b""))
+        self.assertFalse(validate_rmp_frame(1, 1, "DATA", 1, 10, 1, b"x" * 129))
+        self.assertFalse(validate_rmp_frame(1, 1, "DATA", 1, 10, 1, b"a\\x00b"))
+
+    def test_rmp_ack_requires_complete_original_transaction_tuple(self):
+        self.assertTrue(validate_rmp_frame(1, 1, "ACK", 2, 20, 0, b"", (1, 10, 99)))
+        self.assertFalse(validate_rmp_frame(1, 1, "ACK", 2, 20, 0, b"", (1, 10, 0)))
+        self.assertFalse(validate_rmp_frame(1, 1, "ACK", 2, 20, 0, b"junk", (1, 10, 99)))
+
+    def test_retry_backoff_is_exponential_and_capped(self):
+        self.assertEqual([retry_backoff(i) for i in range(1, 6)],
+                         [150, 300, 600, 1200, 1200])
+
+    def test_sender_terminal_outcomes_are_not_overstated(self):
+        self.assertEqual(terminal_message_status(0, 0), "NO_KNOWN_RECIPIENTS")
+        self.assertEqual(terminal_message_status(3, 3), "CONFIRMED_TO_N")
+        self.assertEqual(terminal_message_status(3, 1), "PARTIALLY_CONFIRMED")
+        self.assertEqual(terminal_message_status(3, 0), "UNCONFIRMED")
+
     def test_generation_wrap_forward(self):
         self.assertTrue(generation_newer(0, 255))
 
