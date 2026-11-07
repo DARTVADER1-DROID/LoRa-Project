@@ -24,8 +24,10 @@
 
 // Station controls / indicators
 #define STATION_BUTTON_PIN  3
-#define STATION_LED_PIN     4
-#define STATION_BUZZER_PIN  5
+#define STATION_LED_R_PIN   4
+#define STATION_LED_G_PIN   5
+#define STATION_LED_B_PIN   6
+#define STATION_BUZZER_PIN  7
 
 // Cart controls / indicators
 #define CART_ACCEPT_PIN     3
@@ -47,6 +49,8 @@
 #define BUTTON_HOLD_CANCEL_MS         3000UL
 #define MAX_PENDING_REQUESTS             10
 #define MAX_REQUEST_RETRIES               3
+#define CLAIM_RETRY_INTERVAL_MS        2500UL
+#define ASSIGN_RETRY_INTERVAL_MS       1500UL
 // ====================================================================
 
 #include <SPI.h>
@@ -62,7 +66,8 @@ LiquidCrystal_I2C lcd(LCD_I2C_ADDRESS, 16, 2);
 enum PacketType : uint8_t {
   PKT_REQUEST = 1, PKT_REQUEST_ACK = 2, PKT_CLAIM = 3,
   PKT_ASSIGN = 4, PKT_STUDENT_CANCEL = 5, PKT_CART_CANCEL = 6,
-  PKT_COMPLETE = 7, PKT_HEARTBEAT = 8, PKT_EXPIRE = 9
+  PKT_COMPLETE = 7, PKT_HEARTBEAT = 8, PKT_EXPIRE = 9,
+  PKT_ASSIGN_ACK = 10, PKT_QUEUE_FULL = 11
 };
 
 struct __attribute__((packed)) CampusPacket {
@@ -94,6 +99,7 @@ unsigned long lastRadioSendAt = 0;
 bool requestActive = false;
 bool requestAssigned = false;
 bool claimWindowOpen = false;
+bool assignmentConfirmed = false;
 uint16_t activeRequestId = 0;
 uint16_t assignedCartId = 0;
 uint16_t candidateCartId = 0;
@@ -102,6 +108,7 @@ unsigned long requestStartedAt = 0;
 unsigned long lastRequestTxAt = 0;
 unsigned long claimWindowStartedAt = 0;
 unsigned long assignedCartLastSeenAt = 0;
+unsigned long lastAssignmentTxAt = 0;
 unsigned long buttonPressedAt = 0;
 bool buttonWasDown = false;
 uint8_t retryCount = 0;
@@ -110,7 +117,8 @@ PendingRequest queueItems[MAX_PENDING_REQUESTS];
 uint8_t queueCount = 0;
 bool assignmentActive = false;
 PendingRequest activeRequest;
-bool acceptPending = false;
+bool claimRequested = false;
+unsigned long lastClaimAt = 0;
 unsigned long lastHeartbeatAt = 0;
 unsigned long cancelPressedAt = 0;
 bool cancelWasDown = false;
@@ -156,13 +164,17 @@ bool receivePacket(CampusPacket &p) {
 #if DEVICE_ROLE == DEVICE_ROLE_STATION
 
 void setStationStatus(bool active, bool assigned) {
-  digitalWrite(STATION_LED_PIN, assigned ? HIGH : (active ? (millis() / 250) % 2 : LOW));
+  bool blink = active && ((millis() / 250) % 2);
+  digitalWrite(STATION_LED_R_PIN, LOW);
+  digitalWrite(STATION_LED_G_PIN, assigned ? HIGH : LOW);
+  digitalWrite(STATION_LED_B_PIN, (!assigned && blink) ? HIGH : LOW);
 }
 
 void startRequest() {
   if (requestActive) return;
   requestActive = true;
   requestAssigned = false;
+  assignmentConfirmed = false;
   claimWindowOpen = false;
   activeRequestId = nextRequestId++;
   assignedCartId = 0;
@@ -206,6 +218,12 @@ void cancelRequest(uint8_t packetType) {
 }
 
 void handleStationPacket(const CampusPacket &p) {
+  if (p.type == PKT_HEARTBEAT) {
+    if (requestAssigned && p.senderId == assignedCartId &&
+        p.stationId == DEVICE_ID && p.requestId == activeRequestId &&
+        p.generation == assignmentGeneration) assignedCartLastSeenAt = millis();
+    return;
+  }
   if (p.stationId != DEVICE_ID || p.requestId != activeRequestId) return;
   if (p.generation != assignmentGeneration) return;
 
@@ -218,10 +236,16 @@ void handleStationPacket(const CampusPacket &p) {
       candidateCartId = p.senderId;
       Serial.print(F("[CLAIM] Candidate cart ")); Serial.println(candidateCartId);
     }
-  } else if (p.type == PKT_HEARTBEAT && requestAssigned && p.senderId == assignedCartId) {
+  } else if (p.type == PKT_ASSIGN_ACK && requestAssigned && p.senderId == assignedCartId) {
+    assignmentConfirmed = true;
     assignedCartLastSeenAt = millis();
+    Serial.println(F("[ASSIGN ACK] Cart confirmed assignment"));
+  } else if (p.type == PKT_QUEUE_FULL) {
+    Serial.print(F("[QUEUE FULL] Cart ")); Serial.println(p.senderId);
+    tone(STATION_BUZZER_PIN, 500, 700);
   } else if (p.type == PKT_CART_CANCEL && requestAssigned && p.cartId == assignedCartId) {
     requestAssigned = false;
+    assignmentConfirmed = false;
     assignedCartId = 0;
     assignmentGeneration++;
     claimWindowOpen = false;
@@ -231,6 +255,7 @@ void handleStationPacket(const CampusPacket &p) {
   } else if (p.type == PKT_COMPLETE && requestAssigned && p.cartId == assignedCartId) {
     requestActive = false;
     requestAssigned = false;
+    assignmentConfirmed = false;
     assignedCartId = 0;
     Serial.println(F("[COMPLETE] Journey completed"));
     tone(STATION_BUZZER_PIN, 1500, 150);
@@ -276,14 +301,27 @@ void serviceStation() {
     sendPacket(p);
     assignedCartId = candidateCartId;
     requestAssigned = true;
+    assignmentConfirmed = false;
     assignedCartLastSeenAt = millis();
+    lastAssignmentTxAt = millis();
     claimWindowOpen = false;
     Serial.print(F("[ASSIGNED] Cart ")); Serial.println(assignedCartId);
     tone(STATION_BUZZER_PIN, 1300, 180);
   }
 
+  if (requestAssigned && !assignmentConfirmed && millis() - lastAssignmentTxAt >= ASSIGN_RETRY_INTERVAL_MS) {
+    CampusPacket p;
+    initPacket(p, PKT_ASSIGN);
+    p.stationId = DEVICE_ID; p.requestId = activeRequestId;
+    p.cartId = assignedCartId; p.generation = assignmentGeneration;
+    copyField(p.location, sizeof(p.location), LOCATION_NAME);
+    sendPacket(p);
+    lastAssignmentTxAt = millis();
+  }
+
   if (requestAssigned && millis() - assignedCartLastSeenAt >= CART_OFFLINE_TIMEOUT_MS) {
     requestAssigned = false;
+    assignmentConfirmed = false;
     assignedCartId = 0;
     assignmentGeneration++;
     claimWindowOpen = false;
@@ -304,9 +342,23 @@ int findQueued(uint16_t stationId, uint16_t requestId) {
 }
 
 void enqueueRequest(const CampusPacket &p) {
-  if (findQueued(p.stationId, p.requestId) >= 0) return;
+  int existing = findQueued(p.stationId, p.requestId);
+  if (existing >= 0) {
+    if (p.generation > queueItems[existing].generation) queueItems[existing].generation = p.generation;
+    return;
+  }
+  if (assignmentActive && activeRequest.stationId == p.stationId &&
+      activeRequest.requestId == p.requestId && p.generation > activeRequest.generation) {
+    assignmentActive = false;
+    activeRequest.used = false;
+    Serial.println(F("[REVOKED] Previous assignment generation superseded"));
+  }
   if (queueCount >= MAX_PENDING_REQUESTS) {
     Serial.println(F("[QUEUE FULL] Request not added"));
+    CampusPacket full;
+    initPacket(full, PKT_QUEUE_FULL);
+    full.stationId = p.stationId; full.requestId = p.requestId; full.generation = p.generation;
+    sendPacket(full);
     tone(CART_BUZZER_PIN, 500, 700);
     return;
   }
@@ -338,7 +390,13 @@ void handleCartPacket(const CampusPacket &p) {
   if (p.type == PKT_REQUEST) {
     enqueueRequest(p);
   } else if (p.type == PKT_ASSIGN && p.cartId == DEVICE_ID) {
-    if (findQueued(p.stationId, p.requestId) >= 0 && !assignmentActive) {
+    if (assignmentActive && activeRequest.stationId == p.stationId &&
+        activeRequest.requestId == p.requestId && activeRequest.generation == p.generation) {
+      CampusPacket ack; initPacket(ack, PKT_ASSIGN_ACK);
+      ack.stationId = p.stationId; ack.requestId = p.requestId;
+      ack.cartId = DEVICE_ID; ack.generation = p.generation; sendPacket(ack);
+    } else if (findQueued(p.stationId, p.requestId) >= 0 && !assignmentActive &&
+               queueItems[findQueued(p.stationId, p.requestId)].generation == p.generation) {
       activeRequest.stationId = p.stationId;
       activeRequest.requestId = p.requestId;
       activeRequest.generation = p.generation;
@@ -346,6 +404,10 @@ void handleCartPacket(const CampusPacket &p) {
       activeRequest.used = true;
       assignmentActive = true;
       removeQueued(p.stationId, p.requestId);
+      claimRequested = false;
+      CampusPacket ack; initPacket(ack, PKT_ASSIGN_ACK);
+      ack.stationId = p.stationId; ack.requestId = p.requestId;
+      ack.cartId = DEVICE_ID; ack.generation = p.generation; sendPacket(ack);
       Serial.print(F("[ASSIGNED] Proceed to ")); Serial.println(activeRequest.location);
       tone(CART_BUZZER_PIN, 1400, 250);
     }
@@ -372,6 +434,8 @@ void claimNextRequest() {
   claim.generation = item.generation;
   claim.cartId = DEVICE_ID;
   sendPacket(claim);
+  claimRequested = true;
+  lastClaimAt = millis();
   Serial.print(F("[CLAIM] ")); Serial.println(item.location);
   // Wait for station's explicit ASSIGN; do not mark active on claim alone.
 }
@@ -440,10 +504,18 @@ void serviceCart() {
   }
   completeWasDown = completeDown;
 
+  if (claimRequested && !assignmentActive && queueCount > 0 &&
+      millis() - lastClaimAt >= CLAIM_RETRY_INTERVAL_MS) claimNextRequest();
+
   if (millis() - lastHeartbeatAt >= CART_HEARTBEAT_INTERVAL_MS) {
     CampusPacket heartbeat;
     initPacket(heartbeat, PKT_HEARTBEAT);
     heartbeat.cartId = DEVICE_ID;
+    if (assignmentActive) {
+      heartbeat.stationId = activeRequest.stationId;
+      heartbeat.requestId = activeRequest.requestId;
+      heartbeat.generation = activeRequest.generation;
+    }
     sendPacket(heartbeat);
     lastHeartbeatAt = millis();
   }
@@ -462,7 +534,9 @@ void setup() {
   randomSeed(analogRead(A0) ^ micros());
 #if DEVICE_ROLE == DEVICE_ROLE_STATION
   pinMode(STATION_BUTTON_PIN, INPUT_PULLUP);
-  pinMode(STATION_LED_PIN, OUTPUT);
+  pinMode(STATION_LED_R_PIN, OUTPUT);
+  pinMode(STATION_LED_G_PIN, OUTPUT);
+  pinMode(STATION_LED_B_PIN, OUTPUT);
   pinMode(STATION_BUZZER_PIN, OUTPUT);
   Serial.println(F("Campus assistance - STATION role"));
   Serial.print(F("Station ID: ")); Serial.println(DEVICE_ID);
