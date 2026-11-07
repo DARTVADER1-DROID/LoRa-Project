@@ -58,6 +58,7 @@
 #define MAX_CLAIMANTS                       8
 #define TERMINAL_RETRY_INTERVAL_MS       1500UL
 #define TERMINAL_MAX_RETRIES                4
+#define OFFLINE_RECOVERY_CONFIRM_MS       5000UL
 // ====================================================================
 
 #include <SPI.h>
@@ -131,6 +132,7 @@ unsigned long lastCancellationTxAt = 0;
 bool requestAssigned = false;
 bool claimWindowOpen = false;
 bool assignmentConfirmed = false;
+bool offlineRecoveryBlocked = false;
 uint16_t activeRequestId = 0;
 uint16_t assignedCartId = 0;
 uint16_t candidateCartId = 0;
@@ -218,6 +220,7 @@ void startRequest() {
   requestActive = true;
   requestAssigned = false;
   assignmentConfirmed = false;
+  offlineRecoveryBlocked = false;
   claimWindowOpen = false;
   activeRequestId = nextRequestId++;
   EEPROM.put(0, nextRequestId);
@@ -296,7 +299,10 @@ void handleStationPacket(const CampusPacket &p) {
   if (p.type == PKT_HEARTBEAT) {
     if (requestAssigned && p.senderId == assignedCartId &&
         p.stationId == DEVICE_ID && p.requestId == activeRequestId &&
-        p.generation == assignmentGeneration) assignedCartLastSeenAt = millis();
+        p.generation == assignmentGeneration) {
+      assignedCartLastSeenAt = millis();
+      if (offlineRecoveryBlocked) { offlineRecoveryBlocked=false; assignmentConfirmed=true; Serial.println(F("[CART RESTORED] Existing assignment heartbeat recovered")); }
+    }
     return;
   }
   if (p.stationId != DEVICE_ID || p.requestId != activeRequestId) return;
@@ -328,6 +334,7 @@ void handleStationPacket(const CampusPacket &p) {
     ack.stationId=DEVICE_ID; ack.requestId=activeRequestId; ack.generation=assignmentGeneration; ack.cartId=assignedCartId; sendPacket(ack);
     requestAssigned = false;
     assignmentConfirmed = false;
+    offlineRecoveryBlocked = false;
     assignedCartId = 0;
     assignmentGeneration++;
     claimWindowOpen = false;
@@ -372,12 +379,16 @@ void serviceStation() {
   if (down && !buttonWasDown) buttonPressedAt = millis();
   if (!down && buttonWasDown) {
     unsigned long held = millis() - buttonPressedAt;
-    if (requestActive && held >= BUTTON_HOLD_CANCEL_MS) cancelRequest(PKT_STUDENT_CANCEL);
+    if (offlineRecoveryBlocked && held >= OFFLINE_RECOVERY_CONFIRM_MS) {
+      offlineRecoveryBlocked=false; requestAssigned=false; assignmentConfirmed=false; assignedCartId=0;
+      assignmentGeneration++; claimantCount=0; claimWindowOpen=false; lastRequestTxAt=0;
+      Serial.println(F("[OPERATOR CONFIRMED] Old cart physically checked; request may be redispatched"));
+    } else if (requestActive && held >= BUTTON_HOLD_CANCEL_MS) cancelRequest(PKT_STUDENT_CANCEL);
     else if (!requestActive && held < BUTTON_HOLD_CANCEL_MS) startRequest();
   }
   buttonWasDown = down;
 
-  if (requestActive && !requestAssigned) {
+  if (requestActive && !requestAssigned && !offlineRecoveryBlocked) {
     if (millis() - requestStartedAt >= REQUEST_TIMEOUT_MS) {
       CampusPacket p;
       initPacket(p, PKT_EXPIRE);
@@ -429,16 +440,11 @@ void serviceStation() {
     lastAssignmentTxAt = millis();
   }
 
-  if (requestAssigned && millis() - assignedCartLastSeenAt >= CART_OFFLINE_TIMEOUT_MS) {
-    requestAssigned = false;
+  if (requestAssigned && !offlineRecoveryBlocked && millis() - assignedCartLastSeenAt >= CART_OFFLINE_TIMEOUT_MS) {
+    offlineRecoveryBlocked = true;
     assignmentConfirmed = false;
-    assignedCartId = 0;
-    assignmentGeneration++;
-    claimWindowOpen = false;
-    claimantCount = 0;
-    lastRequestTxAt = 0;
-    Serial.println(F("[OFFLINE] Cart heartbeat lost; request rebroadcast"));
-    tone(STATION_BUZZER_PIN, 600, 500);
+    Serial.println(F("[OFFLINE UNCERTAIN] Cart heartbeat lost; dispatch blocked pending physical inspection. Hold station button 5s after inspection to redispatch."));
+    tone(STATION_BUZZER_PIN, 600, 900);
   }
   setStationStatus(requestActive, requestAssigned);
 }
