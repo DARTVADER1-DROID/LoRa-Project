@@ -17,7 +17,8 @@ Source-contract tests are regression guards for required configuration and proto
 ## Required bench and field test matrix
 
 - Two-node and three-node messaging; dynamic peer discovery and expiry.
-- 128-byte message, empty message, 129-byte message, CR/LF input, non-ASCII UTF-8 byte-length edge cases.
+- RMP v1 envelope/version and ACK target tuple validation; 128-byte payload, empty message, 129-byte message, embedded-NUL rejection, CR/LF input, and non-ASCII UTF-8 byte-length edge cases.
+- Retry attempt bound, capped exponential backoff, transaction lifetime, and CONFIRMED/PARTIAL/UNCONFIRMED/NO_KNOWN_RECIPIENTS outcomes.
 - Lost ACK, delayed ACK, duplicate packet, corrupted packet, and simultaneous ACK collision.
 - Power cycle and EEPROM ID persistence; duplicate-ID commissioning check.
 - Multiple stations broadcasting concurrently; FIFO order at each cart.
