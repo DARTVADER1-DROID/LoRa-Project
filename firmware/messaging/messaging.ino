@@ -49,6 +49,7 @@ struct __attribute__((packed)) RadioPacket {
 struct PendingAck { uint16_t messageId; uint16_t targetId; uint16_t targetBootId; unsigned long dueAt; bool used; };
 struct Peer {
   uint16_t id;
+  uint16_t bootId;
   char name[16];
   unsigned long lastSeen;
   bool used;
@@ -62,7 +63,7 @@ uint16_t nextMessageId = 1;
 uint16_t bootId = 0;
 PendingAck ackQueue[ACK_QUEUE_SIZE];
 uint8_t ackQueueNext = 0;
-struct PendingTx { RadioPacket packet; uint16_t expected[MAX_PEERS]; uint16_t acknowledged[MAX_PEERS]; uint8_t expectedCount; uint8_t ackCount; uint8_t attempts; unsigned long deadline; unsigned long nextTxAt; bool active; } pendingTx;
+struct PendingTx { RadioPacket packet; uint16_t expected[MAX_PEERS]; uint16_t expectedBootIds[MAX_PEERS]; uint16_t acknowledged[MAX_PEERS]; uint8_t expectedCount; uint8_t ackCount; uint8_t attempts; unsigned long deadline; unsigned long nextTxAt; bool active; } pendingTx;
 unsigned long lastHelloAt = 0;
 struct SeenMessage { uint16_t senderId; uint16_t senderBootId; uint16_t messageId; bool used; };
 #define SEEN_CACHE_SIZE 12
@@ -117,7 +118,7 @@ int findPeer(uint16_t id) {
   return -1;
 }
 
-void updatePeer(uint16_t id, const char *name) {
+void updatePeer(uint16_t id, uint16_t peerBootId, const char *name) {
   int slot = findPeer(id);
   if (slot < 0) {
     for (uint8_t i = 0; i < MAX_PEERS; ++i) {
@@ -129,6 +130,7 @@ void updatePeer(uint16_t id, const char *name) {
   }
   if (slot < 0) return;
   peers[slot].id = id;
+  peers[slot].bootId = peerBootId;
   copyText(peers[slot].name, sizeof(peers[slot].name), name);
   peers[slot].lastSeen = millis();
   peers[slot].used = true;
@@ -198,7 +200,7 @@ void serviceIncoming(bool acknowledgeText) {
   if (rxPacket.senderId == deviceId) return;
 
   if (rxPacket.type == PKT_HELLO) {
-    updatePeer(rxPacket.senderId, rxPacket.userName);
+    updatePeer(rxPacket.senderId, rxPacket.senderBootId, rxPacket.userName);
     return;
   }
 
@@ -223,11 +225,11 @@ void serviceIncoming(bool acknowledgeText) {
       rxPacket.ackForSenderId == deviceId && rxPacket.ackForBootId == bootId &&
       rxPacket.senderId != deviceId) {
     bool expected=false, known=false;
-    for (uint8_t i=0;i<pendingTx.expectedCount;i++) if (pendingTx.expected[i]==rxPacket.senderId) expected=true;
+    for (uint8_t i=0;i<pendingTx.expectedCount;i++) if (pendingTx.expected[i]==rxPacket.senderId && pendingTx.expectedBootIds[i]==rxPacket.senderBootId) expected=true;
     for (uint8_t i=0;i<pendingTx.ackCount;i++) if (pendingTx.acknowledged[i]==rxPacket.senderId) known=true;
     if (expected && !known && pendingTx.ackCount<MAX_PEERS) {
       pendingTx.acknowledged[pendingTx.ackCount++]=rxPacket.senderId;
-      updatePeer(rxPacket.senderId,rxPacket.userName);
+      updatePeer(rxPacket.senderId,rxPacket.senderBootId,rxPacket.userName);
       Serial.print(F("[ACK] Device ")); Serial.println(rxPacket.senderId);
     }
   }
@@ -260,7 +262,9 @@ void startText(const char *text) {
   copyText(pendingTx.packet.text,sizeof(pendingTx.packet.text),text);
   for(uint8_t i=0;i<MAX_PEERS;i++) {
     if(peers[i].used && millis()-peers[i].lastSeen<=PEER_TIMEOUT_MS)
-      pendingTx.expected[pendingTx.expectedCount++]=peers[i].id;
+      pendingTx.expected[pendingTx.expectedCount]=peers[i].id;
+      pendingTx.expectedBootIds[pendingTx.expectedCount]=peers[i].bootId;
+      pendingTx.expectedCount++;
   }
   pendingTx.active=true;
   pendingTx.nextTxAt=millis();
