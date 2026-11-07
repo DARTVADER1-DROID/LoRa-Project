@@ -198,24 +198,26 @@ Host tests and compilation are necessary, not substitutes for hardware validatio
 
 ## 13. Implementation status
 
-Already present in the current messaging sketch:
+Implemented in the current messaging sketch:
 - 128-byte input limit and whole-line overflow discard.
-- HELLO peer discovery and persistent device ID.
-- Per-boot session discriminator.
-- Expected-peer snapshot.
-- Automatic ACK correlated to sender ID, sender boot ID and message ID.
-- Bounded non-blocking retry state machine.
-- 12-entry volatile duplicate cache.
-- Four-entry ACK queue with randomized delay.
-- Basic packet identity/type validation and local radio TX error checks.
+- Versioned fixed-size RMP v1 envelope with explicit payload length and strict frame/type/identity validation.
+- 32-bit persistent EEPROM boot/session epoch and 32-bit message IDs; message IDs are not reused after wrap within one boot session.
+- Expected-peer snapshot with both device ID and boot/session ID.
+- Automatic ACK correlated by explicit original sender ID, sender session ID and original message ID.
+- Bounded non-blocking sender state machine with configurable retry count, ACK timeout, capped randomized exponential backoff and a 10-second transaction lifetime.
+- Distinct final outcomes: CONFIRMED_TO_N, PARTIALLY_CONFIRMED, UNCONFIRMED and NO_KNOWN_RECIPIENTS.
+- 12-entry volatile duplicate cache; duplicate DATA is not displayed twice while cached.
+- Four-entry ACK queue with transaction coalescing, deterministic pseudo-slot selection and jitter; queue overflow is counted and reported.
+- Peer-table saturation is counted and reported; live peers are not silently overwritten.
+- Basic identity-collision warning for duplicate 16-bit device IDs.
+- Local radio TX error checks and bounded packet-size assertion.
 
-Still required for full RMP conformance:
-- Explicit on-wire protocol version and payload length/serialization.
-- Wider session/transaction identifiers and robust identity collision handling.
-- ACK coalescing and more deliberate overflow recovery.
-- Capped exponential backoff, transaction lifetime and collision-aware ACK slots.
-- Explicit peer-table saturation and late-ACK diagnostics.
-- Cryptographic authentication/replay protection.
-- Power-cycle durability and hardware-in-the-loop RF validation.
+Still required for full deployment readiness:
+- Collision-resistant device identity provisioning; current 16-bit device IDs remain a prototype limitation.
+- More rigorous late-ACK diagnostics and deterministic collision-free ACK slot allocation.
+- Cryptographic authentication/replay protection and optional reviewed encryption/key management.
+- EEPROM endurance validation for the boot epoch under the expected reboot rate.
+- SRAM/stack measurements and hardware-in-the-loop RF validation across at least three nodes.
+- Confirmation that RF settings and airtime comply with the applicable local rules.
 
 Keep this status section synchronized with firmware changes.
