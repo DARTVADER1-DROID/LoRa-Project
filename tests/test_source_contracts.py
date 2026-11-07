@@ -118,6 +118,7 @@ class CampusSourceContracts(unittest.TestCase):
 
     def test_rmp_v1_wire_envelope_and_persistent_transaction_identity(self):
         self.assertIn("#define PROTOCOL_VERSION                 1", MESSAGING)
+        self.assertIn("sizeof(RadioPacket) == 172", MESSAGING)
         self.assertIn("uint32_t senderBootId", MESSAGING)
         self.assertIn("uint32_t messageId", MESSAGING)
         self.assertIn("uint32_t ackForBootId", MESSAGING)
