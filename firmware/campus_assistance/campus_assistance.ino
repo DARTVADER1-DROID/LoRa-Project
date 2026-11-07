@@ -381,7 +381,7 @@ void serviceStation() {
     unsigned long held = millis() - buttonPressedAt;
     if (offlineRecoveryBlocked && held >= OFFLINE_RECOVERY_CONFIRM_MS) {
       offlineRecoveryBlocked=false; requestAssigned=false; assignmentConfirmed=false; assignedCartId=0;
-      assignmentGeneration++; claimantCount=0; claimWindowOpen=false; lastRequestTxAt=0;
+      assignmentGeneration++; claimantCount=0; claimWindowOpen=false; lastRequestTxAt=0; requestStartedAt=millis();
       Serial.println(F("[OPERATOR CONFIRMED] Old cart physically checked; request may be redispatched"));
     } else if (requestActive && held >= BUTTON_HOLD_CANCEL_MS) cancelRequest(PKT_STUDENT_CANCEL);
     else if (!requestActive && held < BUTTON_HOLD_CANCEL_MS) startRequest();
