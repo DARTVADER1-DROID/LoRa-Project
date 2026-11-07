@@ -59,7 +59,7 @@ A cart must not assume it owns a request merely because it transmitted a claim. 
 - Cart-originated cancellation and completion are retried as transactions. The station validates the currently assigned cart and exact request generation, commits the transition, and ACKs. It remembers the last terminal tuple so a duplicate retry after a lost ACK is ACKed again without reapplying the transition.
 - Cart request/cancellation ACK replies are scheduled with bounded non-blocking jitter. This reduces simultaneous response collisions but does not eliminate them. Acknowledgement confirms MCU packet processing only, not human awareness or physical stopping.
 - Carts keep a bounded recent-cancellation tombstone cache keyed by station, request and generation to prevent delayed broadcasts from resurrecting closed requests. Tombstones are finite and can be evicted; a power cycle clears volatile tombstones.
-- A cart that disappears while physically moving may still be moving. Heartbeat timeout now blocks automatic redispatch and marks the assignment uncertain. A matching heartbeat restores the same assignment; otherwise an operator must physically inspect the cart and hold the station button for five seconds to advance the generation and permit redispatch.
+- A cart that disappears while physically moving may still be moving. Heartbeat timeout now blocks automatic redispatch and marks the assignment uncertain. A returning heartbeat updates liveness but does not clear the safety lock; an operator must physically inspect the cart and hold the station button for five seconds to advance the generation and permit redispatch.
 - Timeouts need tuning against actual spreading factor, bandwidth, coding rate, airtime, campus range and regulatory duty-cycle.
 
 
