@@ -135,6 +135,8 @@ class CampusSourceContracts(unittest.TestCase):
     def test_rmp_queue_and_peer_overflow_are_diagnostic(self):
         self.assertIn("[ACK QUEUE FULL]", MESSAGING)
         self.assertIn("[PEER TABLE FULL]", MESSAGING)
+        self.assertIn("[ACK IGNORED]", MESSAGING)
+        self.assertIn("ignoredAckCount", MESSAGING)
         self.assertIn("New peer not recorded", MESSAGING)
 
     def test_acknowledgement_is_bound_to_original_sender(self):
