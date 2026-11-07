@@ -31,6 +31,8 @@
 #define ACK_TX_RETRY_DELAY_MS         250UL
 #define ACK_MAX_TX_ATTEMPTS              4
 #define HELLO_INTERVAL_MS           20000UL
+#define HELLO_DISCOVERY_INTERVAL_MS  3000UL
+#define HELLO_JITTER_MS              1000UL
 #define PEER_TIMEOUT_MS             90000UL
 #define MAX_PEERS                        8
 #define ACK_QUEUE_SIZE                   4
@@ -91,6 +93,7 @@ struct PendingTx {
   bool active;
 } pendingTx;
 unsigned long lastHelloAt = 0;
+unsigned long nextHelloAt = 0;
 struct SeenMessage { uint16_t senderId; uint32_t senderBootId; uint32_t messageId; bool used; };
 SeenMessage seenMessages[SEEN_CACHE_SIZE];
 uint8_t seenNext = 0;
@@ -154,6 +157,7 @@ int findPeer(uint16_t id) {
 
 bool updatePeer(uint16_t id, uint32_t peerBootId, const char *name) {
   int slot = findPeer(id);
+  bool newlyDiscovered = (slot < 0);
   if (slot < 0) {
     for (uint8_t i = 0; i < MAX_PEERS; ++i) {
       if (!peers[i].used || millis() - peers[i].lastSeen > PEER_TIMEOUT_MS) {
@@ -181,6 +185,13 @@ bool updatePeer(uint16_t id, uint32_t peerBootId, const char *name) {
   copyText(peers[slot].name, sizeof(peers[slot].name), name);
   peers[slot].lastSeen = millis();
   peers[slot].used = true;
+  if (newlyDiscovered) {
+    Serial.print(F("[PEER DISCOVERED] Device "));
+    Serial.print(id);
+    Serial.print(F(" ("));
+    Serial.print(name);
+    Serial.println(F(")"));
+  }
   return true;
 }
 
@@ -374,11 +385,18 @@ void serviceIncoming(bool acknowledgeText) {
   }
 }
 
+uint8_t activePeerCount();
+
 void sendHello() {
   RadioPacket hello;
   initPacket(hello, PKT_HELLO);
-  transmitPacket(hello);
+  bool sent = transmitPacket(hello);
   lastHelloAt = millis();
+  unsigned long interval = activePeerCount() == 0 ?
+      HELLO_DISCOVERY_INTERVAL_MS : HELLO_INTERVAL_MS;
+  // Jitter prevents two boards booted together from colliding on every HELLO.
+  nextHelloAt = lastHelloAt + interval + (unsigned long)random(0, HELLO_JITTER_MS + 1UL);
+  Serial.println(sent ? F("[HELLO TX] Broadcast sent") : F("[HELLO TX ERROR] Broadcast failed"));
 }
 
 
@@ -525,7 +543,7 @@ void setup() {
 }
 
 void loop() {
-  if (millis() - lastHelloAt >= HELLO_INTERVAL_MS) sendHello();
+  if ((long)(millis() - nextHelloAt) >= 0) sendHello();
 
   // Service a single incoming packet when not waiting for ACKs.
   serviceIncoming(true);
