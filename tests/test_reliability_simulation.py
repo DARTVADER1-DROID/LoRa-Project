@@ -206,6 +206,44 @@ class OfflineGuard:
             self.redispatches += 1
 
 
+
+
+class PeerDirectory:
+    def __init__(self, timeout=90):
+        self.timeout = timeout
+        self.peers = {}
+
+    def hello(self, device_id, boot_id, now):
+        self.peers[device_id] = (boot_id, now)
+
+    def snapshot(self, now):
+        return {device_id: boot for device_id, (boot, seen) in self.peers.items()
+                if now - seen <= self.timeout}
+
+
+class SerialLineParser:
+    def __init__(self, limit=128):
+        self.limit = limit
+        self.buffer = []
+        self.discard = False
+
+    def feed(self, data):
+        completed = []
+        for char in data:
+            if char == "\\n":
+                if not self.discard:
+                    completed.append("".join(self.buffer))
+                self.buffer = []
+                self.discard = False
+            elif not self.discard:
+                if len(self.buffer) < self.limit:
+                    self.buffer.append(char)
+                else:
+                    self.buffer = []
+                    self.discard = True
+        return completed
+
+
 class ReliabilitySimulationTests(unittest.TestCase):
     def test_generation_wrap_forward(self):
         self.assertTrue(generation_newer(0, 255))
@@ -294,6 +332,56 @@ class ReliabilitySimulationTests(unittest.TestCase):
         s = MessageSender(1, 99, 5, [2])
         self.assertFalse(s.ack(3, 1, 99, 5))
         self.assertEqual(s.expected, frozenset({2}))
+
+    def test_peer_snapshot_counts_only_live_peers(self):
+        directory = PeerDirectory(timeout=90)
+        directory.hello(2, 10, 0)
+        directory.hello(3, 20, 0)
+        directory.hello(4, 30, 0)
+        self.assertEqual(directory.snapshot(91), {})
+
+    def test_peer_snapshot_keeps_live_peers_and_boot_sessions(self):
+        directory = PeerDirectory(timeout=90)
+        directory.hello(2, 10, 0)
+        directory.hello(3, 20, 50)
+        self.assertEqual(directory.snapshot(60), {2: 10, 3: 20})
+
+    def test_rebooted_expected_peer_ack_is_not_accepted(self):
+        s = MessageSender(1, 99, 5, [(2, 10)])
+        self.assertFalse(s.ack((2, 11), 1, 99, 5))
+        self.assertEqual(s.confirmed, set())
+
+    def test_ack_from_expected_peer_boot_session_is_accepted_once(self):
+        s = MessageSender(1, 99, 5, [(2, 10)])
+        self.assertTrue(s.ack((2, 10), 1, 99, 5))
+        self.assertEqual(s.confirmed, {(2, 10)})
+
+    def test_ack_queue_overflow_does_not_claim_delivery(self):
+        capacity = 4
+        queued = []
+        for message_id in range(5):
+            if len(queued) < capacity:
+                queued.append(message_id)
+        self.assertEqual(len(queued), capacity)
+        self.assertNotIn(4, queued)
+
+    def test_serial_parser_accepts_exactly_128_bytes(self):
+        parser = SerialLineParser()
+        payload = "x" * 128
+        self.assertEqual(parser.feed(payload + "\\n"), [payload])
+
+    def test_serial_parser_discards_entire_oversized_line(self):
+        parser = SerialLineParser()
+        self.assertEqual(parser.feed(("x" * 129) + "\\n"), [])
+
+    def test_serial_parser_recovers_after_oversized_line(self):
+        parser = SerialLineParser()
+        result = parser.feed(("x" * 129) + "\\nOK\\n")
+        self.assertEqual(result, ["OK"])
+
+    def test_serial_parser_handles_multiple_lines_in_one_read(self):
+        parser = SerialLineParser()
+        self.assertEqual(parser.feed("one\\ntwo\\n"), ["one", "two"])
 
     def test_retry_budget_is_bounded(self):
         s = MessageSender(1, 99, 5, [2], max_retries=3)
