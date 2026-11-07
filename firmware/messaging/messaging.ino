@@ -343,7 +343,7 @@ void loop() {
       }
       inputLength = 0;
       discardUntilNewline = false;
-    } else if (!discardUntilNewline && inputLength < sizeof(input) - 1) {
+    } else if (!discardUntilNewline && inputLength < MAX_MESSAGE_CHARS) {
       input[inputLength++] = c;
     } else if (!discardUntilNewline) {
       inputLength = 0;
