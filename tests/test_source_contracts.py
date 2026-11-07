@@ -102,6 +102,7 @@ class CampusSourceContracts(unittest.TestCase):
         self.assertIn("OFFLINE_RECOVERY_CONFIRM_MS", CAMPUS)
         self.assertIn("offlineRecoveryBlocked", CAMPUS)
         self.assertIn("[OFFLINE UNCERTAIN]", CAMPUS)
+        self.assertIn("[HEARTBEAT RETURNED] Safety lock remains", CAMPUS)
         self.assertIn("[OPERATOR CONFIRMED]", CAMPUS)
         self.assertIn("claimRetryDelayMs", CAMPUS)
         self.assertIn("scheduleCartReply(ack)", CAMPUS)
