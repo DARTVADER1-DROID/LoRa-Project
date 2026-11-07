@@ -158,6 +158,7 @@ bool assignmentActive = false;
 PendingRequest activeRequest;
 bool claimRequested = false;
 unsigned long lastClaimAt = 0;
+unsigned long claimRetryDelayMs = CLAIM_RETRY_INTERVAL_MS;
 unsigned long lastHeartbeatAt = 0;
 unsigned long cancelPressedAt = 0;
 bool cancelWasDown = false;
@@ -616,6 +617,7 @@ void claimNextRequest() {
   sendPacket(claim);
   claimRequested = true;
   lastClaimAt = millis();
+  claimRetryDelayMs = CLAIM_RETRY_INTERVAL_MS + (unsigned long)random(0,1000);
   Serial.print(F("[CLAIM] ")); Serial.println(item.location);
   // Wait for station's explicit ASSIGN; do not mark active on claim alone.
 }
@@ -690,7 +692,7 @@ void serviceCart() {
   completeWasDown = completeDown;
 
   if (claimRequested && !assignmentActive && queueCount > 0 &&
-      millis() - lastClaimAt >= CLAIM_RETRY_INTERVAL_MS) claimNextRequest();
+      millis() - lastClaimAt >= claimRetryDelayMs) claimNextRequest();
 
   if (millis() - lastHeartbeatAt >= CART_HEARTBEAT_INTERVAL_MS) {
     CampusPacket heartbeat;
