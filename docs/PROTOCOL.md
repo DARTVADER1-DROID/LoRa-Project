@@ -18,10 +18,11 @@ Both firmware applications use LoRa point-to-multipoint broadcasts on a configur
 - One common broadcast group.
 - Text payload limit: 128 bytes in the initial ASCII-oriented implementation. Multi-byte UTF-8 text consumes multiple bytes; a later iteration should make that explicit in UI validation.
 - Device HELLO packets maintain a local, temporary peer table.
-- Each valid new text message is acknowledged automatically. ACKs carry the original sender ID as well as message ID, preventing unrelated senders' same-numbered messages from satisfying delivery.
-- Receivers suppress duplicate display using a bounded sender + message ID cache while still acknowledging retries.
-- Sender collects acknowledging device IDs for a bounded window and retries up to the configured limit.
-- Peer tables expire after a configurable heartbeat timeout.
+- Each valid new text message is acknowledged automatically. ACKs correlate original sender ID, sender boot nonce, and message ID; receiver identity is independently checked against the sender's live-peer snapshot.
+- Receivers suppress duplicate display using a bounded `(sender ID, sender boot nonce, message ID)` cache while still acknowledging retries. Cache eviction means duplicate suppression is a finite window, not permanent history.
+- Sender snapshots expected live peers at message start, counts each peer once, retries the same transaction with bounded non-blocking timers, and reports confirmed count versus the snapshot. An empty peer snapshot gets one best-effort broadcast and is explicitly reported as `NO_KNOWN_RECIPIENTS`.
+- Incoming messages continue to be serviced while the sender awaits ACKs. Receiver ACKs use a bounded non-blocking jitter queue; a full queue relies on sender retransmission to recover.
+- Peer tables expire after a configurable heartbeat timeout. The boot nonce is a short random session discriminator, not cryptographic authentication.
 - No encryption or message history in this prototype.
 
 ## Campus assistance firmware
@@ -38,9 +39,9 @@ Alternative transitions:
 - `PENDING -> EXPIRED`
 - `ASSIGNED -> CART_OFFLINE` then return to `PENDING` for reassignment
 
-A cart's claim is provisional. It is not assigned until it receives an explicit station `ASSIGN` confirmation. A station accepts only one claim for a request. Claims carry the station ID, request ID, cart ID and assignment generation. Stale claims/assignments from an earlier generation are ignored.
+A cart's claim is provisional. The station collects unique claimants for a bounded window and selects one deterministically using rotating cart-ID order to reduce repeated priority for the same cart. Claim storage is bounded. The selected cart is not assigned until it accepts the explicit station `ASSIGN` and returns a matching `ASSIGN_ACK`. Duplicate assignments are ACKed idempotently; stale generations and mismatched station/cart identities are rejected.
 
-A cart must not assume it owns a request merely because it transmitted a claim. Likewise, a station must not tell a student that help is assigned until it has confirmed assignment.
+A cart must not assume it owns a request merely because it transmitted a claim. Likewise, a station must not show confirmed assignment until it has received the matching cart MCU acknowledgement.
 
 ## Campus queue
 
@@ -54,7 +55,18 @@ A cart must not assume it owns a request merely because it transmitted a claim. 
 
 - A station can only arbitrate claims for requests it originated; multi-station state reconciliation needs field testing.
 - LoRa is half-duplex and broadcast packets/ACKs can collide. Random backoff is not a guarantee.
-- Cancellation broadcasts are retried a bounded number of times until a cart MCU acknowledges; the station reports an unconfirmed cancellation if no acknowledgement arrives. Acknowledgement confirms MCU packet processing only, not human awareness.
+- Student cancellation is locally terminal at the station and retried with a bounded policy. A targeted assigned-cart cancellation requires that cart's MCU ACK; a pending broadcast cancellation can only confirm the carts that actually ACK, not prove every cart cleared its queue.
+- Cart-originated cancellation and completion are retried as transactions. The station validates the currently assigned cart and exact request generation, commits the transition, and ACKs. It remembers the last terminal tuple so a duplicate retry after a lost ACK is ACKed again without reapplying the transition.
+- Cart request/cancellation ACK replies are scheduled with bounded non-blocking jitter. This reduces simultaneous response collisions but does not eliminate them. Acknowledgement confirms MCU packet processing only, not human awareness or physical stopping.
 - Carts keep a bounded recent-cancellation tombstone cache keyed by station, request and generation to prevent delayed broadcasts from resurrecting closed requests. Tombstones are finite and can be evicted; a power cycle clears volatile tombstones.
 - A cart that disappears while physically moving may still be moving; reassignment requires operator warning and an explicit revoked-generation check.
 - Timeouts need tuning against actual spreading factor, bandwidth, coding rate, airtime, campus range and regulatory duty-cycle.
+
+
+## Reliability implementation notes
+
+- Messaging and cart reply delays use millis()-driven queues; the main loop does not block waiting for ACK windows or randomized ACK delays. The LoRa library's packet transmission call itself remains synchronous in this prototype.
+- Messaging expected-recipient accounting is a snapshot. A peer joining after transmission begins is not silently added to the delivery contract.
+- Cart cancellation/completion ACK retries are idempotent. The station retains only the most recent terminal tuple in RAM; this does not survive station reboot and is not a substitute for durable transaction storage.
+- Cart claim arbitration uses a bounded claimant array and a rotating cart-ID winner. More claimants than the configured bound cannot be represented in one claim window.
+- These reliability additions have host-side reference-model fault-injection tests and source-contract checks. Hardware radio collision, range, timing, reboot and power-loss behavior still require physical tests.
