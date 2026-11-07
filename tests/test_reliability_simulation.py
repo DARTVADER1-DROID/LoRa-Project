@@ -230,7 +230,7 @@ class SerialLineParser:
     def feed(self, data):
         completed = []
         for char in data:
-            if char == "\\n":
+            if char == "\n":
                 if not self.discard:
                     completed.append("".join(self.buffer))
                 self.buffer = []
@@ -368,11 +368,11 @@ class ReliabilitySimulationTests(unittest.TestCase):
     def test_serial_parser_accepts_exactly_128_bytes(self):
         parser = SerialLineParser()
         payload = "x" * 128
-        self.assertEqual(parser.feed(payload + "\\n"), [payload])
+        self.assertEqual(parser.feed(payload + "\n"), [payload])
 
     def test_serial_parser_discards_entire_oversized_line(self):
         parser = SerialLineParser()
-        self.assertEqual(parser.feed(("x" * 129) + "\\n"), [])
+        self.assertEqual(parser.feed(("x" * 129) + "\n"), [])
 
     def test_serial_parser_recovers_after_oversized_line(self):
         parser = SerialLineParser()
