@@ -106,10 +106,11 @@ void initPacket(RadioPacket &p, PacketType type) {
   copyText(p.userName, sizeof(p.userName), USER_NAME);
 }
 
-void transmitPacket(const RadioPacket &p) {
-  LoRa.beginPacket();
-  LoRa.write((const uint8_t *)&p, sizeof(p));
-  LoRa.endPacket();
+bool transmitPacket(const RadioPacket &p) {
+  if (!LoRa.beginPacket()) return false;
+  size_t written = LoRa.write((const uint8_t *)&p, sizeof(p));
+  if (written != sizeof(p)) { LoRa.endPacket(); return false; }
+  return LoRa.endPacket() == 1;
 }
 
 int findPeer(uint16_t id) {
@@ -174,8 +175,12 @@ void serviceAckQueue() {
     ack.messageId=item.messageId;
     ack.ackForSenderId=item.targetId;
     ack.ackForBootId=item.targetBootId;
-    transmitPacket(ack);
-    item.used=false;
+    if (transmitPacket(ack)) {
+      item.used=false;
+    } else {
+      item.dueAt=millis()+ACK_JITTER_MIN_MS;
+      Serial.println(F("[ACK TX ERROR] Retaining ACK for retry"));
+    }
     return;
   }
 }
@@ -291,8 +296,9 @@ void servicePendingTx() {
     Serial.print(F(" of ")); Serial.println(pendingTx.expectedCount);
     pendingTx.active=false; return;
   }
-  transmitPacket(pendingTx.packet);
+  bool txOk=transmitPacket(pendingTx.packet);
   pendingTx.attempts++;
+  if (!txOk) Serial.println(F("[TX RADIO ERROR] Attempt will be retried"));
   pendingTx.deadline=millis()+ACK_TIMEOUT_MS;
   pendingTx.nextTxAt=pendingTx.deadline+(unsigned long)random(100,RETRY_BACKOFF_MS+1);
   Serial.print(F("[TX] Attempt ")); Serial.println(pendingTx.attempts);
@@ -318,6 +324,7 @@ void setup() {
     while (true) delay(1000);
   }
   LoRa.enableCrc();
+  static_assert(sizeof(RadioPacket) <= 255, "LoRa packet exceeds PHY payload limit");
   sendHello();
   Serial.println(F("Type a message (max 128 bytes), then press Enter."));
 }
