@@ -140,11 +140,11 @@ class CampusSourceContracts(unittest.TestCase):
         self.assertIn("New peer not recorded", MESSAGING)
 
     def test_acknowledgement_is_bound_to_original_sender(self):
-        self.assertIn("ack.ackForSenderId=item.targetId", MESSAGING)
-        self.assertIn("ack.ackForBootId=item.targetBootId", MESSAGING)
+        self.assertIn("ack.ackForSenderId = item.targetId", MESSAGING)
+        self.assertIn("ack.ackForBootId = item.targetBootId", MESSAGING)
         self.assertIn("rxPacket.ackForBootId == bootId", MESSAGING)
         self.assertIn("expectedBootIds[MAX_PEERS]", MESSAGING)
-        self.assertIn("pendingTx.expectedBootIds[i]==rxPacket.senderBootId", MESSAGING)
+        self.assertIn("pendingTx.expectedBootIds[i] == rxPacket.senderBootId", MESSAGING)
         self.assertIn("servicePendingTx()", MESSAGING)
         self.assertNotIn("collectAcks(", MESSAGING)
         self.assertNotIn("delay((unsigned long)random", MESSAGING)
