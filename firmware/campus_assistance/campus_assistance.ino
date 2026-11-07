@@ -460,11 +460,40 @@ void rememberTombstone(uint16_t stationId, uint16_t requestId, uint8_t generatio
   tombstoneNext=(uint8_t)((tombstoneNext+1)%TOMBSTONE_CAPACITY);
 }
 
+struct PendingReply { CampusPacket packet; unsigned long dueAt; bool used; };
+#define REPLY_QUEUE_SIZE 4
+PendingReply replyQueue[REPLY_QUEUE_SIZE];
+uint8_t replyQueueNext=0;
+
+void scheduleCartReply(const CampusPacket &reply) {
+  for(uint8_t n=0;n<REPLY_QUEUE_SIZE;n++) {
+    uint8_t slot=(uint8_t)((replyQueueNext+n)%REPLY_QUEUE_SIZE);
+    if(!replyQueue[slot].used) {
+      replyQueue[slot].packet=reply;
+      replyQueue[slot].dueAt=millis()+(unsigned long)random(60,650);
+      replyQueue[slot].used=true;
+      replyQueueNext=(uint8_t)((slot+1)%REPLY_QUEUE_SIZE);
+      return;
+    }
+  }
+  Serial.println(F("[REPLY BUSY] Reply queue full; sender retry can recover"));
+}
+
+void serviceCartReplies() {
+  for(uint8_t i=0;i<REPLY_QUEUE_SIZE;i++) {
+    PendingReply &reply=replyQueue[i];
+    if(!reply.used || (long)(millis()-reply.dueAt)<0) continue;
+    sendPacket(reply.packet);
+    reply.used=false;
+    return;
+  }
+}
+
 void sendCancelAck(const CampusPacket &p) {
   CampusPacket ack; initPacket(ack, PKT_CANCEL_ACK);
   ack.stationId=p.stationId; ack.requestId=p.requestId; ack.generation=p.generation;
   ack.cartId=DEVICE_ID;
-  sendPacket(ack);
+  scheduleCartReply(ack);
 }
 
 int findQueued(uint16_t stationId, uint16_t requestId) {
@@ -479,7 +508,7 @@ void sendRequestAck(const CampusPacket &p) {
   initPacket(ack, PKT_REQUEST_ACK);
   ack.stationId = p.stationId; ack.requestId = p.requestId;
   ack.generation = p.generation;
-  sendPacket(ack);
+  scheduleCartReply(ack);
 }
 
 void enqueueRequest(const CampusPacket &p) {
@@ -507,7 +536,7 @@ void enqueueRequest(const CampusPacket &p) {
     CampusPacket full;
     initPacket(full, PKT_QUEUE_FULL);
     full.stationId = p.stationId; full.requestId = p.requestId; full.generation = p.generation;
-    sendPacket(full);
+    scheduleCartReply(full);
     tone(CART_BUZZER_PIN, 500, 700);
     return;
   }
@@ -618,6 +647,8 @@ void serviceCart() {
     } else handleCartPacket(rxPacket);
   }
 
+  serviceCartReplies();
+
   if (terminalPending && millis()-lastTerminalTxAt>=TERMINAL_RETRY_INTERVAL_MS) {
     if (terminalAttempts<TERMINAL_MAX_RETRIES) { sendPacket(terminalPacket); terminalAttempts++; lastTerminalTxAt=millis(); }
     else { terminalPending=false; Serial.println(F("[TERMINAL UNCONFIRMED] Local cart action retained; station status may be stale")); }
@@ -705,6 +736,7 @@ void setup() {
   pinMode(CART_BUZZER_PIN, OUTPUT);
   memset(queueItems, 0, sizeof(queueItems));
   memset(tombstones, 0, sizeof(tombstones));
+  memset(replyQueue,0,sizeof(replyQueue));
   Wire.begin();
   lcd.init();
   lcd.backlight();
