@@ -46,6 +46,29 @@ class MessagingSourceContracts(unittest.TestCase):
         self.assertIn("wasMessageSeen(rxPacket.senderId, rxPacket.senderBootId, rxPacket.messageId)", MESSAGING)
         self.assertIn("ackForSenderId == deviceId", MESSAGING)
 
+    def test_ack_diagnostics_cover_queue_tx_rx_and_validation(self):
+        self.assertIn("[ACK QUEUED]", MESSAGING)
+        self.assertIn("[ACK SENT]", MESSAGING)
+        self.assertIn("[ACK RX]", MESSAGING)
+        self.assertIn("[ACK ACCEPTED]", MESSAGING)
+        self.assertIn("[ACK IGNORED]", MESSAGING)
+        self.assertIn("[ACK DROPPED]", MESSAGING)
+
+    def test_ack_timing_has_turnaround_airtime_margin_and_bounded_retry(self):
+        self.assertIn("#define ACK_TIMEOUT_MS               4200UL", MESSAGING)
+        self.assertIn("#define ACK_MIN_TURNAROUND_MS          50UL", MESSAGING)
+        self.assertIn("#define ACK_SLOT_MS                   450UL", MESSAGING)
+        self.assertIn("#define ACK_SLOT_JITTER_MS             50UL", MESSAGING)
+        self.assertIn("#define ACK_TX_RETRY_DELAY_MS         250UL", MESSAGING)
+        self.assertIn("#define ACK_MAX_TX_ATTEMPTS              4", MESSAGING)
+        self.assertIn("#define MAX_TRANSACTION_LIFETIME_MS 22000UL", MESSAGING)
+
+    def test_modem_profile_is_explicit_and_consistent(self):
+        self.assertIn("LoRa.setSpreadingFactor(7)", MESSAGING)
+        self.assertIn("LoRa.setSignalBandwidth(125E3)", MESSAGING)
+        self.assertIn("LoRa.setCodingRate4(5)", MESSAGING)
+        self.assertIn("LoRa.setPreambleLength(8)", MESSAGING)
+
 
 class CampusSourceContracts(unittest.TestCase):
     def test_station_and_cart_roles_are_selectable(self):
