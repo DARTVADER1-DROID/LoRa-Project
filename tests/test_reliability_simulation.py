@@ -376,12 +376,12 @@ class ReliabilitySimulationTests(unittest.TestCase):
 
     def test_serial_parser_recovers_after_oversized_line(self):
         parser = SerialLineParser()
-        result = parser.feed(("x" * 129) + "\\nOK\\n")
+        result = parser.feed(("x" * 129) + "\nOK\n")
         self.assertEqual(result, ["OK"])
 
     def test_serial_parser_handles_multiple_lines_in_one_read(self):
         parser = SerialLineParser()
-        self.assertEqual(parser.feed("one\\ntwo\\n"), ["one", "two"])
+        self.assertEqual(parser.feed("one\ntwo\n"), ["one", "two"])
 
     def test_retry_budget_is_bounded(self):
         s = MessageSender(1, 99, 5, [2], max_retries=3)
