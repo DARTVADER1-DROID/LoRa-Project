@@ -164,6 +164,10 @@ bool cancelWasDown = false;
 bool cancelHandled = false;
 bool acceptWasDown = false;
 bool completeWasDown = false;
+struct PendingReply { CampusPacket packet; unsigned long dueAt; bool used; };
+#define REPLY_QUEUE_SIZE 4
+PendingReply replyQueue[REPLY_QUEUE_SIZE];
+uint8_t replyQueueNext=0;
 CampusPacket terminalPacket;
 bool terminalPending = false;
 uint8_t terminalAttempts = 0;
@@ -460,273 +464,34 @@ void rememberTombstone(uint16_t stationId, uint16_t requestId, uint8_t generatio
   tombstoneNext=(uint8_t)((tombstoneNext+1)%TOMBSTONE_CAPACITY);
 }
 
+void scheduleCartReply(const CampusPacket &reply) {
+  for(uint8_t n=0;n<REPLY_QUEUE_SIZE;n++) {
+    uint8_t slot=(uint8_t)((replyQueueNext+n)%REPLY_QUEUE_SIZE);
+    if(!replyQueue[slot].used) {
+      replyQueue[slot].packet=reply;
+      replyQueue[slot].dueAt=millis()+(unsigned long)random(60,650);
+      replyQueue[slot].used=true;
+      replyQueueNext=(uint8_t)((slot+1)%REPLY_QUEUE_SIZE);
+      return;
+    }
+  }
+  Serial.println(F("[REPLY BUSY] Reply queue full; sender retry can recover"));
+}
+
+void serviceCartReplies() {
+  for(uint8_t i=0;i<REPLY_QUEUE_SIZE;i++) {
+    PendingReply &reply=replyQueue[i];
+    if(!reply.used || (long)(millis()-reply.dueAt)<0) continue;
+    sendPacket(reply.packet);
+    reply.used=false;
+    return;
+  }
+}
+
 void sendCancelAck(const CampusPacket &p) {
   CampusPacket ack; initPacket(ack, PKT_CANCEL_ACK);
   ack.stationId=p.stationId; ack.requestId=p.requestId; ack.generation=p.generation;
   ack.cartId=DEVICE_ID;
-  sendPacket(ack);
+  scheduleCartReply(ack);
 }
 
-int findQueued(uint16_t stationId, uint16_t requestId) {
-  for (uint8_t i = 0; i < queueCount; ++i)
-    if (queueItems[i].used && queueItems[i].stationId == stationId &&
-        queueItems[i].requestId == requestId) return i;
-  return -1;
-}
-
-void sendRequestAck(const CampusPacket &p) {
-  CampusPacket ack;
-  initPacket(ack, PKT_REQUEST_ACK);
-  ack.stationId = p.stationId; ack.requestId = p.requestId;
-  ack.generation = p.generation;
-  sendPacket(ack);
-}
-
-void enqueueRequest(const CampusPacket &p) {
-  if (isTombstoned(p.stationId,p.requestId,p.generation)) return;
-  if (assignmentActive && activeRequest.stationId == p.stationId &&
-      activeRequest.requestId == p.requestId) {
-    if (generationIsNewer(p.generation, activeRequest.generation)) {
-      assignmentActive = false;
-      activeRequest.used = false;
-      Serial.println(F("[REVOKED] Previous assignment generation superseded"));
-    } else if (p.generation == activeRequest.generation) {
-      sendRequestAck(p);
-      return;
-    } else return;
-  }
-  int existing = findQueued(p.stationId, p.requestId);
-  if (existing >= 0) {
-    if (generationIsNewer(p.generation, queueItems[existing].generation)) queueItems[existing].generation = p.generation;
-    else if (p.generation != queueItems[existing].generation) return;
-    sendRequestAck(p);
-    return;
-  }
-  if (queueCount >= MAX_PENDING_REQUESTS) {
-    Serial.println(F("[QUEUE FULL] Request not added"));
-    CampusPacket full;
-    initPacket(full, PKT_QUEUE_FULL);
-    full.stationId = p.stationId; full.requestId = p.requestId; full.generation = p.generation;
-    sendPacket(full);
-    tone(CART_BUZZER_PIN, 500, 700);
-    return;
-  }
-  PendingRequest &item = queueItems[queueCount++];
-  item.stationId = p.stationId;
-  item.requestId = p.requestId;
-  item.generation = p.generation;
-  copyField(item.location, sizeof(item.location), p.location);
-  item.used = true;
-  sendRequestAck(p);
-  tone(CART_BUZZER_PIN, 1200, 100);
-  Serial.print(F("[NEW REQUEST] ")); Serial.println(item.location);
-}
-
-void removeQueued(uint16_t stationId, uint16_t requestId) {
-  int index = findQueued(stationId, requestId);
-  if (index < 0) return;
-  for (uint8_t i = index; i + 1 < queueCount; ++i) queueItems[i] = queueItems[i + 1];
-  if (queueCount) queueCount--;
-  if (queueCount < MAX_PENDING_REQUESTS) queueItems[queueCount].used = false;
-}
-
-void removeQueuedGeneration(uint16_t stationId, uint16_t requestId, uint8_t generation) {
-  int index=findQueued(stationId,requestId);
-  if (index<0 || queueItems[index].generation!=generation) return;
-  removeQueued(stationId,requestId);
-}
-
-void handleCartPacket(const CampusPacket &p) {
-  if (p.type == PKT_REQUEST && p.senderId==p.stationId) {
-    enqueueRequest(p);
-  } else if (p.type == PKT_ASSIGN && p.senderId==p.stationId && p.cartId == DEVICE_ID) {
-    if (assignmentActive && activeRequest.stationId == p.stationId &&
-        activeRequest.requestId == p.requestId && activeRequest.generation == p.generation) {
-      CampusPacket ack; initPacket(ack, PKT_ASSIGN_ACK);
-      ack.stationId = p.stationId; ack.requestId = p.requestId;
-      ack.cartId = DEVICE_ID; ack.generation = p.generation; sendPacket(ack);
-    } else if (!isTombstoned(p.stationId,p.requestId,p.generation) && findQueued(p.stationId, p.requestId) >= 0 && !assignmentActive &&
-               queueItems[findQueued(p.stationId, p.requestId)].generation == p.generation) {
-      activeRequest.stationId = p.stationId;
-      activeRequest.requestId = p.requestId;
-      activeRequest.generation = p.generation;
-      copyField(activeRequest.location, sizeof(activeRequest.location), p.location);
-      activeRequest.used = true;
-      assignmentActive = true;
-      removeQueued(p.stationId, p.requestId);
-      claimRequested = false;
-      CampusPacket ack; initPacket(ack, PKT_ASSIGN_ACK);
-      ack.stationId = p.stationId; ack.requestId = p.requestId;
-      ack.cartId = DEVICE_ID; ack.generation = p.generation; sendPacket(ack);
-      Serial.print(F("[ASSIGNED] Proceed to ")); Serial.println(activeRequest.location);
-      tone(CART_BUZZER_PIN, 1400, 250);
-    }
-  } else if ((p.type == PKT_STUDENT_CANCEL || p.type == PKT_EXPIRE) && p.senderId == p.stationId) {
-    rememberTombstone(p.stationId,p.requestId,p.generation);
-    sendCancelAck(p);
-    removeQueuedGeneration(p.stationId, p.requestId, p.generation);
-    if (assignmentActive && activeRequest.stationId == p.stationId &&
-        activeRequest.requestId == p.requestId && activeRequest.generation == p.generation) {
-      assignmentActive = false;
-      activeRequest.used = false;
-      Serial.println(F("[NOTICE] Active request closed or cancelled"));
-      tone(CART_BUZZER_PIN, 600, 350);
-    }
-  }
-}
-
-void claimNextRequest() {
-  if (assignmentActive || terminalPending || queueCount == 0) return;
-  PendingRequest &item = queueItems[0];
-  CampusPacket claim;
-  initPacket(claim, PKT_CLAIM);
-  claim.stationId = item.stationId;
-  claim.requestId = item.requestId;
-  claim.generation = item.generation;
-  claim.cartId = DEVICE_ID;
-  sendPacket(claim);
-  claimRequested = true;
-  lastClaimAt = millis();
-  Serial.print(F("[CLAIM] ")); Serial.println(item.location);
-  // Wait for station's explicit ASSIGN; do not mark active on claim alone.
-}
-
-void updateCartLcd() {
-  lcd.clear();
-  if (assignmentActive) {
-    lcd.setCursor(0, 0); lcd.print(F("ASSIGNED: "));
-    lcd.print(activeRequest.location);
-    lcd.setCursor(0, 1); lcd.print(F("ID "));
-    lcd.print(activeRequest.stationId); lcd.print('-'); lcd.print(activeRequest.requestId);
-  } else if (queueCount > 0) {
-    lcd.setCursor(0, 0); lcd.print(F("NEXT: "));
-    lcd.print(queueItems[0].location);
-    lcd.setCursor(0, 1); lcd.print(F("WAITING: "));
-    lcd.print(queueCount); lcd.print(F("  ACCEPT"));
-  } else {
-    lcd.setCursor(0, 0); lcd.print(F("CAMPUS CART "));
-    lcd.print(DEVICE_ID);
-    lcd.setCursor(0, 1); lcd.print(F("NO REQUESTS"));
-  }
-}
-
-void serviceCart() {
-  if (receivePacket(rxPacket)) {
-    if (terminalPending && rxPacket.senderId==terminalPacket.stationId && rxPacket.stationId==terminalPacket.stationId && rxPacket.requestId==terminalPacket.requestId && rxPacket.generation==terminalPacket.generation &&
-        ((terminalPacket.type==PKT_CART_CANCEL && rxPacket.type==PKT_CART_CANCEL_ACK) || (terminalPacket.type==PKT_COMPLETE && rxPacket.type==PKT_COMPLETE_ACK))) {
-      terminalPending=false; Serial.println(F("[TERMINAL ACK] Station processed cart operation"));
-    } else handleCartPacket(rxPacket);
-  }
-
-  if (terminalPending && millis()-lastTerminalTxAt>=TERMINAL_RETRY_INTERVAL_MS) {
-    if (terminalAttempts<TERMINAL_MAX_RETRIES) { sendPacket(terminalPacket); terminalAttempts++; lastTerminalTxAt=millis(); }
-    else { terminalPending=false; Serial.println(F("[TERMINAL UNCONFIRMED] Local cart action retained; station status may be stale")); }
-  }
-
-  bool acceptDown = debouncedButtonState(CART_ACCEPT_PIN, 0);
-  if (acceptDown && !acceptWasDown) claimNextRequest();
-  acceptWasDown = acceptDown;
-
-  bool cancelDown = debouncedButtonState(CART_CANCEL_PIN, 1);
-  if (cancelDown && !cancelWasDown) {
-    cancelPressedAt = millis();
-    cancelHandled = false;
-  }
-  if (cancelDown && !cancelHandled && assignmentActive &&
-      millis() - cancelPressedAt >= BUTTON_HOLD_CANCEL_MS) {
-    initPacket(terminalPacket, PKT_CART_CANCEL);
-    terminalPacket.stationId=activeRequest.stationId; terminalPacket.requestId=activeRequest.requestId;
-    terminalPacket.cartId=DEVICE_ID; terminalPacket.generation=activeRequest.generation;
-    sendPacket(terminalPacket); terminalPending=true; terminalAttempts=1; lastTerminalTxAt=millis();
-    rememberTombstone(activeRequest.stationId,activeRequest.requestId,activeRequest.generation);
-    assignmentActive=false; activeRequest.used=false; cancelHandled=true;
-    Serial.println(F("[CANCEL PENDING] Waiting for station MCU acknowledgement"));
-    tone(CART_BUZZER_PIN, 600, 500);
-  }
-  cancelWasDown = cancelDown;
-
-  bool completeDown = debouncedButtonState(CART_COMPLETE_PIN, 2);
-  if (completeDown && !completeWasDown && assignmentActive) {
-    initPacket(terminalPacket, PKT_COMPLETE);
-    terminalPacket.stationId=activeRequest.stationId; terminalPacket.requestId=activeRequest.requestId;
-    terminalPacket.cartId=DEVICE_ID; terminalPacket.generation=activeRequest.generation;
-    sendPacket(terminalPacket); terminalPending=true; terminalAttempts=1; lastTerminalTxAt=millis();
-    rememberTombstone(activeRequest.stationId,activeRequest.requestId,activeRequest.generation);
-    assignmentActive=false; activeRequest.used=false;
-    Serial.println(F("[COMPLETE PENDING] Waiting for station MCU acknowledgement"));
-    tone(CART_BUZZER_PIN, 1500, 150);
-  }
-  completeWasDown = completeDown;
-
-  if (claimRequested && !assignmentActive && queueCount > 0 &&
-      millis() - lastClaimAt >= CLAIM_RETRY_INTERVAL_MS) claimNextRequest();
-
-  if (millis() - lastHeartbeatAt >= CART_HEARTBEAT_INTERVAL_MS) {
-    CampusPacket heartbeat;
-    initPacket(heartbeat, PKT_HEARTBEAT);
-    heartbeat.cartId = DEVICE_ID;
-    if (assignmentActive) {
-      heartbeat.stationId = activeRequest.stationId;
-      heartbeat.requestId = activeRequest.requestId;
-      heartbeat.generation = activeRequest.generation;
-    }
-    sendPacket(heartbeat);
-    lastHeartbeatAt = millis();
-  }
-
-  static unsigned long lastLcdAt = 0;
-  if (millis() - lastLcdAt >= 500) {
-    updateCartLcd();
-    lastLcdAt = millis();
-  }
-  digitalWrite(CART_LED_PIN, assignmentActive ? HIGH : (queueCount ? (millis()/250)%2 : LOW));
-}
-#endif
-
-void setup() {
-  Serial.begin(9600);
-  randomSeed(analogRead(A0) ^ micros() ^ millis());
-#if DEVICE_ROLE == DEVICE_ROLE_STATION
-  pinMode(STATION_BUTTON_PIN, INPUT_PULLUP);
-  pinMode(STATION_LED_R_PIN, OUTPUT);
-  pinMode(STATION_LED_G_PIN, OUTPUT);
-  pinMode(STATION_LED_B_PIN, OUTPUT);
-  pinMode(STATION_BUZZER_PIN, OUTPUT);
-  EEPROM.get(0, nextRequestId);
-  if (nextRequestId == 0 || nextRequestId == 0xFFFF) nextRequestId = 1;
-  Serial.println(F("Campus assistance - STATION role"));
-  Serial.print(F("Station ID: ")); Serial.println(DEVICE_ID);
-  Serial.print(F("Location: ")); Serial.println(LOCATION_NAME);
-#elif DEVICE_ROLE == DEVICE_ROLE_CART
-  pinMode(CART_ACCEPT_PIN, INPUT_PULLUP);
-  pinMode(CART_CANCEL_PIN, INPUT_PULLUP);
-  pinMode(CART_COMPLETE_PIN, INPUT_PULLUP);
-  pinMode(CART_LED_PIN, OUTPUT);
-  pinMode(CART_BUZZER_PIN, OUTPUT);
-  memset(queueItems, 0, sizeof(queueItems));
-  memset(tombstones, 0, sizeof(tombstones));
-  Wire.begin();
-  lcd.init();
-  lcd.backlight();
-  Serial.println(F("Campus assistance - CART role"));
-  Serial.print(F("Cart ID: ")); Serial.println(DEVICE_ID);
-#else
-#error "DEVICE_ROLE must be DEVICE_ROLE_STATION or DEVICE_ROLE_CART"
-#endif
-
-  LoRa.setPins(LORA_NSS_PIN, LORA_RESET_PIN, LORA_DIO0_PIN);
-  if (!LoRa.begin(LORA_FREQUENCY_HZ)) {
-    Serial.println(F("[FATAL] LoRa init failed"));
-    while (true) delay(1000);
-  }
-  LoRa.enableCrc();
-  Serial.println(F("[RADIO] Ready"));
-}
-
-void loop() {
-#if DEVICE_ROLE == DEVICE_ROLE_STATION
-  serviceStation();
-#else
-  serviceCart();
-#endif
-}
