@@ -567,6 +567,7 @@ void serviceCart() {
     p.cartId = DEVICE_ID;
     p.generation = activeRequest.generation;
     sendPacket(p);
+    rememberTombstone(activeRequest.stationId,activeRequest.requestId,activeRequest.generation);
     assignmentActive = false;
     activeRequest.used = false;
     cancelHandled = true;
@@ -584,6 +585,7 @@ void serviceCart() {
     p.cartId = DEVICE_ID;
     p.generation = activeRequest.generation;
     sendPacket(p);
+    rememberTombstone(activeRequest.stationId,activeRequest.requestId,activeRequest.generation);
     assignmentActive = false;
     activeRequest.used = false;
     Serial.println(F("[COMPLETE] Journey marked complete"));
