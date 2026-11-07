@@ -19,34 +19,41 @@
 #define LORA_RESET_PIN            9
 #define LORA_DIO0_PIN             2
 
-#define MAX_MESSAGE_CHARS       128
-#define MAX_RETRIES               3
-#define ACK_TIMEOUT_MS         1800UL
-#define RETRY_BACKOFF_MS        350UL
-#define HELLO_INTERVAL_MS     20000UL
-#define PEER_TIMEOUT_MS       90000UL
-#define MAX_PEERS                  8
-#define ACK_QUEUE_SIZE              4
-#define ACK_JITTER_MIN_MS           40UL
-#define ACK_JITTER_MAX_MS          420UL
-#define EEPROM_MAGIC          0x4C52
+#define MAX_MESSAGE_CHARS             128
+#define MAX_RETRIES                     3
+#define ACK_TIMEOUT_MS               1800UL
+#define RETRY_BACKOFF_BASE_MS         150UL
+#define RETRY_BACKOFF_MAX_MS         1200UL
+#define MAX_TRANSACTION_LIFETIME_MS 10000UL
+#define ACK_SLOT_MS                   160UL
+#define ACK_SLOT_JITTER_MS             35UL
+#define HELLO_INTERVAL_MS           20000UL
+#define PEER_TIMEOUT_MS             90000UL
+#define MAX_PEERS                        8
+#define ACK_QUEUE_SIZE                   4
+#define SEEN_CACHE_SIZE                 12
+#define EEPROM_MAGIC                0x4C52
+#define PROTOCOL_VERSION                 1
 
 enum PacketType : uint8_t { PKT_HELLO = 1, PKT_TEXT = 2, PKT_ACK = 3 };
 
 struct __attribute__((packed)) RadioPacket {
   uint16_t magic;
+  uint8_t version;
   uint16_t networkId;
   uint8_t type;
   uint16_t senderId;
-  uint16_t messageId;
+  uint32_t senderBootId;
+  uint32_t messageId;
   uint16_t ackForSenderId;
-  uint16_t senderBootId;
-  uint16_t ackForBootId;
+  uint32_t ackForBootId;
+  uint32_t ackForMessageId;
+  uint8_t payloadLength;
   char userName[16];
   char text[MAX_MESSAGE_CHARS + 1];
 };
 
-struct PendingAck { uint16_t messageId; uint16_t targetId; uint16_t targetBootId; unsigned long dueAt; bool used; };
+struct PendingAck { uint32_t messageId; uint16_t targetId; uint32_t targetBootId; unsigned long dueAt; bool used; };
 struct Peer {
   uint16_t id;
   uint16_t bootId;
@@ -59,14 +66,28 @@ RadioPacket txPacket;
 RadioPacket rxPacket;
 Peer peers[MAX_PEERS];
 uint16_t deviceId = 0;
-uint16_t nextMessageId = 1;
-uint16_t bootId = 0;
+uint32_t nextMessageId = 1;
+uint32_t bootId = 0;
 PendingAck ackQueue[ACK_QUEUE_SIZE];
 uint8_t ackQueueNext = 0;
-struct PendingTx { RadioPacket packet; uint16_t expected[MAX_PEERS]; uint16_t expectedBootIds[MAX_PEERS]; uint16_t acknowledged[MAX_PEERS]; uint8_t expectedCount; uint8_t ackCount; uint8_t attempts; unsigned long deadline; unsigned long nextTxAt; bool active; } pendingTx;
+uint16_t ackQueueOverflowCount = 0;
+uint16_t peerTableFullCount = 0;
+unsigned long lastPeerFullDiagnosticAt = 0;
+struct PendingTx {
+  RadioPacket packet;
+  uint16_t expected[MAX_PEERS];
+  uint32_t expectedBootIds[MAX_PEERS];
+  uint16_t acknowledged[MAX_PEERS];
+  uint8_t expectedCount;
+  uint8_t ackCount;
+  uint8_t attempts;
+  unsigned long startedAt;
+  unsigned long deadline;
+  unsigned long nextTxAt;
+  bool active;
+} pendingTx;
 unsigned long lastHelloAt = 0;
-struct SeenMessage { uint16_t senderId; uint16_t senderBootId; uint16_t messageId; bool used; };
-#define SEEN_CACHE_SIZE 12
+struct SeenMessage { uint16_t senderId; uint32_t senderBootId; uint32_t messageId; bool used; };
 SeenMessage seenMessages[SEEN_CACHE_SIZE];
 uint8_t seenNext = 0;
 
@@ -89,16 +110,24 @@ void loadOrCreateDeviceId() {
   EEPROM.get(2, storedId);
   if (storedMagic == EEPROM_MAGIC && storedId != 0 && storedId != 0xFFFF) {
     deviceId = storedId;
-    return;
+  } else {
+    deviceId = makeCandidateId();
+    EEPROM.put(0, EEPROM_MAGIC);
+    EEPROM.put(2, deviceId);
   }
-  deviceId = makeCandidateId();
-  EEPROM.put(0, EEPROM_MAGIC);
-  EEPROM.put(2, deviceId);
+
+  // A wear-aware persistent boot epoch prevents message-ID reuse after reboot.
+  EEPROM.get(4, bootId);
+  if (bootId == 0 || bootId == 0xFFFFFFFFUL) bootId = 0;
+  bootId++;
+  if (bootId == 0) bootId = 1;
+  EEPROM.put(4, bootId);
 }
 
 void initPacket(RadioPacket &p, PacketType type) {
   memset(&p, 0, sizeof(p));
   p.magic = 0x4C52;
+  p.version = PROTOCOL_VERSION;
   p.networkId = NETWORK_ID;
   p.type = (uint8_t)type;
   p.senderId = deviceId;
@@ -119,7 +148,7 @@ int findPeer(uint16_t id) {
   return -1;
 }
 
-void updatePeer(uint16_t id, uint16_t peerBootId, const char *name) {
+bool updatePeer(uint16_t id, uint32_t peerBootId, const char *name) {
   int slot = findPeer(id);
   if (slot < 0) {
     for (uint8_t i = 0; i < MAX_PEERS; ++i) {
@@ -129,41 +158,64 @@ void updatePeer(uint16_t id, uint16_t peerBootId, const char *name) {
       }
     }
   }
-  if (slot < 0) return;
+  if (slot < 0) {
+    peerTableFullCount++;
+    if (millis() - lastPeerFullDiagnosticAt >= 10000UL) {
+      Serial.print(F("[PEER TABLE FULL] New peer not recorded; overflow count "));
+      Serial.println(peerTableFullCount);
+      lastPeerFullDiagnosticAt = millis();
+    }
+    return false;
+  }
+  if (peers[slot].used && peers[slot].bootId != peerBootId)
+    Serial.print(F("[PEER SESSION] Device reboot/session changed: "));
   peers[slot].id = id;
   peers[slot].bootId = peerBootId;
   copyText(peers[slot].name, sizeof(peers[slot].name), name);
   peers[slot].lastSeen = millis();
   peers[slot].used = true;
+  return true;
 }
 
-bool wasMessageSeen(uint16_t senderId, uint16_t senderBootId, uint16_t messageId) {
+bool wasMessageSeen(uint16_t senderId, uint32_t senderBootId, uint32_t messageId) {
   for (uint8_t i=0; i<SEEN_CACHE_SIZE; ++i)
     if (seenMessages[i].used && seenMessages[i].senderId==senderId &&
         seenMessages[i].senderBootId==senderBootId && seenMessages[i].messageId==messageId) return true;
   return false;
 }
 
-void rememberMessage(uint16_t senderId, uint16_t senderBootId, uint16_t messageId) {
+void rememberMessage(uint16_t senderId, uint32_t senderBootId, uint32_t messageId) {
   SeenMessage &entry=seenMessages[seenNext];
   entry.senderId=senderId; entry.senderBootId=senderBootId; entry.messageId=messageId; entry.used=true;
   seenNext=(uint8_t)((seenNext+1)%SEEN_CACHE_SIZE);
 }
 
 void scheduleAck(const RadioPacket &original) {
-  for (uint8_t n=0; n<ACK_QUEUE_SIZE; ++n) {
-    uint8_t slot=(uint8_t)((ackQueueNext+n)%ACK_QUEUE_SIZE);
+  // Coalesce duplicate DATA while an ACK for the same transaction is queued.
+  for (uint8_t i = 0; i < ACK_QUEUE_SIZE; ++i) {
+    if (ackQueue[i].used && ackQueue[i].messageId == original.messageId &&
+        ackQueue[i].targetId == original.senderId &&
+        ackQueue[i].targetBootId == original.senderBootId) return;
+  }
+  for (uint8_t n = 0; n < ACK_QUEUE_SIZE; ++n) {
+    uint8_t slot = (uint8_t)((ackQueueNext + n) % ACK_QUEUE_SIZE);
     if (!ackQueue[slot].used) {
-      ackQueue[slot].messageId=original.messageId;
-      ackQueue[slot].targetId=original.senderId;
-      ackQueue[slot].targetBootId=original.senderBootId;
-      ackQueue[slot].dueAt=millis()+(unsigned long)random(ACK_JITTER_MIN_MS, ACK_JITTER_MAX_MS+1);
-      ackQueue[slot].used=true;
-      ackQueueNext=(uint8_t)((slot+1)%ACK_QUEUE_SIZE);
+      ackQueue[slot].messageId = original.messageId;
+      ackQueue[slot].targetId = original.senderId;
+      ackQueue[slot].targetBootId = original.senderBootId;
+      uint32_t hash = original.messageId ^ ((uint32_t)original.senderId << 11) ^
+                      ((uint32_t)deviceId * 2654435761UL);
+      unsigned long ackSlot = (unsigned long)(hash % MAX_PEERS);
+      ackQueue[slot].dueAt = millis() + ackSlot * ACK_SLOT_MS +
+          (unsigned long)random(0, ACK_SLOT_JITTER_MS + 1UL);
+      ackQueue[slot].used = true;
+      ackQueueNext = (uint8_t)((slot + 1) % ACK_QUEUE_SIZE);
       return;
     }
   }
-  Serial.println(F("[ACK BUSY] ACK queue full; sender retry can recover"));
+  ackQueueOverflowCount++;
+  Serial.print(F("[ACK QUEUE FULL] DATA retry required; overflow count "));
+  Serial.println(ackQueueOverflowCount);
 }
 
 void serviceAckQueue() {
@@ -172,9 +224,10 @@ void serviceAckQueue() {
     if (!item.used || (long)(millis()-item.dueAt)<0) continue;
     RadioPacket ack;
     initPacket(ack, PKT_ACK);
-    ack.messageId=item.messageId;
-    ack.ackForSenderId=item.targetId;
-    ack.ackForBootId=item.targetBootId;
+    ack.messageId = 0;
+    ack.ackForSenderId = item.targetId;
+    ack.ackForBootId = item.targetBootId;
+    ack.ackForMessageId = item.messageId;
     if (transmitPacket(ack)) {
       item.used=false;
     } else {
@@ -195,15 +248,33 @@ bool readPacket(RadioPacket &p) {
   size_t i = 0;
   while (LoRa.available() && i < sizeof(RadioPacket)) dst[i++] = (uint8_t)LoRa.read();
   if (i != sizeof(RadioPacket)) return false;
-  p.userName[sizeof(p.userName)-1]='\0';
-  p.text[MAX_MESSAGE_CHARS]='\0';
-  if (p.magic != 0x4C52 || p.networkId != NETWORK_ID || p.senderId == 0) return false;
-  return p.type == PKT_HELLO || p.type == PKT_TEXT || p.type == PKT_ACK;
+
+  p.userName[sizeof(p.userName) - 1] = '\0';
+  p.text[MAX_MESSAGE_CHARS] = '\0';
+  if (p.magic != 0x4C52 || p.version != PROTOCOL_VERSION ||
+      p.networkId != NETWORK_ID || p.senderId == 0 || p.senderBootId == 0) return false;
+  if (p.type != PKT_HELLO && p.type != PKT_TEXT && p.type != PKT_ACK) return false;
+  if (!memchr(p.userName, '\0', sizeof(p.userName))) return false;
+
+  if (p.type == PKT_TEXT) {
+    if (p.payloadLength == 0 || p.payloadLength > MAX_MESSAGE_CHARS) return false;
+    if (p.text[p.payloadLength] != '\0') return false;
+    if (memchr(p.text, '\0', p.payloadLength) != NULL) return false;
+  } else if (p.payloadLength != 0) {
+    return false;
+  }
+  if (p.type == PKT_ACK &&
+      (p.ackForSenderId == 0 || p.ackForBootId == 0 || p.ackForMessageId == 0)) return false;
+  return true;
 }
 
 void serviceIncoming(bool acknowledgeText) {
   if (!readPacket(rxPacket)) return;
-  if (rxPacket.senderId == deviceId) return;
+  if (rxPacket.senderId == deviceId) {
+    if (rxPacket.senderBootId != bootId)
+      Serial.println(F("[IDENTITY COLLISION] Another device is using this device ID."));
+    return;
+  }
 
   if (rxPacket.type == PKT_HELLO) {
     updatePeer(rxPacket.senderId, rxPacket.senderBootId, rxPacket.userName);
@@ -227,7 +298,7 @@ void serviceIncoming(bool acknowledgeText) {
   }
 
   if (rxPacket.type == PKT_ACK && pendingTx.active &&
-      rxPacket.messageId == pendingTx.packet.messageId &&
+      rxPacket.ackForMessageId == pendingTx.packet.messageId &&
       rxPacket.ackForSenderId == deviceId && rxPacket.ackForBootId == bootId &&
       rxPacket.senderId != deviceId) {
     bool expected=false, known=false;
@@ -264,8 +335,10 @@ void startText(const char *text) {
   if (pendingTx.active) { Serial.println(F("[BUSY] Previous message still awaiting bounded delivery result.")); return; }
   memset(&pendingTx,0,sizeof(pendingTx));
   initPacket(pendingTx.packet,PKT_TEXT);
-  pendingTx.packet.messageId=nextMessageId++;
-  copyText(pendingTx.packet.text,sizeof(pendingTx.packet.text),text);
+  pendingTx.packet.messageId = nextMessageId++;
+  if (nextMessageId == 0) nextMessageId = 1;
+  pendingTx.packet.payloadLength = (uint8_t)length;
+  copyText(pendingTx.packet.text, sizeof(pendingTx.packet.text), text);
   for(uint8_t i=0;i<MAX_PEERS;i++) {
     if(peers[i].used && millis()-peers[i].lastSeen<=PEER_TIMEOUT_MS) {
       if (pendingTx.expectedCount >= MAX_PEERS) break;
@@ -274,34 +347,70 @@ void startText(const char *text) {
       pendingTx.expectedCount++;
     }
   }
-  pendingTx.active=true;
-  pendingTx.nextTxAt=millis();
+  pendingTx.active = true;
+  pendingTx.startedAt = millis();
+  pendingTx.nextTxAt = pendingTx.startedAt;
   Serial.print(F("[TX QUEUED] Message ID ")); Serial.println(pendingTx.packet.messageId);
   if (!pendingTx.expectedCount) Serial.println(F("[STATUS] No known peers; best-effort broadcast only."));
 }
 
+void finishPendingTx() {
+  if (pendingTx.expectedCount == 0) {
+    Serial.println(F("[STATUS] NO_KNOWN_RECIPIENTS; one best-effort broadcast sent"));
+  } else if (pendingTx.ackCount == pendingTx.expectedCount) {
+    Serial.print(F("[STATUS] CONFIRMED_TO_")); Serial.println(pendingTx.ackCount);
+  } else if (pendingTx.ackCount > 0) {
+    Serial.print(F("[STATUS] PARTIALLY_CONFIRMED; confirmed "));
+    Serial.print(pendingTx.ackCount); Serial.print(F(" of "));
+    Serial.println(pendingTx.expectedCount);
+  } else {
+    Serial.print(F("[STATUS] UNCONFIRMED; confirmed 0 of "));
+    Serial.println(pendingTx.expectedCount);
+  }
+  pendingTx.active = false;
+}
+
 void servicePendingTx() {
   if (!pendingTx.active) return;
-  if (pendingTx.ackCount>=pendingTx.expectedCount && pendingTx.expectedCount>0) {
-    Serial.print(F("[STATUS] CONFIRMED_TO_")); Serial.println(pendingTx.ackCount);
-    pendingTx.active=false; return;
+
+  if (pendingTx.expectedCount > 0 && pendingTx.ackCount == pendingTx.expectedCount) {
+    finishPendingTx();
+    return;
   }
-  if ((long)(millis()-pendingTx.nextTxAt)<0) return;
-  if (pendingTx.expectedCount==0 && pendingTx.attempts>0) {
-    Serial.println(F("[STATUS] NO_KNOWN_RECIPIENTS; one best-effort broadcast sent"));
-    pendingTx.active=false; return;
+
+  unsigned long now = millis();
+  if (now - pendingTx.startedAt >= MAX_TRANSACTION_LIFETIME_MS) {
+    Serial.println(F("[TX LIFETIME] Maximum transaction lifetime reached."));
+    finishPendingTx();
+    return;
   }
-  if (pendingTx.attempts>MAX_RETRIES) {
-    Serial.print(F("[STATUS] EXPIRED; confirmed ")); Serial.print(pendingTx.ackCount);
-    Serial.print(F(" of ")); Serial.println(pendingTx.expectedCount);
-    pendingTx.active=false; return;
+  if ((long)(now - pendingTx.nextTxAt) < 0) return;
+
+  if (pendingTx.expectedCount == 0 && pendingTx.attempts > 0) {
+    finishPendingTx();
+    return;
   }
-  bool txOk=transmitPacket(pendingTx.packet);
+  if (pendingTx.attempts >= (uint8_t)(MAX_RETRIES + 1)) {
+    finishPendingTx();
+    return;
+  }
+
+  bool txOk = transmitPacket(pendingTx.packet);
   pendingTx.attempts++;
   if (!txOk) Serial.println(F("[TX RADIO ERROR] Attempt will be retried"));
-  pendingTx.deadline=millis()+ACK_TIMEOUT_MS;
-  pendingTx.nextTxAt=pendingTx.deadline+(unsigned long)random(100,RETRY_BACKOFF_MS+1);
-  Serial.print(F("[TX] Attempt ")); Serial.println(pendingTx.attempts);
+
+  pendingTx.deadline = millis() + ACK_TIMEOUT_MS;
+  uint8_t exponent = pendingTx.attempts > 1 ? pendingTx.attempts - 1 : 0;
+  unsigned long backoff = RETRY_BACKOFF_BASE_MS;
+  while (exponent-- && backoff < RETRY_BACKOFF_MAX_MS) {
+    backoff *= 2;
+    if (backoff > RETRY_BACKOFF_MAX_MS) backoff = RETRY_BACKOFF_MAX_MS;
+  }
+  unsigned long jitter = (unsigned long)random(0, (long)(backoff / 3UL) + 1L);
+  pendingTx.nextTxAt = pendingTx.deadline + backoff + jitter;
+
+  Serial.print(F("[TX] Attempt ")); Serial.print(pendingTx.attempts);
+  Serial.print(F("/")); Serial.println(MAX_RETRIES + 1);
 }
 
 void setup() {
@@ -313,10 +422,12 @@ void setup() {
   memset(seenMessages, 0, sizeof(seenMessages));
   memset(ackQueue,0,sizeof(ackQueue));
   memset(&pendingTx,0,sizeof(pendingTx));
-  bootId=(uint16_t)random(1,65535); if(!bootId) bootId=1;
-  Serial.println(F("LoRa Group Messaging - prototype"));
+  Serial.println(F("LoRa Group Messaging - RMP v1 prototype"));
   Serial.print(F("User: ")); Serial.println(USER_NAME);
   Serial.print(F("Device ID: ")); Serial.println(deviceId);
+  Serial.print(F("Persistent boot/session epoch: ")); Serial.println(bootId);
+  Serial.print(F("Protocol version: ")); Serial.println(PROTOCOL_VERSION);
+  Serial.println(F("Note: 16-bit device IDs require collision-free provisioning."));
 
   LoRa.setPins(LORA_NSS_PIN, LORA_RESET_PIN, LORA_DIO0_PIN);
   if (!LoRa.begin(LORA_FREQUENCY_HZ)) {
@@ -325,6 +436,7 @@ void setup() {
   }
   LoRa.enableCrc();
   static_assert(sizeof(RadioPacket) <= 255, "LoRa packet exceeds PHY payload limit");
+  static_assert(MAX_MESSAGE_CHARS <= 128, "RMP payload exceeds 128-byte limit");
   sendHello();
   Serial.println(F("Type a message (max 128 bytes), then press Enter."));
 }
