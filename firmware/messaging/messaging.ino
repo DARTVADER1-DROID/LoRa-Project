@@ -21,12 +21,15 @@
 
 #define MAX_MESSAGE_CHARS             128
 #define MAX_RETRIES                     3
-#define ACK_TIMEOUT_MS               1800UL
+#define ACK_TIMEOUT_MS               4200UL
 #define RETRY_BACKOFF_BASE_MS         150UL
 #define RETRY_BACKOFF_MAX_MS         1200UL
-#define MAX_TRANSACTION_LIFETIME_MS 10000UL
-#define ACK_SLOT_MS                   160UL
-#define ACK_SLOT_JITTER_MS             35UL
+#define MAX_TRANSACTION_LIFETIME_MS 22000UL
+#define ACK_MIN_TURNAROUND_MS          50UL
+#define ACK_SLOT_MS                   450UL
+#define ACK_SLOT_JITTER_MS             50UL
+#define ACK_TX_RETRY_DELAY_MS         250UL
+#define ACK_MAX_TX_ATTEMPTS              4
 #define HELLO_INTERVAL_MS           20000UL
 #define PEER_TIMEOUT_MS             90000UL
 #define MAX_PEERS                        8
@@ -53,7 +56,7 @@ struct __attribute__((packed)) RadioPacket {
   char text[MAX_MESSAGE_CHARS + 1];
 };
 
-struct PendingAck { uint32_t messageId; uint16_t targetId; uint32_t targetBootId; unsigned long dueAt; bool used; };
+struct PendingAck { uint32_t messageId; uint16_t targetId; uint32_t targetBootId; unsigned long dueAt; uint8_t attempts; bool used; };
 struct Peer {
   uint16_t id;
   uint32_t bootId;
@@ -210,10 +213,19 @@ void scheduleAck(const RadioPacket &original) {
       uint32_t hash = original.messageId ^ ((uint32_t)original.senderId << 11) ^
                       ((uint32_t)deviceId * 2654435761UL);
       unsigned long ackSlot = (unsigned long)(hash % MAX_PEERS);
-      ackQueue[slot].dueAt = millis() + ackSlot * ACK_SLOT_MS +
+      unsigned long slotDelay = ACK_MIN_TURNAROUND_MS + ackSlot * ACK_SLOT_MS +
           (unsigned long)random(0, ACK_SLOT_JITTER_MS + 1UL);
+      ackQueue[slot].dueAt = millis() + slotDelay;
+      ackQueue[slot].attempts = 0;
       ackQueue[slot].used = true;
       ackQueueNext = (uint8_t)((slot + 1) % ACK_QUEUE_SIZE);
+      Serial.print(F("[ACK QUEUED] message "));
+      Serial.print(original.messageId);
+      Serial.print(F(" for device "));
+      Serial.print(original.senderId);
+      Serial.print(F("; delay "));
+      Serial.print(slotDelay);
+      Serial.println(F(" ms"));
       return;
     }
   }
@@ -233,10 +245,29 @@ void serviceAckQueue() {
     ack.ackForBootId = item.targetBootId;
     ack.ackForMessageId = item.messageId;
     if (transmitPacket(ack)) {
+      Serial.print(F("[ACK SENT] message "));
+      Serial.print(item.messageId);
+      Serial.print(F(" to device "));
+      Serial.println(item.targetId);
       item.used=false;
     } else {
-      item.dueAt=millis()+ACK_SLOT_JITTER_MS+1UL;
-      Serial.println(F("[ACK TX ERROR] Retaining ACK for retry"));
+      item.attempts++;
+      if (item.attempts >= ACK_MAX_TX_ATTEMPTS) {
+        Serial.print(F("[ACK DROPPED] message "));
+        Serial.print(item.messageId);
+        Serial.print(F(" to device "));
+        Serial.print(item.targetId);
+        Serial.println(F("; ACK transmit retry budget exhausted"));
+        item.used=false;
+      } else {
+        item.dueAt=millis()+ACK_TX_RETRY_DELAY_MS;
+        Serial.print(F("[ACK TX ERROR] Retaining message "));
+        Serial.print(item.messageId);
+        Serial.print(F("; transmit failure "));
+        Serial.print(item.attempts);
+        Serial.print(F("/"));
+        Serial.println(ACK_MAX_TX_ATTEMPTS);
+      }
     }
     return;
   }
@@ -304,6 +335,11 @@ void serviceIncoming(bool acknowledgeText) {
   }
 
   if (rxPacket.type == PKT_ACK) {
+    Serial.print(F("[ACK RX] from device "));
+    Serial.print(rxPacket.senderId);
+    Serial.print(F(" for message "));
+    Serial.println(rxPacket.ackForMessageId);
+
     bool transactionMatch = pendingTx.active &&
         rxPacket.ackForMessageId == pendingTx.packet.messageId &&
         rxPacket.ackForSenderId == deviceId &&
@@ -323,13 +359,17 @@ void serviceIncoming(bool acknowledgeText) {
         pendingTx.ackCount < MAX_PEERS) {
       pendingTx.acknowledged[pendingTx.ackCount++] = rxPacket.senderId;
       updatePeer(rxPacket.senderId, rxPacket.senderBootId, rxPacket.userName);
-      Serial.print(F("[ACK] Device ")); Serial.println(rxPacket.senderId);
+      Serial.print(F("[ACK ACCEPTED] device ")); Serial.println(rxPacket.senderId);
     } else {
+      const char *reason = !pendingTx.active ? "no active transaction" :
+          !transactionMatch ? "transaction correlation mismatch" :
+          !expected ? "sender/session absent from expected peer snapshot" :
+          alreadyCounted ? "duplicate ACK" : "ACK count capacity reached";
       ignoredAckCount++;
-      if ((ignoredAckCount & 0x07) == 1) {
-        Serial.print(F("[ACK IGNORED] Stale, duplicate or unexpected ACK; count "));
-        Serial.println(ignoredAckCount);
-      }
+      Serial.print(F("[ACK IGNORED] "));
+      Serial.print(reason);
+      Serial.print(F("; count "));
+      Serial.println(ignoredAckCount);
     }
   }
 }
@@ -469,6 +509,12 @@ void setup() {
     Serial.println(F("[FATAL] LoRa init failed. Check power, wiring and RF module."));
     while (true) delay(1000);
   }
+  // Both ends use an explicit, identical bench modem profile so ACK airtime
+  // and turnaround assumptions are reproducible across Arduino uploads.
+  LoRa.setSpreadingFactor(7);
+  LoRa.setSignalBandwidth(125E3);
+  LoRa.setCodingRate4(5);
+  LoRa.setPreambleLength(8);
   LoRa.enableCrc();
   static_assert(sizeof(RadioPacket) == 172, "RMP v1 wire frame layout changed; increment protocol version");
   static_assert(sizeof(RadioPacket) <= 255, "LoRa packet exceeds PHY payload limit");
