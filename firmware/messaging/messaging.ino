@@ -206,6 +206,14 @@ void collectAcks(uint16_t messageId, uint16_t *ackIds, uint8_t &ackCount) {
   }
 }
 
+uint8_t activePeerCount() {
+  uint8_t count = 0;
+  for (uint8_t i = 0; i < MAX_PEERS; ++i) {
+    if (peers[i].used && millis() - peers[i].lastSeen <= PEER_TIMEOUT_MS) count++;
+  }
+  return count;
+}
+
 void sendText(const char *text) {
   if (!text || text[0] == '\0') {
     Serial.println("[ERROR] Empty messages are not sent.");
@@ -230,7 +238,9 @@ void sendText(const char *text) {
   for (uint8_t attempt = 0; attempt <= MAX_RETRIES; ++attempt) {
     transmitPacket(message);
     collectAcks(messageId, ackIds, ackCount);
-    if (ackCount > 0) break;
+    uint8_t expectedPeers = activePeerCount();
+    if ((expectedPeers > 0 && ackCount >= expectedPeers) ||
+        (expectedPeers == 0 && ackCount > 0)) break;
     if (attempt < MAX_RETRIES) {
       Serial.print("[RETRY] Attempt ");
       Serial.println(attempt + 1);
