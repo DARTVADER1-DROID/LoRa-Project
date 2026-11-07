@@ -27,8 +27,9 @@ class MessagingSourceContracts(unittest.TestCase):
         self.assertIn("activePeerCount()", MESSAGING)
 
     def test_duplicate_suppression(self):
-        self.assertIn("lastDisplayedSender", MESSAGING)
-        self.assertIn("lastDisplayedMessage", MESSAGING)
+        self.assertIn("SeenMessage seenMessages", MESSAGING)
+        self.assertIn("wasMessageSeen(rxPacket.senderId, rxPacket.messageId)", MESSAGING)
+        self.assertIn("ackForSenderId == deviceId", MESSAGING)
 
 
 class CampusSourceContracts(unittest.TestCase):
@@ -65,6 +66,18 @@ class CampusSourceContracts(unittest.TestCase):
         self.assertIn("3.3 V", HARDWARE)
         self.assertIn("WPC", HARDWARE)
         self.assertIn("not authentication", PROTOCOL)
+
+    def test_acknowledgement_is_bound_to_original_sender(self):
+        self.assertIn("ack.ackForSenderId = originalSenderId", MESSAGING)
+        self.assertIn("sendAck(rxPacket.messageId, rxPacket.senderId)", MESSAGING)
+
+    def test_cancellation_retry_and_tombstone_contracts(self):
+        self.assertIn("PKT_CANCEL_ACK = 12", CAMPUS)
+        self.assertIn("CANCEL_MAX_RETRIES", CAMPUS)
+        self.assertIn("CANCEL_RETRY_INTERVAL_MS", CAMPUS)
+        self.assertIn("isTombstoned(p.stationId,p.requestId,p.generation)", CAMPUS)
+        self.assertIn("rememberTombstone(p.stationId,p.requestId,p.generation)", CAMPUS)
+        self.assertIn("[CANCEL UNCONFIRMED]", CAMPUS)
 
 
 if __name__ == "__main__":
