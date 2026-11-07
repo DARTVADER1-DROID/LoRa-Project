@@ -78,6 +78,8 @@ class CampusSourceContracts(unittest.TestCase):
         self.assertIn("isTombstoned(p.stationId,p.requestId,p.generation)", CAMPUS)
         self.assertIn("generationIsNewer(uint8_t candidate, uint8_t reference)", CAMPUS)
         self.assertIn("(int8_t)(candidate-reference) > 0", CAMPUS)
+        self.assertIn("generationIsNewer(p.generation, activeRequest.generation)", CAMPUS)
+        self.assertIn("generationIsNewer(p.generation, queueItems[existing].generation)", CAMPUS)
         self.assertIn("rememberTombstone(p.stationId,p.requestId,p.generation)", CAMPUS)
         self.assertIn("removeQueuedGeneration(p.stationId, p.requestId, p.generation)", CAMPUS)
         self.assertIn("activeRequest.generation == p.generation", CAMPUS)
