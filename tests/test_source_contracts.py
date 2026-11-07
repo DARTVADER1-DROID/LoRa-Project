@@ -94,6 +94,11 @@ class CampusSourceContracts(unittest.TestCase):
         self.assertIn("terminalPending", CAMPUS)
         self.assertIn("claimantIds[MAX_CLAIMANTS]", CAMPUS)
         self.assertIn("lastWinningCartId", CAMPUS)
+        self.assertIn("claimRetryDelayMs", CAMPUS)
+        self.assertIn("scheduleCartReply(ack)", CAMPUS)
+        self.assertIn("serviceCartReplies()", CAMPUS)
+        self.assertIn("REPLY_QUEUE_SIZE 4", CAMPUS)
+        self.assertNotIn("delay((unsigned long)random", CAMPUS)
         self.assertIn("p.senderId == assignedCartId", CAMPUS)
         self.assertIn("p.generation != queueItems[existing].generation) return", CAMPUS)
 
