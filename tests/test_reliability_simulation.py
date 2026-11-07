@@ -249,7 +249,7 @@ def validate_rmp_frame(version, expected_version, packet_type, sender_id,
     if version != expected_version or sender_id == 0 or boot_id == 0:
         return False
     if packet_type == "DATA":
-        return 0 < message_id <= 0xFFFFFFFF and 1 <= len(payload) <= 128 and b"\\x00" not in payload
+        return 0 < message_id <= 0xFFFFFFFF and 1 <= len(payload) <= 128 and b"\x00" not in payload
     if packet_type == "HELLO":
         return len(payload) == 0
     if packet_type == "ACK":
@@ -285,7 +285,7 @@ class ReliabilitySimulationTests(unittest.TestCase):
     def test_rmp_rejects_empty_or_oversized_or_nul_payload(self):
         self.assertFalse(validate_rmp_frame(1, 1, "DATA", 1, 10, 1, b""))
         self.assertFalse(validate_rmp_frame(1, 1, "DATA", 1, 10, 1, b"x" * 129))
-        self.assertFalse(validate_rmp_frame(1, 1, "DATA", 1, 10, 1, b"a\\x00b"))
+        self.assertFalse(validate_rmp_frame(1, 1, "DATA", 1, 10, 1, b"a\x00b"))
 
     def test_rmp_ack_requires_complete_original_transaction_tuple(self):
         self.assertTrue(validate_rmp_frame(1, 1, "ACK", 2, 20, 0, b"", (1, 10, 99)))
