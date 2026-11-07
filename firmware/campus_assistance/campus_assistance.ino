@@ -52,6 +52,9 @@
 #define MAX_PENDING_REQUESTS             10
 #define CLAIM_RETRY_INTERVAL_MS        2500UL
 #define ASSIGN_RETRY_INTERVAL_MS       1500UL
+#define CANCEL_RETRY_INTERVAL_MS       1500UL
+#define CANCEL_MAX_RETRIES                4
+#define TOMBSTONE_CAPACITY                12
 // ====================================================================
 
 #include <SPI.h>
@@ -69,7 +72,7 @@ enum PacketType : uint8_t {
   PKT_REQUEST = 1, PKT_REQUEST_ACK = 2, PKT_CLAIM = 3,
   PKT_ASSIGN = 4, PKT_STUDENT_CANCEL = 5, PKT_CART_CANCEL = 6,
   PKT_COMPLETE = 7, PKT_HEARTBEAT = 8, PKT_EXPIRE = 9,
-  PKT_ASSIGN_ACK = 10, PKT_QUEUE_FULL = 11
+  PKT_ASSIGN_ACK = 10, PKT_QUEUE_FULL = 11, PKT_CANCEL_ACK = 12
 };
 
 struct __attribute__((packed)) CampusPacket {
@@ -83,6 +86,8 @@ struct __attribute__((packed)) CampusPacket {
   uint8_t generation;
   char location[16];
 };
+
+struct Tombstone { uint16_t stationId; uint16_t requestId; uint8_t generation; bool used; };
 
 struct PendingRequest {
   uint16_t stationId;
@@ -112,6 +117,11 @@ bool debouncedButtonState(uint8_t pin, uint8_t slot) {
 
 #if DEVICE_ROLE == DEVICE_ROLE_STATION
 bool requestActive = false;
+bool cancellationPending = false;
+uint16_t cancellingRequestId = 0;
+uint8_t cancellingGeneration = 0;
+uint8_t cancellationAttempts = 0;
+unsigned long lastCancellationTxAt = 0;
 bool requestAssigned = false;
 bool claimWindowOpen = false;
 bool assignmentConfirmed = false;
@@ -128,6 +138,8 @@ unsigned long buttonPressedAt = 0;
 bool buttonWasDown = false;
 #else
 PendingRequest queueItems[MAX_PENDING_REQUESTS];
+Tombstone tombstones[TOMBSTONE_CAPACITY];
+uint8_t tombstoneNext = 0;
 uint8_t queueCount = 0;
 bool assignmentActive = false;
 PendingRequest activeRequest;
@@ -222,6 +234,11 @@ void cancelRequest(uint8_t packetType) {
   p.generation = assignmentGeneration;
   copyField(p.location, sizeof(p.location), LOCATION_NAME);
   sendPacket(p);
+  cancellationPending = true;
+  cancellingRequestId = activeRequestId;
+  cancellingGeneration = assignmentGeneration;
+  cancellationAttempts = 1;
+  lastCancellationTxAt = millis();
   requestActive = false;
   requestAssigned = false;
   claimWindowOpen = false;
@@ -253,6 +270,10 @@ void handleStationPacket(const CampusPacket &p) {
     assignmentConfirmed = true;
     assignedCartLastSeenAt = millis();
     Serial.println(F("[ASSIGN ACK] Cart confirmed assignment"));
+  } else if (p.type == PKT_CANCEL_ACK && cancellationPending &&
+             p.requestId == cancellingRequestId && p.generation == cancellingGeneration) {
+    cancellationPending = false;
+    Serial.print(F("[CANCEL ACK] Cart ")); Serial.println(p.senderId);
   } else if (p.type == PKT_QUEUE_FULL) {
     Serial.print(F("[QUEUE FULL] Cart ")); Serial.println(p.senderId);
     tone(STATION_BUZZER_PIN, 500, 700);
@@ -277,6 +298,22 @@ void handleStationPacket(const CampusPacket &p) {
 
 void serviceStation() {
   if (receivePacket(rxPacket)) handleStationPacket(rxPacket);
+  if (cancellationPending && millis() - lastCancellationTxAt >= CANCEL_RETRY_INTERVAL_MS) {
+    if (cancellationAttempts < CANCEL_MAX_RETRIES) {
+      CampusPacket cancel;
+      initPacket(cancel, PKT_STUDENT_CANCEL);
+      cancel.stationId = DEVICE_ID; cancel.requestId = cancellingRequestId;
+      cancel.generation = cancellingGeneration;
+      copyField(cancel.location, sizeof(cancel.location), LOCATION_NAME);
+      sendPacket(cancel);
+      cancellationAttempts++;
+      lastCancellationTxAt = millis();
+      Serial.println(F("[CANCEL RETRY] Broadcast repeated"));
+    } else {
+      cancellationPending = false;
+      Serial.println(F("[CANCEL UNCONFIRMED] No cart MCU acknowledgement; local request remains cancelled"));
+    }
+  }
 
   bool down = debouncedButtonState(STATION_BUTTON_PIN, 0);
   if (down && !buttonWasDown) buttonPressedAt = millis();
@@ -346,6 +383,28 @@ void serviceStation() {
 
 #else
 
+bool isTombstoned(uint16_t stationId, uint16_t requestId, uint8_t generation) {
+  for (uint8_t i=0; i<TOMBSTONE_CAPACITY; ++i)
+    if (tombstones[i].used && tombstones[i].stationId==stationId &&
+        tombstones[i].requestId==requestId && tombstones[i].generation==generation) return true;
+  return false;
+}
+
+void rememberTombstone(uint16_t stationId, uint16_t requestId, uint8_t generation) {
+  if (isTombstoned(stationId, requestId, generation)) return;
+  Tombstone &t=tombstones[tombstoneNext];
+  t.stationId=stationId; t.requestId=requestId; t.generation=generation; t.used=true;
+  tombstoneNext=(uint8_t)((tombstoneNext+1)%TOMBSTONE_CAPACITY);
+}
+
+void sendCancelAck(const CampusPacket &p) {
+  CampusPacket ack; initPacket(ack, PKT_CANCEL_ACK);
+  ack.stationId=p.stationId; ack.requestId=p.requestId; ack.generation=p.generation;
+  ack.cartId=DEVICE_ID;
+  delay((unsigned long)random(40,350));
+  sendPacket(ack);
+}
+
 int findQueued(uint16_t stationId, uint16_t requestId) {
   for (uint8_t i = 0; i < queueCount; ++i)
     if (queueItems[i].used && queueItems[i].stationId == stationId &&
@@ -363,6 +422,10 @@ void sendRequestAck(const CampusPacket &p) {
 }
 
 void enqueueRequest(const CampusPacket &p) {
+  if (isTombstoned(p.stationId,p.requestId,p.generation)) {
+    sendRequestAck(p); // packet was received and deliberately rejected as stale/cancelled
+    return;
+  }
   if (assignmentActive && activeRequest.stationId == p.stationId &&
       activeRequest.requestId == p.requestId) {
     if (p.generation > activeRequest.generation) {
@@ -435,6 +498,8 @@ void handleCartPacket(const CampusPacket &p) {
     }
   } else if (p.type == PKT_STUDENT_CANCEL || p.type == PKT_EXPIRE ||
              p.type == PKT_CART_CANCEL || p.type == PKT_COMPLETE) {
+    rememberTombstone(p.stationId,p.requestId,p.generation);
+    sendCancelAck(p);
     removeQueued(p.stationId, p.requestId);
     if (assignmentActive && activeRequest.stationId == p.stationId &&
         activeRequest.requestId == p.requestId) {
@@ -572,6 +637,7 @@ void setup() {
   pinMode(CART_LED_PIN, OUTPUT);
   pinMode(CART_BUZZER_PIN, OUTPUT);
   memset(queueItems, 0, sizeof(queueItems));
+  memset(tombstones, 0, sizeof(tombstones));
   Wire.begin();
   lcd.init();
   lcd.backlight();
