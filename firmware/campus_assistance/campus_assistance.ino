@@ -216,7 +216,10 @@ void setStationStatus(bool active, bool assigned) {
 }
 
 void startRequest() {
-  if (requestActive) return;
+  if (requestActive || cancellationPending) {
+    Serial.println(F("[BUSY] Previous cancellation is still awaiting confirmation"));
+    return;
+  }
   requestActive = true;
   requestAssigned = false;
   assignmentConfirmed = false;
