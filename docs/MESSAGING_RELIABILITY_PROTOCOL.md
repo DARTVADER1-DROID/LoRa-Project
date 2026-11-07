@@ -204,7 +204,7 @@ RMP v1 changes the fixed-size wire envelope and is not backward-compatible with 
 
 Implemented in the current messaging sketch:
 - 128-byte input limit and whole-line overflow discard.
-- Versioned fixed-size RMP v1 envelope with explicit payload length and strict frame/type/identity validation.
+- Versioned fixed-size 172-byte RMP v1 envelope with explicit payload length and strict frame/type/identity validation.
 - 32-bit persistent EEPROM boot/session epoch and 32-bit message IDs; message IDs are not reused after wrap within one boot session.
 - Expected-peer snapshot with both device ID and boot/session ID.
 - Automatic ACK correlated by explicit original sender ID, sender session ID and original message ID.
