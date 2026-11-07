@@ -270,7 +270,7 @@ Implemented in the current feature branch:
 - Cart claim retries include bounded random jitter.
 - Cart cancellation and completion retry the same transaction; the station validates the currently assigned cart and caches four terminal tuples so a lost ACK can be recovered by duplicate retry.
 - Cart request and cancellation ACK replies use a bounded non-blocking jitter queue.
-- A cart heartbeat timeout no longer triggers automatic redispatch. The station marks the assignment uncertain; a matching heartbeat restores the same assignment, otherwise a physical inspection and five-second operator confirmation are required before generation advance and redispatch.
+- A cart heartbeat timeout no longer triggers automatic redispatch. The station marks the assignment uncertain; even a returning heartbeat does not clear the safety lock. Physical inspection and five-second operator confirmation are required before generation advance and redispatch.
 - Stale request generations are rejected rather than ACKed as accepted.
 
 Still outstanding before production consideration:
