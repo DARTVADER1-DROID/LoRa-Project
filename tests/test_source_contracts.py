@@ -12,7 +12,7 @@ class MessagingSourceContracts(unittest.TestCase):
     def test_fixed_message_limit_and_serial_input(self):
         self.assertIn("#define MAX_MESSAGE_CHARS       128", MESSAGING)
         self.assertIn("Serial.available()", MESSAGING)
-        self.assertIn("sendText(input)", MESSAGING)
+        self.assertIn("startText(input)", MESSAGING)
 
     def test_discovery_and_persistent_device_id(self):
         self.assertIn("PKT_HELLO", MESSAGING)
@@ -21,14 +21,14 @@ class MessagingSourceContracts(unittest.TestCase):
         self.assertIn("EEPROM.put(2, deviceId)", MESSAGING)
 
     def test_automatic_ack_and_retry_configuration(self):
-        self.assertIn("sendAck(rxPacket.messageId, rxPacket.senderId)", MESSAGING)
+        self.assertIn("scheduleAck(rxPacket)", MESSAGING)
         self.assertIn("#define MAX_RETRIES", MESSAGING)
         self.assertIn("#define ACK_TIMEOUT_MS", MESSAGING)
         self.assertIn("activePeerCount()", MESSAGING)
 
     def test_duplicate_suppression(self):
         self.assertIn("SeenMessage seenMessages", MESSAGING)
-        self.assertIn("wasMessageSeen(rxPacket.senderId, rxPacket.messageId)", MESSAGING)
+        self.assertIn("wasMessageSeen(rxPacket.senderId, rxPacket.senderBootId, rxPacket.messageId)", MESSAGING)
         self.assertIn("ackForSenderId == deviceId", MESSAGING)
 
 
@@ -68,8 +68,12 @@ class CampusSourceContracts(unittest.TestCase):
         self.assertIn("not authentication", PROTOCOL)
 
     def test_acknowledgement_is_bound_to_original_sender(self):
-        self.assertIn("ack.ackForSenderId = originalSenderId", MESSAGING)
-        self.assertIn("sendAck(rxPacket.messageId, rxPacket.senderId)", MESSAGING)
+        self.assertIn("ack.ackForSenderId=item.targetId", MESSAGING)
+        self.assertIn("ack.ackForBootId=item.targetBootId", MESSAGING)
+        self.assertIn("rxPacket.ackForBootId == bootId", MESSAGING)
+        self.assertIn("servicePendingTx()", MESSAGING)
+        self.assertNotIn("collectAcks(", MESSAGING)
+        self.assertNotIn("delay(", MESSAGING)
 
     def test_cancellation_retry_and_tombstone_contracts(self):
         self.assertIn("PKT_CANCEL_ACK = 12", CAMPUS)
@@ -84,6 +88,14 @@ class CampusSourceContracts(unittest.TestCase):
         self.assertIn("removeQueuedGeneration(p.stationId, p.requestId, p.generation)", CAMPUS)
         self.assertIn("activeRequest.generation == p.generation", CAMPUS)
         self.assertIn("[CANCEL UNCONFIRMED]", CAMPUS)
+        self.assertIn("PKT_CART_CANCEL_ACK = 13", CAMPUS)
+        self.assertIn("PKT_COMPLETE_ACK = 14", CAMPUS)
+        self.assertIn("TERMINAL_MAX_RETRIES", CAMPUS)
+        self.assertIn("terminalPending", CAMPUS)
+        self.assertIn("claimantIds[MAX_CLAIMANTS]", CAMPUS)
+        self.assertIn("lastWinningCartId", CAMPUS)
+        self.assertIn("p.senderId == assignedCartId", CAMPUS)
+        self.assertIn("p.generation != queueItems[existing].generation) return", CAMPUS)
 
 
 if __name__ == "__main__":
