@@ -56,7 +56,7 @@ struct __attribute__((packed)) RadioPacket {
 struct PendingAck { uint32_t messageId; uint16_t targetId; uint32_t targetBootId; unsigned long dueAt; bool used; };
 struct Peer {
   uint16_t id;
-  uint16_t bootId;
+  uint32_t bootId;
   char name[16];
   unsigned long lastSeen;
   bool used;
@@ -167,8 +167,11 @@ bool updatePeer(uint16_t id, uint32_t peerBootId, const char *name) {
     }
     return false;
   }
-  if (peers[slot].used && peers[slot].bootId != peerBootId)
-    Serial.print(F("[PEER SESSION] Device reboot/session changed: "));
+  if (peers[slot].used && peers[slot].bootId != peerBootId) {
+    Serial.print(F("[PEER SESSION] Device "));
+    Serial.print(id);
+    Serial.println(F(" rebooted or changed session."));
+  }
   peers[slot].id = id;
   peers[slot].bootId = peerBootId;
   copyText(peers[slot].name, sizeof(peers[slot].name), name);
@@ -231,7 +234,7 @@ void serviceAckQueue() {
     if (transmitPacket(ack)) {
       item.used=false;
     } else {
-      item.dueAt=millis()+ACK_JITTER_MIN_MS;
+      item.dueAt=millis()+ACK_SLOT_JITTER_MS+1UL;
       Serial.println(F("[ACK TX ERROR] Retaining ACK for retry"));
     }
     return;
@@ -249,15 +252,13 @@ bool readPacket(RadioPacket &p) {
   while (LoRa.available() && i < sizeof(RadioPacket)) dst[i++] = (uint8_t)LoRa.read();
   if (i != sizeof(RadioPacket)) return false;
 
-  p.userName[sizeof(p.userName) - 1] = '\0';
-  p.text[MAX_MESSAGE_CHARS] = '\0';
   if (p.magic != 0x4C52 || p.version != PROTOCOL_VERSION ||
       p.networkId != NETWORK_ID || p.senderId == 0 || p.senderBootId == 0) return false;
   if (p.type != PKT_HELLO && p.type != PKT_TEXT && p.type != PKT_ACK) return false;
   if (!memchr(p.userName, '\0', sizeof(p.userName))) return false;
 
   if (p.type == PKT_TEXT) {
-    if (p.payloadLength == 0 || p.payloadLength > MAX_MESSAGE_CHARS) return false;
+    if (p.messageId == 0 || p.payloadLength == 0 || p.payloadLength > MAX_MESSAGE_CHARS) return false;
     if (p.text[p.payloadLength] != '\0') return false;
     if (memchr(p.text, '\0', p.payloadLength) != NULL) return false;
   } else if (p.payloadLength != 0) {
@@ -265,6 +266,10 @@ bool readPacket(RadioPacket &p) {
   }
   if (p.type == PKT_ACK &&
       (p.ackForSenderId == 0 || p.ackForBootId == 0 || p.ackForMessageId == 0)) return false;
+
+  // Terminate the unused tail only after validating the transmitted terminator.
+  p.userName[sizeof(p.userName) - 1] = '\0';
+  p.text[MAX_MESSAGE_CHARS] = '\0';
   return true;
 }
 
@@ -335,8 +340,11 @@ void startText(const char *text) {
   if (pendingTx.active) { Serial.println(F("[BUSY] Previous message still awaiting bounded delivery result.")); return; }
   memset(&pendingTx,0,sizeof(pendingTx));
   initPacket(pendingTx.packet,PKT_TEXT);
+  if (nextMessageId == 0) {
+    Serial.println(F("[ERROR] Message ID space exhausted; reboot for a new session."));
+    return;
+  }
   pendingTx.packet.messageId = nextMessageId++;
-  if (nextMessageId == 0) nextMessageId = 1;
   pendingTx.packet.payloadLength = (uint8_t)length;
   copyText(pendingTx.packet.text, sizeof(pendingTx.packet.text), text);
   for(uint8_t i=0;i<MAX_PEERS;i++) {
@@ -351,7 +359,9 @@ void startText(const char *text) {
   pendingTx.startedAt = millis();
   pendingTx.nextTxAt = pendingTx.startedAt;
   Serial.print(F("[TX QUEUED] Message ID ")); Serial.println(pendingTx.packet.messageId);
-  if (!pendingTx.expectedCount) Serial.println(F("[STATUS] No known peers; best-effort broadcast only."));
+  if (!pendingTx.expectedCount) {
+    Serial.println(F("[STATUS] No known peers; best-effort broadcast only."));
+  }
 }
 
 void finishPendingTx() {
@@ -400,6 +410,10 @@ void servicePendingTx() {
   if (!txOk) Serial.println(F("[TX RADIO ERROR] Attempt will be retried"));
 
   pendingTx.deadline = millis() + ACK_TIMEOUT_MS;
+  if (pendingTx.expectedCount == 0) {
+    pendingTx.nextTxAt = millis();
+    return;
+  }
   uint8_t exponent = pendingTx.attempts > 1 ? pendingTx.attempts - 1 : 0;
   unsigned long backoff = RETRY_BACKOFF_BASE_MS;
   while (exponent-- && backoff < RETRY_BACKOFF_MAX_MS) {
