@@ -59,7 +59,7 @@ A cart must not assume it owns a request merely because it transmitted a claim. 
 - Cart-originated cancellation and completion are retried as transactions. The station validates the currently assigned cart and exact request generation, commits the transition, and ACKs. It remembers the last terminal tuple so a duplicate retry after a lost ACK is ACKed again without reapplying the transition.
 - Cart request/cancellation ACK replies are scheduled with bounded non-blocking jitter. This reduces simultaneous response collisions but does not eliminate them. Acknowledgement confirms MCU packet processing only, not human awareness or physical stopping.
 - Carts keep a bounded recent-cancellation tombstone cache keyed by station, request and generation to prevent delayed broadcasts from resurrecting closed requests. Tombstones are finite and can be evicted; a power cycle clears volatile tombstones.
-- A cart that disappears while physically moving may still be moving; reassignment requires operator warning and an explicit revoked-generation check.
+- A cart that disappears while physically moving may still be moving. Heartbeat timeout now blocks automatic redispatch and marks the assignment uncertain. A matching heartbeat restores the same assignment; otherwise an operator must physically inspect the cart and hold the station button for five seconds to advance the generation and permit redispatch.
 - Timeouts need tuning against actual spreading factor, bandwidth, coding rate, airtime, campus range and regulatory duty-cycle.
 
 
@@ -67,6 +67,6 @@ A cart must not assume it owns a request merely because it transmitted a claim. 
 
 - Messaging and cart reply delays use millis()-driven queues; the main loop does not block waiting for ACK windows or randomized ACK delays. The LoRa library's packet transmission call itself remains synchronous in this prototype.
 - Messaging expected-recipient accounting is a snapshot. A peer joining after transmission begins is not silently added to the delivery contract.
-- Cart cancellation/completion ACK retries are idempotent. The station retains only the most recent terminal tuple in RAM; this does not survive station reboot and is not a substitute for durable transaction storage.
+- Cart cancellation/completion ACK retries are idempotent. The station retains a bounded four-entry terminal tuple cache in RAM; it does not survive station reboot and is not a substitute for durable transaction storage.
 - Cart claim arbitration uses a bounded claimant array and a rotating cart-ID winner. More claimants than the configured bound cannot be represented in one claim window.
 - These reliability additions have host-side reference-model fault-injection tests and source-contract checks. Hardware radio collision, range, timing, reboot and power-loss behavior still require physical tests.
