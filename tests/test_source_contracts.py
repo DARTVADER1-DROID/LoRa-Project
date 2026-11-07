@@ -67,6 +67,25 @@ class CampusSourceContracts(unittest.TestCase):
         self.assertIn("WPC", HARDWARE)
         self.assertIn("not authentication", PROTOCOL)
 
+    def test_expected_peer_snapshot_increments_only_for_live_slots(self):
+        import re
+        pattern = r"if\\(peers\\[i\\]\\.used && millis\\(\\)-peers\\[i\\]\\.lastSeen<=PEER_TIMEOUT_MS\\)\\s*\\{[^}]*pendingTx\\.expectedCount\\+\\+;"
+        self.assertRegex(MESSAGING, pattern)
+        self.assertIn("pendingTx.expectedBootIds[pendingTx.expectedCount]=peers[i].bootId;", MESSAGING)
+
+    def test_received_packet_strings_are_null_terminated(self):
+        self.assertIn("p.userName[sizeof(p.userName)-1]='\\0';", MESSAGING)
+        self.assertIn("p.text[MAX_MESSAGE_CHARS]='\\0';", MESSAGING)
+
+    def test_packet_identity_and_type_are_validated(self):
+        self.assertIn("p.senderId == 0", MESSAGING)
+        self.assertIn("p.type == PKT_HELLO || p.type == PKT_TEXT || p.type == PKT_ACK", MESSAGING)
+
+    def test_oversized_serial_line_is_discarded_until_newline(self):
+        self.assertIn("discardUntilNewline", MESSAGING)
+        self.assertIn("inputLength < MAX_MESSAGE_CHARS", MESSAGING)
+        self.assertIn("[ERROR] Input too long; entire line discarded.", MESSAGING)
+
     def test_acknowledgement_is_bound_to_original_sender(self):
         self.assertIn("ack.ackForSenderId=item.targetId", MESSAGING)
         self.assertIn("ack.ackForBootId=item.targetBootId", MESSAGING)
