@@ -35,6 +35,14 @@ class MessagingSourceContracts(unittest.TestCase):
         self.assertIn("EEPROM.put(0, EEPROM_MAGIC)", MESSAGING)
         self.assertIn("EEPROM.put(2, deviceId)", MESSAGING)
 
+    def test_peer_discovery_retries_with_jitter_until_peer_is_known(self):
+        self.assertIn("HELLO_DISCOVERY_INTERVAL_MS", MESSAGING)
+        self.assertIn("HELLO_JITTER_MS", MESSAGING)
+        self.assertIn("[PEER DISCOVERED]", MESSAGING)
+        self.assertIn("[HELLO TX]", MESSAGING)
+        self.assertIn("nextHelloAt", MESSAGING)
+        self.assertIn("activePeerCount() == 0", MESSAGING)
+
     def test_automatic_ack_and_retry_configuration(self):
         self.assertIn("scheduleAck(rxPacket)", MESSAGING)
         self.assertIn("#define MAX_RETRIES", MESSAGING)
