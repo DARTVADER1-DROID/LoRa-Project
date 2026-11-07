@@ -71,6 +71,7 @@ uint32_t bootId = 0;
 PendingAck ackQueue[ACK_QUEUE_SIZE];
 uint8_t ackQueueNext = 0;
 uint16_t ackQueueOverflowCount = 0;
+uint16_t ignoredAckCount = 0;
 uint16_t peerTableFullCount = 0;
 unsigned long lastPeerFullDiagnosticAt = 0;
 struct PendingTx {
@@ -302,17 +303,33 @@ void serviceIncoming(bool acknowledgeText) {
     return;
   }
 
-  if (rxPacket.type == PKT_ACK && pendingTx.active &&
-      rxPacket.ackForMessageId == pendingTx.packet.messageId &&
-      rxPacket.ackForSenderId == deviceId && rxPacket.ackForBootId == bootId &&
-      rxPacket.senderId != deviceId) {
-    bool expected=false, known=false;
-    for (uint8_t i=0;i<pendingTx.expectedCount;i++) if (pendingTx.expected[i]==rxPacket.senderId && pendingTx.expectedBootIds[i]==rxPacket.senderBootId) expected=true;
-    for (uint8_t i=0;i<pendingTx.ackCount;i++) if (pendingTx.acknowledged[i]==rxPacket.senderId) known=true;
-    if (expected && !known && pendingTx.ackCount<MAX_PEERS) {
-      pendingTx.acknowledged[pendingTx.ackCount++]=rxPacket.senderId;
-      updatePeer(rxPacket.senderId,rxPacket.senderBootId,rxPacket.userName);
+  if (rxPacket.type == PKT_ACK) {
+    bool transactionMatch = pendingTx.active &&
+        rxPacket.ackForMessageId == pendingTx.packet.messageId &&
+        rxPacket.ackForSenderId == deviceId &&
+        rxPacket.ackForBootId == bootId;
+    bool expected = false;
+    bool alreadyCounted = false;
+    if (transactionMatch) {
+      for (uint8_t i = 0; i < pendingTx.expectedCount; ++i) {
+        if (pendingTx.expected[i] == rxPacket.senderId &&
+            pendingTx.expectedBootIds[i] == rxPacket.senderBootId) expected = true;
+      }
+      for (uint8_t i = 0; i < pendingTx.ackCount; ++i) {
+        if (pendingTx.acknowledged[i] == rxPacket.senderId) alreadyCounted = true;
+      }
+    }
+    if (transactionMatch && expected && !alreadyCounted &&
+        pendingTx.ackCount < MAX_PEERS) {
+      pendingTx.acknowledged[pendingTx.ackCount++] = rxPacket.senderId;
+      updatePeer(rxPacket.senderId, rxPacket.senderBootId, rxPacket.userName);
       Serial.print(F("[ACK] Device ")); Serial.println(rxPacket.senderId);
+    } else {
+      ignoredAckCount++;
+      if ((ignoredAckCount & 0x07) == 1) {
+        Serial.print(F("[ACK IGNORED] Stale, duplicate or unexpected ACK; count "));
+        Serial.println(ignoredAckCount);
+      }
     }
   }
 }
