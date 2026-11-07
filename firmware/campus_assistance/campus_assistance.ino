@@ -137,10 +137,10 @@ uint16_t candidateCartId = 0;
 uint16_t claimantIds[MAX_CLAIMANTS];
 uint8_t claimantCount = 0;
 uint16_t lastWinningCartId = 0;
-uint8_t lastTerminalType = 0;
-uint16_t lastTerminalCartId = 0;
-uint16_t lastTerminalRequestId = 0;
-uint8_t lastTerminalGeneration = 0;
+struct TerminalRecord { uint8_t type; uint16_t cartId; uint16_t requestId; uint8_t generation; bool used; };
+#define TERMINAL_CACHE_CAPACITY 4
+TerminalRecord terminalRecords[TERMINAL_CACHE_CAPACITY];
+uint8_t terminalRecordNext=0;
 uint8_t assignmentGeneration = 1;
 unsigned long requestStartedAt = 0;
 unsigned long lastRequestTxAt = 0;
@@ -268,19 +268,31 @@ void cancelRequest(uint8_t packetType) {
   tone(STATION_BUZZER_PIN, 900, 250);
 }
 
-void handleStationPacket(const CampusPacket &p) {
-  if ((p.type==PKT_CART_CANCEL && lastTerminalType==PKT_CART_CANCEL) ||
-      (p.type==PKT_COMPLETE && lastTerminalType==PKT_COMPLETE)) {
-    if (p.senderId==lastTerminalCartId && p.cartId==lastTerminalCartId &&
-        p.stationId==DEVICE_ID && p.requestId==lastTerminalRequestId &&
-        p.generation==lastTerminalGeneration) {
+void rememberTerminal(const CampusPacket &p) {
+  TerminalRecord &record=terminalRecords[terminalRecordNext];
+  record.type=p.type; record.cartId=p.cartId; record.requestId=p.requestId;
+  record.generation=p.generation; record.used=true;
+  terminalRecordNext=(uint8_t)((terminalRecordNext+1)%TERMINAL_CACHE_CAPACITY);
+}
+
+bool resendTerminalAck(const CampusPacket &p) {
+  for(uint8_t i=0;i<TERMINAL_CACHE_CAPACITY;i++) {
+    TerminalRecord &record=terminalRecords[i];
+    if(record.used && record.type==p.type && record.cartId==p.cartId &&
+       record.cartId==p.senderId && record.requestId==p.requestId &&
+       record.generation==p.generation && p.stationId==DEVICE_ID) {
       CampusPacket ack;
       initPacket(ack,(PacketType)(p.type==PKT_CART_CANCEL ? PKT_CART_CANCEL_ACK : PKT_COMPLETE_ACK));
       ack.stationId=DEVICE_ID; ack.requestId=p.requestId; ack.generation=p.generation; ack.cartId=p.cartId;
       sendPacket(ack);
-      return;
+      return true;
     }
   }
+  return false;
+}
+
+void handleStationPacket(const CampusPacket &p) {
+  if ((p.type==PKT_CART_CANCEL || p.type==PKT_COMPLETE) && resendTerminalAck(p)) return;
   if (p.type == PKT_HEARTBEAT) {
     if (requestAssigned && p.senderId == assignedCartId &&
         p.stationId == DEVICE_ID && p.requestId == activeRequestId &&
@@ -311,7 +323,7 @@ void handleStationPacket(const CampusPacket &p) {
     Serial.print(F("[QUEUE FULL] Cart ")); Serial.println(p.senderId);
     tone(STATION_BUZZER_PIN, 500, 700);
   } else if (p.type == PKT_CART_CANCEL && requestAssigned && p.senderId == assignedCartId && p.cartId == assignedCartId) {
-    lastTerminalType=PKT_CART_CANCEL; lastTerminalCartId=p.senderId; lastTerminalRequestId=p.requestId; lastTerminalGeneration=p.generation;
+    rememberTerminal(p);
     CampusPacket ack; initPacket(ack,PKT_CART_CANCEL_ACK);
     ack.stationId=DEVICE_ID; ack.requestId=activeRequestId; ack.generation=assignmentGeneration; ack.cartId=assignedCartId; sendPacket(ack);
     requestAssigned = false;
@@ -324,7 +336,7 @@ void handleStationPacket(const CampusPacket &p) {
     Serial.println(F("[CART CANCEL] Request returned to pending queue"));
     tone(STATION_BUZZER_PIN, 700, 400);
   } else if (p.type == PKT_COMPLETE && requestAssigned && p.senderId == assignedCartId && p.cartId == assignedCartId) {
-    lastTerminalType=PKT_COMPLETE; lastTerminalCartId=p.senderId; lastTerminalRequestId=p.requestId; lastTerminalGeneration=p.generation;
+    rememberTerminal(p);
     CampusPacket ack; initPacket(ack,PKT_COMPLETE_ACK);
     ack.stationId=DEVICE_ID; ack.requestId=activeRequestId; ack.generation=assignmentGeneration; ack.cartId=assignedCartId; sendPacket(ack);
     requestActive = false;
@@ -739,6 +751,7 @@ void setup() {
   memset(queueItems, 0, sizeof(queueItems));
   memset(tombstones, 0, sizeof(tombstones));
   memset(replyQueue,0,sizeof(replyQueue));
+  memset(terminalRecords,0,sizeof(terminalRecords));
   Wire.begin();
   lcd.init();
   lcd.backlight();
