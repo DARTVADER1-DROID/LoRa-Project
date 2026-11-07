@@ -5,7 +5,22 @@ ROOT = Path(__file__).resolve().parents[1]
 MESSAGING = (ROOT / "firmware/messaging/messaging.ino").read_text()
 CAMPUS = (ROOT / "firmware/campus_assistance/campus_assistance.ino").read_text()
 PROTOCOL = (ROOT / "docs/PROTOCOL.md").read_text()
+MESSAGING_PROTOCOL = (ROOT / "docs/MESSAGING_RELIABILITY_PROTOCOL.md").read_text()
 HARDWARE = (ROOT / "docs/HARDWARE_AND_SAFETY.md").read_text()
+
+
+class MessagingProtocolDocumentContracts(unittest.TestCase):
+    def test_normative_messaging_protocol_covers_delivery_and_ack_rules(self):
+        self.assertIn("CONFIRMED_TO_N", MESSAGING_PROTOCOL)
+        self.assertIn("PARTIALLY_CONFIRMED", MESSAGING_PROTOCOL)
+        self.assertIn("senderBootId", MESSAGING_PROTOCOL)
+        self.assertIn("duplicate cache", MESSAGING_PROTOCOL)
+        self.assertIn("Retry, timing, and congestion control", MESSAGING_PROTOCOL)
+        self.assertIn("Failure matrix", MESSAGING_PROTOCOL)
+        self.assertIn("Verification and release gates", MESSAGING_PROTOCOL)
+
+    def test_shared_protocol_points_to_messaging_specification(self):
+        self.assertIn("MESSAGING_RELIABILITY_PROTOCOL.md", PROTOCOL)
 
 
 class MessagingSourceContracts(unittest.TestCase):
