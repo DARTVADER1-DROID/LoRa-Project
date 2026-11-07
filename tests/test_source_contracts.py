@@ -114,7 +114,7 @@ class CampusSourceContracts(unittest.TestCase):
     def test_oversized_serial_line_is_discarded_until_newline(self):
         self.assertIn("discardUntilNewline", MESSAGING)
         self.assertIn("inputLength < MAX_MESSAGE_CHARS", MESSAGING)
-        self.assertIn("[ERROR] Input too long; entire line discarded.", MESSAGING)
+        self.assertIn("REJECTED_LOCAL; input exceeds 128 bytes; entire line discarded.", MESSAGING)
 
     def test_rmp_v1_wire_envelope_and_persistent_transaction_identity(self):
         self.assertIn("#define PROTOCOL_VERSION                 1", MESSAGING)
