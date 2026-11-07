@@ -70,3 +70,10 @@ A cart must not assume it owns a request merely because it transmitted a claim. 
 - Cart cancellation/completion ACK retries are idempotent. The station retains a bounded four-entry terminal tuple cache in RAM; it does not survive station reboot and is not a substitute for durable transaction storage.
 - Cart claim arbitration uses a bounded claimant array and a rotating cart-ID winner. More claimants than the configured bound cannot be represented in one claim window.
 - These reliability additions have host-side reference-model fault-injection tests and source-contract checks. Hardware radio collision, range, timing, reboot and power-loss behavior still require physical tests.
+
+
+## Component-to-component messaging reliability
+
+The normative messaging reliability specification is maintained separately in [MESSAGING_RELIABILITY_PROTOCOL.md](MESSAGING_RELIABILITY_PROTOCOL.md). It defines the delivery contract, transaction identity, sender/receiver state machines, ACK correlation, retries, peer discovery, bounded queue behavior, failure handling, security boundary, and release acceptance tests.
+
+The current firmware is a prototype implementation of part of that specification. See the implementation-status section in the dedicated document; CI success is not equivalent to physical RF validation.
