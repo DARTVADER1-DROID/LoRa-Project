@@ -36,6 +36,7 @@ struct __attribute__((packed)) RadioPacket {
   uint8_t type;
   uint16_t senderId;
   uint16_t messageId;
+  uint16_t ackForSenderId;
   char userName[16];
   char text[MAX_MESSAGE_CHARS + 1];
 };
@@ -53,8 +54,10 @@ Peer peers[MAX_PEERS];
 uint16_t deviceId = 0;
 uint16_t nextMessageId = 1;
 unsigned long lastHelloAt = 0;
-uint16_t lastDisplayedSender = 0;
-uint16_t lastDisplayedMessage = 0;
+struct SeenMessage { uint16_t senderId; uint16_t messageId; bool used; };
+#define SEEN_CACHE_SIZE 12
+SeenMessage seenMessages[SEEN_CACHE_SIZE];
+uint8_t seenNext = 0;
 
 static void copyText(char *dst, size_t capacity, const char *src) {
   if (capacity == 0) return;
@@ -120,10 +123,24 @@ void updatePeer(uint16_t id, const char *name) {
   peers[slot].used = true;
 }
 
-void sendAck(uint16_t messageId) {
+bool wasMessageSeen(uint16_t senderId, uint16_t messageId) {
+  for (uint8_t i=0; i<SEEN_CACHE_SIZE; ++i)
+    if (seenMessages[i].used && seenMessages[i].senderId==senderId &&
+        seenMessages[i].messageId==messageId) return true;
+  return false;
+}
+
+void rememberMessage(uint16_t senderId, uint16_t messageId) {
+  SeenMessage &entry=seenMessages[seenNext];
+  entry.senderId=senderId; entry.messageId=messageId; entry.used=true;
+  seenNext=(uint8_t)((seenNext+1)%SEEN_CACHE_SIZE);
+}
+
+void sendAck(uint16_t messageId, uint16_t originalSenderId) {
   RadioPacket ack;
   initPacket(ack, PKT_ACK);
   ack.messageId = messageId;
+  ack.ackForSenderId = originalSenderId;
   // Randomized response delay reduces simultaneous ACK collisions.
   delay((unsigned long)random(40, 420));
   transmitPacket(ack);
@@ -152,11 +169,9 @@ void serviceIncoming(bool acknowledgeText) {
 
   if (rxPacket.type == PKT_TEXT) {
     updatePeer(rxPacket.senderId, rxPacket.userName);
-    bool duplicate = (rxPacket.senderId == lastDisplayedSender &&
-                      rxPacket.messageId == lastDisplayedMessage);
+    bool duplicate = wasMessageSeen(rxPacket.senderId, rxPacket.messageId);
     if (!duplicate) {
-      lastDisplayedSender = rxPacket.senderId;
-      lastDisplayedMessage = rxPacket.messageId;
+      rememberMessage(rxPacket.senderId, rxPacket.messageId);
       Serial.print("[MESSAGE] ");
       Serial.print(rxPacket.userName);
       Serial.print(" (");
@@ -164,7 +179,7 @@ void serviceIncoming(bool acknowledgeText) {
       Serial.print("): ");
       Serial.println(rxPacket.text);
     }
-    if (acknowledgeText) sendAck(rxPacket.messageId);
+    if (acknowledgeText) sendAck(rxPacket.messageId, rxPacket.senderId);
     return;
   }
 
@@ -190,7 +205,8 @@ void collectAcks(uint16_t messageId, uint16_t *ackIds, uint8_t &ackCount) {
       while (LoRa.available() && i < sizeof(RadioPacket)) dst[i++] = (uint8_t)LoRa.read();
       if (i == sizeof(RadioPacket) && rxPacket.magic == 0x4C52 &&
           rxPacket.networkId == NETWORK_ID && rxPacket.type == PKT_ACK &&
-          rxPacket.messageId == messageId && rxPacket.senderId != deviceId) {
+          rxPacket.messageId == messageId && rxPacket.ackForSenderId == deviceId &&
+          rxPacket.senderId != deviceId) {
         bool known = false;
         for (uint8_t j = 0; j < ackCount; ++j) if (ackIds[j] == rxPacket.senderId) known = true;
         if (!known && ackCount < MAX_PEERS) {
@@ -266,6 +282,7 @@ void setup() {
   while (!Serial) { }
   loadOrCreateDeviceId();
   memset(peers, 0, sizeof(peers));
+  memset(seenMessages, 0, sizeof(seenMessages));
   Serial.println(F("LoRa Group Messaging - prototype"));
   Serial.print(F("User: ")); Serial.println(USER_NAME);
   Serial.print(F("Device ID: ")); Serial.println(deviceId);
