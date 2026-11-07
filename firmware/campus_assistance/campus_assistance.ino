@@ -471,6 +471,12 @@ void removeQueued(uint16_t stationId, uint16_t requestId) {
   if (queueCount < MAX_PENDING_REQUESTS) queueItems[queueCount].used = false;
 }
 
+void removeQueuedGeneration(uint16_t stationId, uint16_t requestId, uint8_t generation) {
+  int index=findQueued(stationId,requestId);
+  if (index<0 || queueItems[index].generation!=generation) return;
+  removeQueued(stationId,requestId);
+}
+
 void handleCartPacket(const CampusPacket &p) {
   if (p.type == PKT_REQUEST) {
     enqueueRequest(p);
@@ -500,9 +506,9 @@ void handleCartPacket(const CampusPacket &p) {
              p.type == PKT_CART_CANCEL || p.type == PKT_COMPLETE) {
     rememberTombstone(p.stationId,p.requestId,p.generation);
     sendCancelAck(p);
-    removeQueued(p.stationId, p.requestId);
+    removeQueuedGeneration(p.stationId, p.requestId, p.generation);
     if (assignmentActive && activeRequest.stationId == p.stationId &&
-        activeRequest.requestId == p.requestId) {
+        activeRequest.requestId == p.requestId && activeRequest.generation == p.generation) {
       assignmentActive = false;
       activeRequest.used = false;
       Serial.println(F("[NOTICE] Active request closed or cancelled"));
