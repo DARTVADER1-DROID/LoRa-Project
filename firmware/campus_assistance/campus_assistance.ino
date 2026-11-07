@@ -383,15 +383,29 @@ void serviceStation() {
 
 #else
 
+bool generationIsNewer(uint8_t candidate, uint8_t reference) {
+  return (int8_t)(candidate-reference) > 0; // modular 8-bit sequence comparison
+}
+
 bool isTombstoned(uint16_t stationId, uint16_t requestId, uint8_t generation) {
-  for (uint8_t i=0; i<TOMBSTONE_CAPACITY; ++i)
+  for (uint8_t i=0; i<TOMBSTONE_CAPACITY; ++i) {
     if (tombstones[i].used && tombstones[i].stationId==stationId &&
-        tombstones[i].requestId==requestId && tombstones[i].generation==generation) return true;
+        tombstones[i].requestId==requestId) {
+      return !generationIsNewer(generation,tombstones[i].generation);
+    }
+  }
   return false;
 }
 
 void rememberTombstone(uint16_t stationId, uint16_t requestId, uint8_t generation) {
-  if (isTombstoned(stationId, requestId, generation)) return;
+  for (uint8_t i=0; i<TOMBSTONE_CAPACITY; ++i) {
+    if (tombstones[i].used && tombstones[i].stationId==stationId &&
+        tombstones[i].requestId==requestId) {
+      if (generationIsNewer(generation,tombstones[i].generation))
+        tombstones[i].generation=generation;
+      return;
+    }
+  }
   Tombstone &t=tombstones[tombstoneNext];
   t.stationId=stationId; t.requestId=requestId; t.generation=generation; t.used=true;
   tombstoneNext=(uint8_t)((tombstoneNext+1)%TOMBSTONE_CAPACITY);
@@ -422,10 +436,7 @@ void sendRequestAck(const CampusPacket &p) {
 }
 
 void enqueueRequest(const CampusPacket &p) {
-  if (isTombstoned(p.stationId,p.requestId,p.generation)) {
-    sendRequestAck(p); // packet was received and deliberately rejected as stale/cancelled
-    return;
-  }
+  if (isTombstoned(p.stationId,p.requestId,p.generation)) return;
   if (assignmentActive && activeRequest.stationId == p.stationId &&
       activeRequest.requestId == p.requestId) {
     if (p.generation > activeRequest.generation) {
