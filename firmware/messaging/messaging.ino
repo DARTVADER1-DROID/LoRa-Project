@@ -190,9 +190,10 @@ bool readPacket(RadioPacket &p) {
   size_t i = 0;
   while (LoRa.available() && i < sizeof(RadioPacket)) dst[i++] = (uint8_t)LoRa.read();
   if (i != sizeof(RadioPacket)) return false;
-  p.userName[sizeof(p.userName)-1]='\\0';
-  p.text[MAX_MESSAGE_CHARS]='\\0';
-  return p.magic == 0x4C52 && p.networkId == NETWORK_ID;
+  p.userName[sizeof(p.userName)-1]='\0';
+  p.text[MAX_MESSAGE_CHARS]='\0';
+  if (p.magic != 0x4C52 || p.networkId != NETWORK_ID || p.senderId == 0) return false;
+  return p.type == PKT_HELLO || p.type == PKT_TEXT || p.type == PKT_ACK;
 }
 
 void serviceIncoming(bool acknowledgeText) {
@@ -252,7 +253,7 @@ uint8_t activePeerCount() {
 }
 
 void startText(const char *text) {
-  if (!text || text[0]=='\\0') { Serial.println(F("[ERROR] Empty messages are not sent.")); return; }
+  if (!text || text[0]=='\0') { Serial.println(F("[ERROR] Empty messages are not sent.")); return; }
   size_t length=strlen(text);
   if (length>MAX_MESSAGE_CHARS) { Serial.println(F("[ERROR] Message exceeds 128 bytes.")); return; }
   if (pendingTx.active) { Serial.println(F("[BUSY] Previous message still awaiting bounded delivery result.")); return; }
@@ -261,10 +262,12 @@ void startText(const char *text) {
   pendingTx.packet.messageId=nextMessageId++;
   copyText(pendingTx.packet.text,sizeof(pendingTx.packet.text),text);
   for(uint8_t i=0;i<MAX_PEERS;i++) {
-    if(peers[i].used && millis()-peers[i].lastSeen<=PEER_TIMEOUT_MS)
+    if(peers[i].used && millis()-peers[i].lastSeen<=PEER_TIMEOUT_MS) {
+      if (pendingTx.expectedCount >= MAX_PEERS) break;
       pendingTx.expected[pendingTx.expectedCount]=peers[i].id;
       pendingTx.expectedBootIds[pendingTx.expectedCount]=peers[i].bootId;
       pendingTx.expectedCount++;
+    }
   }
   pendingTx.active=true;
   pendingTx.nextTxAt=millis();
@@ -329,18 +332,23 @@ void loop() {
 
   static char input[MAX_MESSAGE_CHARS + 2];
   static uint8_t inputLength = 0;
+  static bool discardUntilNewline = false;
   while (Serial.available()) {
     char c = (char)Serial.read();
     if (c == '\r') continue;
     if (c == '\n') {
-      input[inputLength] = '\0';
-      startText(input);
+      if (!discardUntilNewline) {
+        input[inputLength] = '\0';
+        startText(input);
+      }
       inputLength = 0;
-    } else if (inputLength < sizeof(input) - 1) {
+      discardUntilNewline = false;
+    } else if (!discardUntilNewline && inputLength < sizeof(input) - 1) {
       input[inputLength++] = c;
-    } else {
+    } else if (!discardUntilNewline) {
       inputLength = 0;
-      Serial.println(F("[ERROR] Input too long; line discarded."));
+      discardUntilNewline = true;
+      Serial.println(F("[ERROR] Input too long; entire line discarded."));
     }
   }
 }
