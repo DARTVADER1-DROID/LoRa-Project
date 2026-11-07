@@ -255,3 +255,30 @@ Build pure C++ state-machine helpers or a Python reference model that can inject
 8. Run host tests, all Arduino compile targets, then hardware-in-the-loop and field tests.
 
 No firmware should be considered production-ready until the hardware and field tests pass. Do not merge or deploy based on compilation alone.
+
+
+## 8. Implementation status (prototype branch)
+
+Implemented in the current feature branch:
+
+- Messaging ACK collection and retry deadlines are serviced from the main loop rather than a blocking ACK-wait loop.
+- Messaging snapshots the known live peer IDs at send start; ACKs must match sender ID, sender boot nonce, message ID, and expected peer membership.
+- Message duplicate keys include sender ID, sender boot nonce, and message ID. ACK retries do not redisplay a cached message.
+- Receiver ACKs are placed in a fixed-size jitter queue; queue overflow is visible and recoverable by sender retry.
+- Empty known-peer roster performs one best-effort send and reports that no recipients were known.
+- Campus station collects a bounded set of distinct claims and rotates the cart-ID selection after each winner.
+- Cart claim retries include bounded random jitter.
+- Cart cancellation and completion retry the same transaction; the station validates the currently assigned cart and caches the most recent terminal tuple so a lost ACK can be recovered by duplicate retry.
+- Cart request and cancellation ACK replies use a bounded non-blocking jitter queue.
+- Stale request generations are rejected rather than ACKed as accepted.
+
+Still outstanding before production consideration:
+
+- Durable station transaction identity and reboot reconciliation; current request IDs and terminal ledger have volatile/persistence limitations.
+- A durable or synchronized tombstone strategy; current cart tombstones are finite and volatile.
+- Authentication and replay protection; IDs, boot nonce and CRC are not cryptographic protections.
+- Full fair arbitration across more than the bounded claimant capacity, hidden-node effects, and measured RF airtime/duty-cycle scheduling.
+- Physical hardware-in-the-loop tests with packet loss, multiple carts, power cycling, range and interference.
+- The LoRa library's endPacket() transmission call remains synchronous; non-blocking changes remove long ACK waits and randomized response delays, not radio airtime itself.
+
+The new Python test suite is a deterministic reference-model/fault-injection suite plus source-contract assertions. It is not a cycle-accurate emulator of the AVR firmware or SX1278 channel.
