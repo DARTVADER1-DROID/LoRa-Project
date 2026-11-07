@@ -439,7 +439,7 @@ void enqueueRequest(const CampusPacket &p) {
   if (isTombstoned(p.stationId,p.requestId,p.generation)) return;
   if (assignmentActive && activeRequest.stationId == p.stationId &&
       activeRequest.requestId == p.requestId) {
-    if (p.generation > activeRequest.generation) {
+    if (generationIsNewer(p.generation, activeRequest.generation)) {
       assignmentActive = false;
       activeRequest.used = false;
       Serial.println(F("[REVOKED] Previous assignment generation superseded"));
@@ -450,7 +450,7 @@ void enqueueRequest(const CampusPacket &p) {
   }
   int existing = findQueued(p.stationId, p.requestId);
   if (existing >= 0) {
-    if (p.generation > queueItems[existing].generation) queueItems[existing].generation = p.generation;
+    if (generationIsNewer(p.generation, queueItems[existing].generation)) queueItems[existing].generation = p.generation;
     sendRequestAck(p);
     return;
   }
