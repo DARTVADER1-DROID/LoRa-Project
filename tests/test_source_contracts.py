@@ -76,6 +76,8 @@ class CampusSourceContracts(unittest.TestCase):
         self.assertIn("CANCEL_MAX_RETRIES", CAMPUS)
         self.assertIn("CANCEL_RETRY_INTERVAL_MS", CAMPUS)
         self.assertIn("isTombstoned(p.stationId,p.requestId,p.generation)", CAMPUS)
+        self.assertIn("generationIsNewer(uint8_t candidate, uint8_t reference)", CAMPUS)
+        self.assertIn("(int8_t)(candidate-reference) > 0", CAMPUS)
         self.assertIn("rememberTombstone(p.stationId,p.requestId,p.generation)", CAMPUS)
         self.assertIn("removeQueuedGeneration(p.stationId, p.requestId, p.generation)", CAMPUS)
         self.assertIn("activeRequest.generation == p.generation", CAMPUS)
