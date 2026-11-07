@@ -352,10 +352,10 @@ uint8_t activePeerCount() {
 }
 
 void startText(const char *text) {
-  if (!text || text[0]=='\0') { Serial.println(F("[ERROR] Empty messages are not sent.")); return; }
+  if (!text || text[0]=='\0') { Serial.println(F("[STATUS] REJECTED_LOCAL; empty messages are not sent.")); return; }
   size_t length=strlen(text);
-  if (length>MAX_MESSAGE_CHARS) { Serial.println(F("[ERROR] Message exceeds 128 bytes.")); return; }
-  if (pendingTx.active) { Serial.println(F("[BUSY] Previous message still awaiting bounded delivery result.")); return; }
+  if (length>MAX_MESSAGE_CHARS) { Serial.println(F("[STATUS] REJECTED_LOCAL; message exceeds 128 bytes.")); return; }
+  if (pendingTx.active) { Serial.println(F("[STATUS] BUSY; previous message still awaiting bounded delivery result.")); return; }
   memset(&pendingTx,0,sizeof(pendingTx));
   initPacket(pendingTx.packet,PKT_TEXT);
   if (nextMessageId == 0) {
@@ -473,6 +473,7 @@ void setup() {
   LoRa.enableCrc();
   static_assert(sizeof(RadioPacket) <= 255, "LoRa packet exceeds PHY payload limit");
   static_assert(MAX_MESSAGE_CHARS <= 128, "RMP payload exceeds 128-byte limit");
+  static_assert(MAX_RETRIES <= 10, "Retry count must remain tightly bounded");
   sendHello();
   Serial.println(F("Type a message (max 128 bytes), then press Enter."));
 }
@@ -498,12 +499,16 @@ void loop() {
       }
       inputLength = 0;
       discardUntilNewline = false;
+    } else if (!discardUntilNewline && c == '\0') {
+      inputLength = 0;
+      discardUntilNewline = true;
+      Serial.println(F("[STATUS] REJECTED_LOCAL; NUL byte in input; entire line discarded."));
     } else if (!discardUntilNewline && inputLength < MAX_MESSAGE_CHARS) {
       input[inputLength++] = c;
     } else if (!discardUntilNewline) {
       inputLength = 0;
       discardUntilNewline = true;
-      Serial.println(F("[ERROR] Input too long; entire line discarded."));
+      Serial.println(F("[STATUS] REJECTED_LOCAL; input exceeds 128 bytes; entire line discarded."));
     }
   }
 }
