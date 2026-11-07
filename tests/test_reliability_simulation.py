@@ -162,6 +162,25 @@ class Dispatcher:
         return True
 
 
+
+
+class TerminalLedger:
+    def __init__(self):
+        self.completed = None
+        self.acks_sent = 0
+
+    def receive(self, operation, cart_id, request_id, generation):
+        key = (operation, cart_id, request_id, generation)
+        if self.completed == key:
+            self.acks_sent += 1
+            return "DUPLICATE_ACK"
+        if self.completed is not None:
+            return "CONFLICT"
+        self.completed = key
+        self.acks_sent += 1
+        return "APPLIED"
+
+
 class ReliabilitySimulationTests(unittest.TestCase):
     def test_generation_wrap_forward(self):
         self.assertTrue(generation_newer(0, 255))
@@ -351,6 +370,37 @@ class ReliabilitySimulationTests(unittest.TestCase):
         d.select()
         self.assertTrue(d.assign_ack(4))
         self.assertTrue(d.assignment_confirmed)
+
+    def test_lost_terminal_ack_is_recovered_by_idempotent_retry(self):
+        station = TerminalLedger()
+        self.assertEqual(station.receive("CANCEL", 7, 20, 3), "APPLIED")
+        self.assertEqual(station.receive("CANCEL", 7, 20, 3), "DUPLICATE_ACK")
+        self.assertEqual(station.acks_sent, 2)
+
+    def test_terminal_replay_with_wrong_generation_does_not_match(self):
+        station = TerminalLedger()
+        station.receive("COMPLETE", 7, 20, 3)
+        self.assertEqual(station.receive("COMPLETE", 7, 20, 4), "CONFLICT")
+
+    def test_terminal_replay_from_wrong_cart_does_not_match(self):
+        station = TerminalLedger()
+        station.receive("CANCEL", 7, 20, 3)
+        self.assertEqual(station.receive("CANCEL", 8, 20, 3), "CONFLICT")
+
+    def test_message_cache_capacity_is_bounded(self):
+        receiver = MessageReceiver(cache_size=12)
+        for message_id in range(30):
+            receiver.receive(1, 5, message_id, str(message_id))
+        self.assertEqual(len(receiver.seen), 12)
+        self.assertEqual(len(receiver.displayed), 30)
+
+    def test_message_cache_eviction_is_a_bounded_window(self):
+        receiver = MessageReceiver(cache_size=2)
+        receiver.receive(1, 5, 1, "one")
+        receiver.receive(1, 5, 2, "two")
+        receiver.receive(1, 5, 3, "three")
+        receiver.receive(1, 5, 1, "one replay after eviction")
+        self.assertEqual(len(receiver.displayed), 4)
 
 
 if __name__ == "__main__":
