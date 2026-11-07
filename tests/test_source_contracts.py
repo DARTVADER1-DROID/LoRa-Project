@@ -71,6 +71,8 @@ class CampusSourceContracts(unittest.TestCase):
         self.assertIn("ack.ackForSenderId=item.targetId", MESSAGING)
         self.assertIn("ack.ackForBootId=item.targetBootId", MESSAGING)
         self.assertIn("rxPacket.ackForBootId == bootId", MESSAGING)
+        self.assertIn("expectedBootIds[MAX_PEERS]", MESSAGING)
+        self.assertIn("pendingTx.expectedBootIds[i]==rxPacket.senderBootId", MESSAGING)
         self.assertIn("servicePendingTx()", MESSAGING)
         self.assertNotIn("collectAcks(", MESSAGING)
         self.assertNotIn("delay((unsigned long)random", MESSAGING)
