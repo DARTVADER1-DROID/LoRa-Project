@@ -1,0 +1,14 @@
+[package]
+name = "lora-messaging-app"
+version = "0.1.0"
+description = "Cross-platform LoRa messaging desktop application"
+authors = ["LoRa Project"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2" }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serialport = "4"
+tauri = { version = "2" }
