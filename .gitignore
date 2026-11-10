@@ -1,0 +1,36 @@
+# Rust build output
+**/target/
+
+# Tauri / frontend dependencies and build output
+**/node_modules/
+**/dist/
+**/build/
+
+# Python test and tooling artifacts
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Arduino / native compiler output
+*.hex
+*.elf
+*.eep
+*.map
+*.o
+*.d
+
+# Local environment and logs
+.env
+.env.*
+!.env.example
+*.log
+*.tmp
+
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
