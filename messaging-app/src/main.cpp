@@ -45,14 +45,13 @@ QStringList portSnapshot(const QList<QSerialPortInfo> &ports)
 void refreshSerialPorts(QTableWidget *portTable,
                         QLabel *countLabel,
                         QLabel *scanTimeLabel,
-                        const QStringList *previousSnapshot)
+                        QStringList *previousSnapshot)
 {
     const QList<QSerialPortInfo> ports = QSerialPortInfo::availablePorts();
     const QStringList currentSnapshot = portSnapshot(ports);
 
     if (currentSnapshot != *previousSnapshot) {
-        auto *mutableSnapshot = const_cast<QStringList *>(previousSnapshot);
-        *mutableSnapshot = currentSnapshot;
+        *previousSnapshot = currentSnapshot;
 
         portTable->setRowCount(ports.size());
 
@@ -240,7 +239,13 @@ int main(int argc, char *argv[])
     QObject::connect(refreshButton, &QPushButton::clicked, &window, scan);
     QObject::connect(scanTimer, &QTimer::timeout, &window, scan);
     QObject::connect(autoScanCheck, &QCheckBox::toggled,
-                     scanTimer, &QTimer::setActive);
+                     &window, [scanTimer](bool enabled) {
+                         if (enabled) {
+                             scanTimer->start();
+                         } else {
+                             scanTimer->stop();
+                         }
+                     });
 
     scan(); // Initial discovery as soon as the application starts.
     scanTimer->start();
