@@ -93,7 +93,7 @@ fn identify_device(port: &mut dyn serialport::SerialPort) -> Option<DeviceIdenti
     let mut buffer = [0u8; 128];
     let mut pending = String::new();
     for _ in 0..10 {
-        let _ = port.write_all(b"@APP:IDENTIFY\\n");
+        let _ = port.write_all(b"@APP:IDENTIFY\n");
         let _ = port.flush();
         let deadline = Instant::now() + Duration::from_millis(350);
         while Instant::now() < deadline {
