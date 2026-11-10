@@ -167,8 +167,8 @@ fn get_connection_status(state: State<'_, AppState>) -> Result<ConnectionStatus,
     let mut connection = state.connection.lock()
         .map_err(|_| "Connection state is unavailable".to_string())?;
 
-    if let Some(active) = &connection.active {
-        let active_name = active.port_name.clone();
+    let active_name = connection.active.as_ref().map(|active| active.port_name.clone());
+    if let Some(active_name) = active_name {
         let still_present = serialport::available_ports()
             .map_err(|error| error.to_string())?
             .into_iter()
