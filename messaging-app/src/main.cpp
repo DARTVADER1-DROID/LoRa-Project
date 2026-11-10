@@ -6,6 +6,7 @@
 #include <QLabel>
 #include <QMainWindow>
 #include <QPushButton>
+#include <QSerialPort>
 #include <QSerialPortInfo>
 #include <QTableWidget>
 #include <QTableWidgetItem>
@@ -15,6 +16,8 @@
 
 namespace
 {
+constexpr qint32 SerialBaudRate = 9600;
+
 QString usbIdentifier(const QSerialPortInfo &port)
 {
     if (!port.hasVendorIdentifier() || !port.hasProductIdentifier()) {
@@ -42,18 +45,70 @@ QStringList portSnapshot(const QList<QSerialPortInfo> &ports)
     return snapshot;
 }
 
-void refreshSerialPorts(QTableWidget *portTable,
+QString selectedPortName(const QTableWidget *table)
+{
+    const int row = table->currentRow();
+    if (row < 0) {
+        return {};
+    }
+
+    const auto *item = table->item(row, 0);
+    return item ? item->data(Qt::UserRole).toString() : QString{};
+}
+
+void setConnectionStatus(QLabel *statusLabel,
+                         QTableWidget *table,
+                         const QString &status,
+                         const QString &detail,
+                         const QString &connectedPort = {})
+{
+    statusLabel->setText(status + (detail.isEmpty() ? QString{} : " — " + detail));
+
+    for (int row = 0; row < table->rowCount(); ++row) {
+        auto *portItem = table->item(row, 0);
+        auto *statusItem = table->item(row, 5);
+        if (!portItem || !statusItem) {
+            continue;
+        }
+
+        const bool isConnected = !connectedPort.isEmpty() &&
+            portItem->data(Qt::UserRole).toString() == connectedPort;
+
+        statusItem->setText(isConnected ? "SERIAL LINK OPEN" : "AVAILABLE");
+    }
+}
+
+void refreshSerialPorts(QTableWidget *table,
                         QLabel *countLabel,
                         QLabel *scanTimeLabel,
+                        QLabel *statusLabel,
+                        QSerialPort *serialPort,
                         QStringList *previousSnapshot)
 {
     const QList<QSerialPortInfo> ports = QSerialPortInfo::availablePorts();
     const QStringList currentSnapshot = portSnapshot(ports);
 
-    if (currentSnapshot != *previousSnapshot) {
-        *previousSnapshot = currentSnapshot;
+    if (serialPort->isOpen()) {
+        bool connectedPortStillExists = false;
+        for (const QSerialPortInfo &port : ports) {
+            if (port.portName() == serialPort->portName()) {
+                connectedPortStillExists = true;
+                break;
+            }
+        }
 
-        portTable->setRowCount(ports.size());
+        if (!connectedPortStillExists) {
+            const QString removedPort = serialPort->portName();
+            serialPort->close();
+            setConnectionStatus(statusLabel, table, "FAULT",
+                                removedPort + " was disconnected");
+        }
+    }
+
+    if (currentSnapshot != *previousSnapshot) {
+        const QString selected = selectedPortName(table);
+        *previousSnapshot = currentSnapshot;
+        table->setRowCount(ports.size());
 
         for (int row = 0; row < ports.size(); ++row) {
             const QSerialPortInfo &port = ports.at(row);
@@ -62,13 +117,22 @@ void refreshSerialPorts(QTableWidget *portTable,
                 port.description().isEmpty() ? "—" : port.description(),
                 port.manufacturer().isEmpty() ? "—" : port.manufacturer(),
                 port.systemLocation().isEmpty() ? "—" : port.systemLocation(),
-                usbIdentifier(port).isEmpty() ? "—" : usbIdentifier(port)
+                usbIdentifier(port).isEmpty() ? "—" : usbIdentifier(port),
+                serialPort->isOpen() && serialPort->portName() == port.portName()
+                    ? "SERIAL LINK OPEN" : "AVAILABLE"
             };
 
             for (int column = 0; column < values.size(); ++column) {
                 auto *item = new QTableWidgetItem(values.at(column));
                 item->setFlags(item->flags() & ~Qt::ItemIsEditable);
-                portTable->setItem(row, column, item);
+                if (column == 0) {
+                    item->setData(Qt::UserRole, port.portName());
+                }
+                table->setItem(row, column, item);
+            }
+
+            if (port.portName() == selected) {
+                table->selectRow(row);
             }
         }
     }
@@ -83,24 +147,23 @@ void refreshSerialPorts(QTableWidget *portTable,
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
-
     QApplication::setApplicationName("LoRa Messaging");
 
     QMainWindow window;
     window.setWindowTitle("LoRa Messaging");
-    window.resize(1100, 680);
-    window.setMinimumSize(760, 480);
+    window.resize(1180, 720);
+    window.setMinimumSize(820, 520);
 
     auto *centralWidget = new QWidget(&window);
     auto *layout = new QVBoxLayout(centralWidget);
     layout->setContentsMargins(28, 24, 28, 24);
-    layout->setSpacing(18);
+    layout->setSpacing(16);
 
     auto *heading = new QLabel("Device connections", centralWidget);
     heading->setObjectName("pageHeading");
 
     auto *subtitle = new QLabel(
-        "Discover serial devices connected to this computer.",
+        "Select a serial device and manage its USB connection.",
         centralWidget);
     subtitle->setObjectName("subtitle");
 
@@ -109,8 +172,6 @@ int main(int argc, char *argv[])
     countLabel->setObjectName("countLabel");
 
     auto *refreshButton = new QPushButton("Refresh now", centralWidget);
-    refreshButton->setObjectName("primaryButton");
-
     auto *autoScanCheck = new QCheckBox("Auto-scan every 2 seconds", centralWidget);
     autoScanCheck->setChecked(true);
 
@@ -120,9 +181,10 @@ int main(int argc, char *argv[])
     toolbar->addWidget(refreshButton);
 
     auto *portTable = new QTableWidget(centralWidget);
-    portTable->setColumnCount(5);
+    portTable->setColumnCount(6);
     portTable->setHorizontalHeaderLabels({
-        "PORT", "DEVICE", "MANUFACTURER", "SYSTEM LOCATION", "USB VID : PID"
+        "PORT", "DEVICE", "MANUFACTURER", "SYSTEM LOCATION",
+        "USB VID : PID", "PORT STATUS"
     });
     portTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     portTable->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -134,11 +196,25 @@ int main(int argc, char *argv[])
     portTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
     portTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
     portTable->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
+    portTable->horizontalHeader()->setSectionResizeMode(5, QHeaderView::ResizeToContents);
     portTable->setAlternatingRowColors(true);
 
+    auto *connectionBar = new QHBoxLayout();
+    auto *connectButton = new QPushButton("Connect", centralWidget);
+    connectButton->setObjectName("primaryButton");
+    auto *disconnectButton = new QPushButton("Disconnect", centralWidget);
+    disconnectButton->setEnabled(false);
+    connectionBar->addWidget(connectButton);
+    connectionBar->addWidget(disconnectButton);
+    connectionBar->addStretch();
+
+    auto *statusLabel = new QLabel("DISCONNECTED — Select a port to connect.", centralWidget);
+    statusLabel->setObjectName("statusLabel");
+    statusLabel->setWordWrap(true);
+
     auto *connectionNote = new QLabel(
-        "Port discovery only — a listed device has not yet been opened or "
-        "verified as a LoRa gateway.",
+        "Serial link status checks USB/serial communication errors. It does not "
+        "confirm that the Arduino firmware or LoRa radio is operational.",
         centralWidget);
     connectionNote->setObjectName("connectionNote");
     connectionNote->setWordWrap(true);
@@ -150,6 +226,8 @@ int main(int argc, char *argv[])
     layout->addWidget(subtitle);
     layout->addLayout(toolbar);
     layout->addWidget(portTable, 1);
+    layout->addLayout(connectionBar);
+    layout->addWidget(statusLabel);
     layout->addWidget(connectionNote);
     layout->addWidget(scanTimeLabel);
 
@@ -199,7 +277,7 @@ int main(int argc, char *argv[])
             background: white;
             border: 1px solid #cbd5e1;
             border-radius: 6px;
-            padding: 9px 14px;
+            padding: 9px 16px;
         }
         QPushButton:hover {
             background: #eff6ff;
@@ -214,9 +292,22 @@ int main(int argc, char *argv[])
         QPushButton#primaryButton:hover {
             background: #1d4ed8;
         }
+        QPushButton:disabled {
+            color: #94a3b8;
+            background: #e2e8f0;
+            border-color: #e2e8f0;
+        }
         QCheckBox {
             color: #475569;
             spacing: 7px;
+        }
+        QLabel#statusLabel {
+            background: #f1f5f9;
+            color: #334155;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-weight: 600;
         }
         QLabel#connectionNote {
             background: #eff6ff;
@@ -227,13 +318,16 @@ int main(int argc, char *argv[])
         }
     )");
 
+    QSerialPort serialPort;
     QStringList previousSnapshot;
     auto *scanTimer = new QTimer(&window);
     scanTimer->setInterval(2000);
 
     const auto scan = [&]() {
-        refreshSerialPorts(portTable, countLabel, scanTimeLabel,
-                           &previousSnapshot);
+        refreshSerialPorts(portTable, countLabel, scanTimeLabel, statusLabel,
+                           &serialPort, &previousSnapshot);
+        disconnectButton->setEnabled(serialPort.isOpen());
+        connectButton->setEnabled(!serialPort.isOpen());
     };
 
     QObject::connect(refreshButton, &QPushButton::clicked, &window, scan);
@@ -247,7 +341,77 @@ int main(int argc, char *argv[])
                          }
                      });
 
-    scan(); // Initial discovery as soon as the application starts.
+    QObject::connect(portTable, &QTableWidget::itemSelectionChanged,
+                     &window, [connectButton, disconnectButton, &serialPort]() {
+                         connectButton->setEnabled(!serialPort.isOpen());
+                         disconnectButton->setEnabled(serialPort.isOpen());
+                     });
+
+    QObject::connect(connectButton, &QPushButton::clicked, &window,
+                     [&]() {
+                         const QString portName = selectedPortName(portTable);
+                         if (portName.isEmpty()) {
+                             setConnectionStatus(statusLabel, portTable,
+                                                 "NOT CONNECTED",
+                                                 "Select a serial port first");
+                             return;
+                         }
+
+                         if (serialPort.isOpen()) {
+                             serialPort.close();
+                         }
+
+                         serialPort.setPortName(portName);
+                         serialPort.setBaudRate(SerialBaudRate);
+                         serialPort.setDataBits(QSerialPort::Data8);
+                         serialPort.setParity(QSerialPort::NoParity);
+                         serialPort.setStopBits(QSerialPort::OneStop);
+                         serialPort.setFlowControl(QSerialPort::NoFlowControl);
+
+                         if (!serialPort.open(QIODevice::ReadWrite)) {
+                             setConnectionStatus(statusLabel, portTable, "FAULT",
+                                                 serialPort.errorString());
+                             scan();
+                             return;
+                         }
+
+                         setConnectionStatus(
+                             statusLabel, portTable, "SERIAL LINK OPEN",
+                             portName + " at " + QString::number(SerialBaudRate) +
+                                 " baud; gateway not yet verified",
+                             portName);
+                         scan();
+                     });
+
+    QObject::connect(disconnectButton, &QPushButton::clicked, &window,
+                     [&]() {
+                         if (serialPort.isOpen()) {
+                             serialPort.close();
+                         }
+                         setConnectionStatus(statusLabel, portTable,
+                                             "DISCONNECTED", "Serial port closed");
+                         scan();
+                     });
+
+    QObject::connect(&serialPort, &QSerialPort::errorOccurred, &window,
+                     [&](QSerialPort::SerialPortError error) {
+                         if (error == QSerialPort::NoError ||
+                             error == QSerialPort::NotOpenError) {
+                             return;
+                         }
+
+                         const QString fault = serialPort.errorString();
+                         if (serialPort.isOpen()) {
+                             serialPort.close();
+                         }
+
+                         setConnectionStatus(statusLabel, portTable,
+                                             "FAULT", fault);
+                         connectButton->setEnabled(true);
+                         disconnectButton->setEnabled(false);
+                     });
+
+    scan();
     scanTimer->start();
 
     window.show();
