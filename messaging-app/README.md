@@ -1,26 +1,53 @@
 # LoRa Messaging Desktop App
 
-Cross-platform desktop application built with **Rust + Tauri 2**. The frontend is plain HTML, CSS, and JavaScript; no Node.js frontend toolchain or frontend framework is required.
+Cross-platform desktop application built with **Rust + Tauri 2**. The frontend uses plain HTML, CSS, and JavaScript.
 
-## Current functionality
+## Current functionality on main
 
-- Enumerates operating-system serial ports at startup.
-- Refreshes the port list every two seconds.
-- Supports manual refresh.
-- Displays port name, transport type, manufacturer, product, and USB VID/PID.
+- Discovers operating-system serial ports at startup.
+- Refreshes the port list every two seconds and on demand.
+- Displays port name, transport type, manufacturer, product, and USB VID/PID when supplied by the operating system.
 - Does not open ports automatically.
 
-Port discovery confirms only that the operating system exposes a serial port. It does not establish that the Arduino firmware or LoRa radio is healthy.
+Port discovery only confirms that the operating system exposes a serial port. It does not identify the connected device conclusively or verify Arduino firmware or LoRa radio health.
 
-## Prerequisites
+The separate `feature/serial-connect-status` branch adds port selection and connect/disconnect controls. See that branch's README for its implementation details.
 
-- Rust toolchain (stable).
-- Tauri platform prerequisites:
-  - **Windows:** Microsoft C++ Build Tools (MSVC) and WebView2 Runtime.
-  - **Linux:** the system WebKitGTK and GTK development packages required by Tauri.
-  - **macOS:** Xcode Command Line Tools.
+## Technology
 
-No Qt, Node.js, npm, or separate frontend build step is used.
+- **Backend:** Rust
+- **Desktop shell:** Tauri 2
+- **Frontend:** plain HTML, CSS, and JavaScript
+- **Serial discovery:** Rust `serialport` crate
+- **Frontend framework/build tool:** none
+
+No Qt, Node.js, npm, React, or separate frontend build step is required. Tauri uses the platform's WebView.
+
+## Project structure
+
+```text
+messaging-app/
+├── frontend/
+│   ├── index.html
+│   ├── app.js
+│   └── styles.css
+└── src-tauri/
+    ├── Cargo.toml
+    ├── build.rs
+    ├── tauri.conf.json
+    ├── icons/
+    │   └── icon.ico
+    └── src/
+        └── main.rs
+```
+
+## Requirements
+
+Install the Rust stable toolchain and the platform-specific Tauri prerequisites:
+
+- **Windows:** Microsoft C++ Build Tools (MSVC) and WebView2 Runtime.
+- **Linux:** GTK and WebKitGTK development packages required by Tauri.
+- **macOS:** Xcode Command Line Tools.
 
 ## Run in development
 
@@ -30,19 +57,14 @@ From this directory:
 cargo run --manifest-path src-tauri/Cargo.toml
 ```
 
-The first build downloads Rust crate dependencies and compiles the native desktop application.
-
-## Build
+## Build an optimized executable
 
 ```sh
 cargo build --release --manifest-path src-tauri/Cargo.toml
 ```
 
-The release executable is placed under `src-tauri/target/release`.
+The executable is written under `src-tauri/target/release`. The current Tauri configuration has bundling disabled, so this command does not create an installer. Build separately on each target operating system.
 
-## Next steps
+## Validation status
 
-1. Add explicit serial connect/disconnect controls.
-2. Add a versioned firmware handshake and heartbeat.
-3. Add buffered serial message reading and writing.
-4. Integrate the existing LoRa messaging protocol.
+The repository source has not yet been verified by a successful Rust/Tauri build on the supported operating systems or by tests with physical Arduino/LoRa hardware.
