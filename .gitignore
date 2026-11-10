@@ -34,3 +34,10 @@ Thumbs.db
 *.swp
 *.swo
 .idea/
+
+# CMake-generated build files (if a native dependency uses CMake)
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+cmake-build-*/
+Testing/
