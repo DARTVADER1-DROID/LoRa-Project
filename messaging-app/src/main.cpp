@@ -60,7 +60,8 @@ void setConnectionStatus(QLabel *statusLabel,
                          QTableWidget *table,
                          const QString &status,
                          const QString &detail,
-                         const QString &connectedPort = {})
+                         const QString &connectedPort = {},
+                         const QString &faultPort = {})
 {
     statusLabel->setText(status + (detail.isEmpty() ? QString{} : " — " + detail));
 
@@ -71,10 +72,13 @@ void setConnectionStatus(QLabel *statusLabel,
             continue;
         }
 
+        const QString rowPort = portItem->data(Qt::UserRole).toString();
         const bool isConnected = !connectedPort.isEmpty() &&
-            portItem->data(Qt::UserRole).toString() == connectedPort;
+            rowPort == connectedPort;
+        const bool hasFault = !faultPort.isEmpty() && rowPort == faultPort;
 
-        statusItem->setText(isConnected ? "SERIAL LINK OPEN" : "AVAILABLE");
+        statusItem->setText(isConnected ? "SERIAL LINK OPEN" :
+                            hasFault ? "FAULT" : "AVAILABLE");
     }
 }
 
@@ -406,7 +410,8 @@ int main(int argc, char *argv[])
                          }
 
                          setConnectionStatus(statusLabel, portTable,
-                                             "FAULT", fault);
+                                             "FAULT", fault, {},
+                                             serialPort.portName());
                          connectButton->setEnabled(true);
                          disconnectButton->setEnabled(false);
                      });
