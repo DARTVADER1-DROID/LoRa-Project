@@ -39,6 +39,7 @@
 #define SEEN_CACHE_SIZE                 12
 #define EEPROM_MAGIC                0x4C52
 #define PROTOCOL_VERSION                 1
+#define FIRMWARE_VERSION          "RMP-1.0"
 
 enum PacketType : uint8_t { PKT_HELLO = 1, PKT_TEXT = 2, PKT_ACK = 3 };
 
@@ -559,7 +560,14 @@ void loop() {
     if (c == '\n') {
       if (!discardUntilNewline) {
         input[inputLength] = '\0';
-        startText(input);
+        if (strcmp(input, "@APP:IDENTIFY") == 0) {
+          Serial.print(F("@DEVICE:ID=")); Serial.print(deviceId);
+          Serial.print(F(";BOOT=")); Serial.print(bootId);
+          Serial.print(F(";FW=")); Serial.print(FIRMWARE_VERSION);
+          Serial.print(F(";LORA=READY;PROTO=")); Serial.println(PROTOCOL_VERSION);
+        } else {
+          startText(input);
+        }
       }
       inputLength = 0;
       discardUntilNewline = false;
