@@ -526,7 +526,30 @@ void setup() {
   LoRa.setPins(LORA_NSS_PIN, LORA_RESET_PIN, LORA_DIO0_PIN);
   if (!LoRa.begin(LORA_FREQUENCY_HZ)) {
     Serial.println(F("[FATAL] LoRa init failed. Check power, wiring and RF module."));
-    while (true) delay(1000);
+    // Keep the USB serial identification endpoint alive even when the radio fails.
+    static char identifyInput[24];
+    static uint8_t identifyLength = 0;
+    while (true) {
+      while (Serial.available()) {
+        char c = (char)Serial.read();
+        if (c == '\\r') continue;
+        if (c == '\\n') {
+          identifyInput[identifyLength] = '\\0';
+          if (strcmp(identifyInput, "@APP:IDENTIFY") == 0) {
+            Serial.print(F("@DEVICE:ID=")); Serial.print(deviceId);
+            Serial.print(F(";BOOT=")); Serial.print(bootId);
+            Serial.print(F(";FW=")); Serial.print(FIRMWARE_VERSION);
+            Serial.print(F(";LORA=FAILED;PROTO=")); Serial.println(PROTOCOL_VERSION);
+          }
+          identifyLength = 0;
+        } else if (identifyLength < sizeof(identifyInput) - 1) {
+          identifyInput[identifyLength++] = c;
+        } else {
+          identifyLength = 0;
+        }
+      }
+      delay(5);
+    }
   }
   // Both ends use an explicit, identical bench modem profile so ACK airtime
   // and turnaround assumptions are reproducible across Arduino uploads.
