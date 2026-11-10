@@ -9,7 +9,10 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS
+    Widgets
+    SerialPort
+)
 
 add_executable(lora-messaging-app
     src/main.cpp
@@ -18,4 +21,5 @@ add_executable(lora-messaging-app
 target_link_libraries(lora-messaging-app
     PRIVATE
         Qt6::Widgets
+        Qt6::SerialPort
 )
