@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LoRa Messaging</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">LORA MESSAGING</p>
+        <h1>Device connections</h1>
+        <p class="subtitle">Serial devices currently detected by this computer.</p>
+      </div>
+      <button id="refresh-button" class="button button-primary" type="button">
+        <span aria-hidden="true">↻</span> Refresh
+      </button>
+    </header>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <div>
+          <h2>Serial ports</h2>
+          <p id="port-count" class="muted">Scanning…</p>
+        </div>
+        <span id="scan-indicator" class="status-pill">SCANNING</span>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>PORT</th>
+              <th>CONNECTION</th>
+              <th>MANUFACTURER</th>
+              <th>DEVICE</th>
+              <th>USB VID : PID</th>
+            </tr>
+          </thead>
+          <tbody id="ports-body">
+            <tr><td colspan="5" class="empty-state">Looking for serial devices…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <footer class="panel-footer">
+        <span id="last-scan">Last scan: —</span>
+        <span>Automatic refresh every 2 seconds</span>
+      </footer>
+    </section>
+
+    <p class="notice">
+      Detection only confirms that the operating system exposes a serial port.
+      It does not yet verify the Arduino firmware or LoRa radio.
+    </p>
+  </main>
+</body>
+</html>

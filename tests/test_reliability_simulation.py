@@ -1,0 +1,607 @@
+"""Deterministic fault-injection tests for the LoRa reliability contracts.
+
+These tests are an executable reference model. They do not emulate RF physics or
+replace Arduino hardware-in-the-loop testing; source-contract tests tie key
+invariants to the deployed sketches.
+"""
+import unittest
+
+
+def generation_newer(candidate, reference):
+    delta = (candidate - reference) & 0xFF
+    return 0 < delta < 128
+
+
+class Tombstones:
+    def __init__(self, capacity=3):
+        self.capacity = capacity
+        self.entries = {}
+
+    def remember(self, key, generation):
+        old = self.entries.get(key)
+        if old is None or generation_newer(generation, old):
+            self.entries[key] = generation
+        if len(self.entries) > self.capacity:
+            self.entries.pop(next(iter(self.entries)))
+
+    def blocks(self, key, generation):
+        old = self.entries.get(key)
+        return old is not None and not generation_newer(generation, old)
+
+
+class MessageReceiver:
+    def __init__(self, cache_size=12):
+        self.cache_size = cache_size
+        self.seen = []
+        self.displayed = []
+        self.acks = []
+
+    def receive(self, sender, boot, message_id, payload, output_available=True):
+        key = (sender, boot, message_id)
+        if not output_available:
+            return False
+        if key not in self.seen:
+            self.displayed.append((key, payload))
+            self.seen.append(key)
+            self.seen = self.seen[-self.cache_size:]
+        self.acks.append(key)
+        return True
+
+
+class MessageSender:
+    def __init__(self, sender_id, boot_id, message_id, peers, max_retries=3):
+        self.identity = (sender_id, boot_id, message_id)
+        self.expected = frozenset(peers)
+        self.confirmed = set()
+        self.max_attempts = max_retries + 1
+        self.attempts = 0
+        self.done = False
+
+    def ack(self, receiver_id, original_sender, original_boot, message_id):
+        if self.done or (original_sender, original_boot, message_id) != self.identity:
+            return False
+        if receiver_id not in self.expected:
+            return False
+        self.confirmed.add(receiver_id)
+        if self.expected and self.confirmed == set(self.expected):
+            self.done = True
+        return True
+
+    def retry(self):
+        if self.done:
+            return False
+        if self.attempts >= self.max_attempts:
+            self.done = True
+            return False
+        self.attempts += 1
+        return True
+
+    @property
+    def status(self):
+        if self.done and self.expected and self.confirmed == set(self.expected):
+            return "CONFIRMED"
+        if self.done:
+            return "PARTIAL_OR_UNCONFIRMED"
+        return "PENDING"
+
+
+class CartQueue:
+    def __init__(self, capacity=3):
+        self.capacity = capacity
+        self.items = {}
+        self.active = None
+        self.tombstones = Tombstones(capacity=12)
+
+    def request(self, key, generation):
+        if self.tombstones.blocks(key, generation):
+            return "STALE"
+        if self.active and self.active[0] == key:
+            if generation_newer(generation, self.active[1]):
+                self.active = None
+            elif generation == self.active[1]:
+                return "ACTIVE_DUPLICATE"
+            else:
+                return "STALE"
+        if key in self.items:
+            old = self.items[key]
+            if generation_newer(generation, old):
+                self.items[key] = generation
+                return "UPDATED"
+            if generation == old:
+                return "DUPLICATE"
+            return "STALE"
+        if len(self.items) >= self.capacity:
+            return "FULL"
+        self.items[key] = generation
+        return "QUEUED"
+
+    def assign(self, key, generation, cart_id):
+        if self.active == (key, generation, cart_id):
+            return "ACK_DUPLICATE"
+        if self.active is not None:
+            return "BUSY"
+        if self.items.get(key) != generation:
+            return "REJECT"
+        del self.items[key]
+        self.active = (key, generation, cart_id)
+        return "ACCEPTED"
+
+    def terminal(self, key, generation):
+        self.tombstones.remember(key, generation)
+        if self.active and self.active[0] == key and self.active[1] == generation:
+            self.active = None
+        if self.items.get(key) == generation:
+            del self.items[key]
+
+
+class Dispatcher:
+    def __init__(self):
+        self.claims = set()
+        self.last_winner = 0
+        self.assignment = None
+        self.assignment_confirmed = False
+
+    def claim(self, cart_id):
+        self.claims.add(cart_id)
+
+    def select(self):
+        if not self.claims:
+            return None
+        after = [x for x in self.claims if x > self.last_winner]
+        winner = min(after) if after else min(self.claims)
+        self.last_winner = winner
+        self.assignment = winner
+        self.assignment_confirmed = False
+        self.claims.clear()
+        return winner
+
+    def assign_ack(self, cart_id):
+        if cart_id != self.assignment:
+            return False
+        self.assignment_confirmed = True
+        return True
+
+
+
+
+class TerminalLedger:
+    def __init__(self):
+        self.completed = None
+        self.acks_sent = 0
+
+    def receive(self, operation, cart_id, request_id, generation):
+        key = (operation, cart_id, request_id, generation)
+        if self.completed == key:
+            self.acks_sent += 1
+            return "DUPLICATE_ACK"
+        if self.completed is not None:
+            return "CONFLICT"
+        self.completed = key
+        self.acks_sent += 1
+        return "APPLIED"
+
+
+
+
+class OfflineGuard:
+    def __init__(self):
+        self.assigned = True
+        self.blocked = False
+        self.generation = 9
+        self.redispatches = 0
+
+    def heartbeat_timeout(self):
+        if self.assigned and not self.blocked:
+            self.blocked = True
+
+    def heartbeat_restored(self):
+        # A radio heartbeat alone is not proof of physical safety.
+        return self.blocked
+
+    def operator_confirms_physical_inspection(self):
+        if self.blocked:
+            self.blocked = False
+            self.assigned = False
+            self.generation = (self.generation + 1) & 0xFF
+            self.redispatches += 1
+
+
+
+
+class PeerDirectory:
+    def __init__(self, timeout=90):
+        self.timeout = timeout
+        self.peers = {}
+
+    def hello(self, device_id, boot_id, now):
+        self.peers[device_id] = (boot_id, now)
+
+    def snapshot(self, now):
+        return {device_id: boot for device_id, (boot, seen) in self.peers.items()
+                if now - seen <= self.timeout}
+
+
+class SerialLineParser:
+    def __init__(self, limit=128):
+        self.limit = limit
+        self.buffer = []
+        self.discard = False
+
+    def feed(self, data):
+        completed = []
+        for char in data:
+            if char == "\n":
+                if not self.discard:
+                    completed.append("".join(self.buffer))
+                self.buffer = []
+                self.discard = False
+            elif char == "\0":
+                self.buffer = []
+                self.discard = True
+            elif not self.discard:
+                if len(self.buffer) < self.limit:
+                    self.buffer.append(char)
+                else:
+                    self.buffer = []
+                    self.discard = True
+        return completed
+
+
+def validate_rmp_frame(version, expected_version, packet_type, sender_id,
+                        boot_id, message_id, payload=b"", ack_target=None):
+    if version != expected_version or sender_id == 0 or boot_id == 0:
+        return False
+    if packet_type == "DATA":
+        return 0 < message_id <= 0xFFFFFFFF and 1 <= len(payload) <= 128 and b"\x00" not in payload
+    if packet_type == "HELLO":
+        return len(payload) == 0
+    if packet_type == "ACK":
+        return len(payload) == 0 and ack_target is not None and all(x != 0 for x in ack_target)
+    return False
+
+
+def retry_backoff(attempt, base=150, cap=1200):
+    return min(base * (2 ** max(0, attempt - 1)), cap)
+
+
+def terminal_message_status(expected, confirmed):
+    if not expected:
+        return "NO_KNOWN_RECIPIENTS"
+    if confirmed >= expected:
+        return "CONFIRMED_TO_N"
+    if confirmed:
+        return "PARTIALLY_CONFIRMED"
+    return "UNCONFIRMED"
+
+
+class ReliabilitySimulationTests(unittest.TestCase):
+    def test_rmp_rejects_unknown_wire_version(self):
+        self.assertFalse(validate_rmp_frame(2, 1, "DATA", 1, 10, 1, b"x"))
+
+    def test_rmp_rejects_zero_sender_or_session_identity(self):
+        self.assertFalse(validate_rmp_frame(1, 1, "DATA", 0, 10, 1, b"x"))
+        self.assertFalse(validate_rmp_frame(1, 1, "DATA", 1, 0, 1, b"x"))
+
+    def test_rmp_accepts_exact_128_byte_payload(self):
+        self.assertTrue(validate_rmp_frame(1, 1, "DATA", 1, 10, 1, b"x" * 128))
+
+    def test_rmp_rejects_empty_or_oversized_or_nul_payload(self):
+        self.assertFalse(validate_rmp_frame(1, 1, "DATA", 1, 10, 1, b""))
+        self.assertFalse(validate_rmp_frame(1, 1, "DATA", 1, 10, 1, b"x" * 129))
+        self.assertFalse(validate_rmp_frame(1, 1, "DATA", 1, 10, 1, b"a\x00b"))
+
+    def test_rmp_ack_requires_complete_original_transaction_tuple(self):
+        self.assertTrue(validate_rmp_frame(1, 1, "ACK", 2, 20, 0, b"", (1, 10, 99)))
+        self.assertFalse(validate_rmp_frame(1, 1, "ACK", 2, 20, 0, b"", (1, 10, 0)))
+        self.assertFalse(validate_rmp_frame(1, 1, "ACK", 2, 20, 0, b"junk", (1, 10, 99)))
+
+    def test_retry_backoff_is_exponential_and_capped(self):
+        self.assertEqual([retry_backoff(i) for i in range(1, 6)],
+                         [150, 300, 600, 1200, 1200])
+
+    def test_sender_terminal_outcomes_are_not_overstated(self):
+        self.assertEqual(terminal_message_status(0, 0), "NO_KNOWN_RECIPIENTS")
+        self.assertEqual(terminal_message_status(3, 3), "CONFIRMED_TO_N")
+        self.assertEqual(terminal_message_status(3, 1), "PARTIALLY_CONFIRMED")
+        self.assertEqual(terminal_message_status(3, 0), "UNCONFIRMED")
+
+    def test_generation_wrap_forward(self):
+        self.assertTrue(generation_newer(0, 255))
+
+    def test_generation_wrap_reverse(self):
+        self.assertFalse(generation_newer(255, 0))
+
+    def test_generation_equal_is_not_newer(self):
+        self.assertFalse(generation_newer(42, 42))
+
+    def test_generation_half_range_is_ambiguous_and_rejected(self):
+        self.assertFalse(generation_newer(128, 0))
+        self.assertFalse(generation_newer(0, 128))
+
+    def test_tombstone_blocks_same_generation(self):
+        t = Tombstones()
+        t.remember(("s", 7), 4)
+        self.assertTrue(t.blocks(("s", 7), 4))
+
+    def test_tombstone_blocks_older_generation(self):
+        t = Tombstones()
+        t.remember(("s", 7), 4)
+        self.assertTrue(t.blocks(("s", 7), 3))
+
+    def test_tombstone_allows_newer_generation(self):
+        t = Tombstones()
+        t.remember(("s", 7), 4)
+        self.assertFalse(t.blocks(("s", 7), 5))
+
+    def test_tombstone_keeps_highest_generation(self):
+        t = Tombstones()
+        key = ("s", 7)
+        t.remember(key, 9)
+        t.remember(key, 8)
+        self.assertEqual(t.entries[key], 9)
+
+    def test_message_duplicate_is_displayed_once_but_reacked(self):
+        r = MessageReceiver()
+        r.receive(1, 10, 2, "hello")
+        r.receive(1, 10, 2, "hello")
+        self.assertEqual(len(r.displayed), 1)
+        self.assertEqual(len(r.acks), 2)
+
+    def test_message_id_reuse_after_reboot_is_distinct(self):
+        r = MessageReceiver()
+        r.receive(1, 10, 2, "old")
+        r.receive(1, 11, 2, "new")
+        self.assertEqual(len(r.displayed), 2)
+
+    def test_output_rejection_is_not_acknowledged(self):
+        r = MessageReceiver()
+        self.assertFalse(r.receive(1, 10, 2, "full", output_available=False))
+        self.assertEqual(r.acks, [])
+
+    def test_sender_ignores_wrong_original_sender(self):
+        s = MessageSender(1, 99, 5, [2])
+        self.assertFalse(s.ack(2, 7, 99, 5))
+
+    def test_sender_ignores_wrong_boot_nonce(self):
+        s = MessageSender(1, 99, 5, [2])
+        self.assertFalse(s.ack(2, 1, 98, 5))
+
+    def test_sender_ignores_wrong_message_id(self):
+        s = MessageSender(1, 99, 5, [2])
+        self.assertFalse(s.ack(2, 1, 99, 6))
+
+    def test_sender_ignores_unexpected_peer(self):
+        s = MessageSender(1, 99, 5, [2])
+        self.assertFalse(s.ack(3, 1, 99, 5))
+
+    def test_sender_counts_each_expected_peer_once(self):
+        s = MessageSender(1, 99, 5, [2, 3])
+        s.ack(2, 1, 99, 5)
+        s.ack(2, 1, 99, 5)
+        self.assertEqual(s.confirmed, {2})
+
+    def test_sender_completes_only_when_snapshot_acked(self):
+        s = MessageSender(1, 99, 5, [2, 3])
+        s.ack(2, 1, 99, 5)
+        self.assertFalse(s.done)
+        s.ack(3, 1, 99, 5)
+        self.assertTrue(s.done)
+        self.assertEqual(s.status, "CONFIRMED")
+
+    def test_sender_peer_snapshot_does_not_expand(self):
+        s = MessageSender(1, 99, 5, [2])
+        self.assertFalse(s.ack(3, 1, 99, 5))
+        self.assertEqual(s.expected, frozenset({2}))
+
+    def test_peer_snapshot_counts_only_live_peers(self):
+        directory = PeerDirectory(timeout=90)
+        directory.hello(2, 10, 0)
+        directory.hello(3, 20, 0)
+        directory.hello(4, 30, 0)
+        self.assertEqual(directory.snapshot(91), {})
+
+    def test_peer_snapshot_keeps_live_peers_and_boot_sessions(self):
+        directory = PeerDirectory(timeout=90)
+        directory.hello(2, 10, 0)
+        directory.hello(3, 20, 50)
+        self.assertEqual(directory.snapshot(60), {2: 10, 3: 20})
+
+    def test_rebooted_expected_peer_ack_is_not_accepted(self):
+        s = MessageSender(1, 99, 5, [(2, 10)])
+        self.assertFalse(s.ack((2, 11), 1, 99, 5))
+        self.assertEqual(s.confirmed, set())
+
+    def test_ack_from_expected_peer_boot_session_is_accepted_once(self):
+        s = MessageSender(1, 99, 5, [(2, 10)])
+        self.assertTrue(s.ack((2, 10), 1, 99, 5))
+        self.assertEqual(s.confirmed, {(2, 10)})
+
+    def test_ack_queue_overflow_does_not_claim_delivery(self):
+        capacity = 4
+        queued = []
+        for message_id in range(5):
+            if len(queued) < capacity:
+                queued.append(message_id)
+        self.assertEqual(len(queued), capacity)
+        self.assertNotIn(4, queued)
+
+    def test_serial_parser_rejects_embedded_nul_and_discards_whole_line(self):
+        parser = SerialLineParser()
+        self.assertEqual(parser.feed("safe-prefix\x00hidden\nNEXT\n"), ["NEXT"])
+
+    def test_serial_parser_accepts_exactly_128_bytes(self):
+        parser = SerialLineParser()
+        payload = "x" * 128
+        self.assertEqual(parser.feed(payload + "\n"), [payload])
+
+    def test_serial_parser_discards_entire_oversized_line(self):
+        parser = SerialLineParser()
+        self.assertEqual(parser.feed(("x" * 129) + "\n"), [])
+
+    def test_serial_parser_recovers_after_oversized_line(self):
+        parser = SerialLineParser()
+        result = parser.feed(("x" * 129) + "\nOK\n")
+        self.assertEqual(result, ["OK"])
+
+    def test_serial_parser_handles_multiple_lines_in_one_read(self):
+        parser = SerialLineParser()
+        self.assertEqual(parser.feed("one\ntwo\n"), ["one", "two"])
+
+    def test_retry_budget_is_bounded(self):
+        s = MessageSender(1, 99, 5, [2], max_retries=3)
+        self.assertEqual([s.retry() for _ in range(5)], [True, True, True, True, False])
+        self.assertTrue(s.done)
+
+    def test_lost_ack_recovers_on_duplicate_delivery(self):
+        r = MessageReceiver()
+        r.receive(2, 44, 9, "payload")  # first ACK is lost in the channel
+        r.receive(2, 44, 9, "payload")  # retry causes another ACK
+        self.assertEqual(len(r.displayed), 1)
+        self.assertEqual(len(r.acks), 2)
+
+    def test_queue_duplicate_does_not_duplicate_entry(self):
+        q = CartQueue()
+        key = ("station", 12)
+        self.assertEqual(q.request(key, 1), "QUEUED")
+        self.assertEqual(q.request(key, 1), "DUPLICATE")
+        self.assertEqual(len(q.items), 1)
+
+    def test_queue_full_does_not_overwrite(self):
+        q = CartQueue(capacity=1)
+        q.request(("s", 1), 1)
+        self.assertEqual(q.request(("s", 2), 1), "FULL")
+        self.assertEqual(set(q.items), {("s", 1)})
+
+    def test_stale_request_after_terminal_is_rejected(self):
+        q = CartQueue()
+        key = ("s", 1)
+        q.request(key, 3)
+        q.terminal(key, 3)
+        self.assertEqual(q.request(key, 3), "STALE")
+        self.assertEqual(q.request(key, 2), "STALE")
+
+    def test_new_generation_can_requeue_after_cart_cancel(self):
+        q = CartQueue()
+        key = ("s", 1)
+        q.request(key, 3)
+        q.terminal(key, 3)
+        self.assertEqual(q.request(key, 4), "QUEUED")
+
+    def test_assignment_is_explicit_and_idempotent(self):
+        q = CartQueue()
+        key = ("s", 1)
+        q.request(key, 1)
+        self.assertEqual(q.assign(key, 1, 7), "ACCEPTED")
+        self.assertEqual(q.assign(key, 1, 7), "ACK_DUPLICATE")
+
+    def test_assignment_rejects_wrong_generation(self):
+        q = CartQueue()
+        key = ("s", 1)
+        q.request(key, 2)
+        self.assertEqual(q.assign(key, 1, 7), "REJECT")
+
+    def test_assignment_rejects_second_active_job(self):
+        q = CartQueue()
+        q.request(("s", 1), 1)
+        q.request(("s", 2), 1)
+        q.assign(("s", 1), 1, 7)
+        self.assertEqual(q.assign(("s", 2), 1, 7), "BUSY")
+
+    def test_claim_arbitration_is_deterministic(self):
+        d = Dispatcher()
+        for cart in [9, 2, 5, 2]:
+            d.claim(cart)
+        self.assertEqual(d.select(), 2)
+
+    def test_claim_arbitration_rotates_fairly(self):
+        d = Dispatcher()
+        for cart in [1, 2, 3]:
+            d.claim(cart)
+        self.assertEqual(d.select(), 1)
+        for cart in [1, 2, 3]:
+            d.claim(cart)
+        self.assertEqual(d.select(), 2)
+        for cart in [1, 2, 3]:
+            d.claim(cart)
+        self.assertEqual(d.select(), 3)
+
+    def test_claim_arbitration_empty_window_has_no_winner(self):
+        self.assertIsNone(Dispatcher().select())
+
+    def test_assignment_not_confirmed_by_transmission_alone(self):
+        d = Dispatcher()
+        d.claim(4)
+        d.select()
+        self.assertFalse(d.assignment_confirmed)
+
+    def test_wrong_cart_assignment_ack_is_ignored(self):
+        d = Dispatcher()
+        d.claim(4)
+        d.select()
+        self.assertFalse(d.assign_ack(5))
+        self.assertFalse(d.assignment_confirmed)
+
+    def test_matching_cart_assignment_ack_confirms(self):
+        d = Dispatcher()
+        d.claim(4)
+        d.select()
+        self.assertTrue(d.assign_ack(4))
+        self.assertTrue(d.assignment_confirmed)
+
+    def test_lost_terminal_ack_is_recovered_by_idempotent_retry(self):
+        station = TerminalLedger()
+        self.assertEqual(station.receive("CANCEL", 7, 20, 3), "APPLIED")
+        self.assertEqual(station.receive("CANCEL", 7, 20, 3), "DUPLICATE_ACK")
+        self.assertEqual(station.acks_sent, 2)
+
+    def test_terminal_replay_with_wrong_generation_does_not_match(self):
+        station = TerminalLedger()
+        station.receive("COMPLETE", 7, 20, 3)
+        self.assertEqual(station.receive("COMPLETE", 7, 20, 4), "CONFLICT")
+
+    def test_terminal_replay_from_wrong_cart_does_not_match(self):
+        station = TerminalLedger()
+        station.receive("CANCEL", 7, 20, 3)
+        self.assertEqual(station.receive("CANCEL", 8, 20, 3), "CONFLICT")
+
+    def test_message_cache_capacity_is_bounded(self):
+        receiver = MessageReceiver(cache_size=12)
+        for message_id in range(30):
+            receiver.receive(1, 5, message_id, str(message_id))
+        self.assertEqual(len(receiver.seen), 12)
+        self.assertEqual(len(receiver.displayed), 30)
+
+    def test_message_cache_eviction_is_a_bounded_window(self):
+        receiver = MessageReceiver(cache_size=2)
+        receiver.receive(1, 5, 1, "one")
+        receiver.receive(1, 5, 2, "two")
+        receiver.receive(1, 5, 3, "three")
+        receiver.receive(1, 5, 1, "one replay after eviction")
+        self.assertEqual(len(receiver.displayed), 4)
+
+    def test_cart_offline_timeout_blocks_automatic_redispatch(self):
+        guard = OfflineGuard()
+        guard.heartbeat_timeout()
+        self.assertTrue(guard.blocked)
+        self.assertEqual(guard.redispatches, 0)
+
+    def test_returning_heartbeat_does_not_clear_physical_safety_lock(self):
+        guard = OfflineGuard()
+        guard.heartbeat_timeout()
+        self.assertTrue(guard.heartbeat_restored())
+        self.assertTrue(guard.blocked)
+        self.assertTrue(guard.assigned)
+        self.assertEqual(guard.generation, 9)
+
+    def test_redispatch_requires_explicit_physical_inspection_confirmation(self):
+        guard = OfflineGuard()
+        guard.heartbeat_timeout()
+        guard.operator_confirms_physical_inspection()
+        self.assertFalse(guard.blocked)
+        self.assertFalse(guard.assigned)
+        self.assertEqual(guard.generation, 10)
+        self.assertEqual(guard.redispatches, 1)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
