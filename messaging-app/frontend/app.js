@@ -86,13 +86,14 @@ function renderPorts() {
 
     const statusCell = document.createElement("td");
     const statusTag = document.createElement("span");
-    const isConnected = connection.state === "connected" && connection.portName === port.portName;
-    statusTag.className = `device-tag ${isConnected ? "status-ok" : ""}`;
-    statusTag.textContent = isConnected ? "CONNECTED" : "NOT CONNECTED";
+    const isConnected = port.isConnected;
+    const hasFault = port.hasFault;
+    statusTag.className = `device-tag ${isConnected ? "status-ok" : hasFault ? "status-error" : ""}`;
+    statusTag.textContent = isConnected ? "PORT OPEN" : hasFault ? "FAULT" : "NOT CONNECTED";
     statusCell.append(statusTag);
     row.append(statusCell);
 
-    row.className = isConnected ? "selected-row" : "";
+    row.className = isConnected || hasFault ? "selected-row" : "";
     row.addEventListener("click", () => {
       if (!portSelect.disabled) {
         portSelect.value = port.portName;
