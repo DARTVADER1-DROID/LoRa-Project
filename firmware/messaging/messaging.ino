@@ -532,9 +532,9 @@ void setup() {
     while (true) {
       while (Serial.available()) {
         char c = (char)Serial.read();
-        if (c == '\\r') continue;
-        if (c == '\\n') {
-          identifyInput[identifyLength] = '\\0';
+        if (c == '\r') continue;
+        if (c == '\n') {
+          identifyInput[identifyLength] = '\0';
           if (strcmp(identifyInput, "@APP:IDENTIFY") == 0) {
             Serial.print(F("@DEVICE:ID=")); Serial.print(deviceId);
             Serial.print(F(";BOOT=")); Serial.print(bootId);
