@@ -12,6 +12,8 @@ Cross-platform desktop application built with **Rust + Tauri 2**. The frontend i
 - Provides explicit Connect and Disconnect controls; no port is opened automatically.
 - Reports per-port availability, open/connected state, and serial-operation faults.
 - Detects when an open port disappears from the operating-system port list and reports a disconnection fault.
+- After opening a port, sends a bounded `@APP:IDENTIFY` request and recognizes the project messaging firmware by its `@DEVICE:` response.
+- Displays the Arduino device ID, boot/session epoch, firmware version, protocol version, and reported LoRa initialization state.
 
 ## Status definitions and limitations
 
@@ -22,7 +24,7 @@ Cross-platform desktop application built with **Rust + Tauri 2**. The frontend i
 | Fault | Opening the port failed, or a previously open port disappeared from the operating-system list. |
 | Not connected | The port is listed but this app has not opened it. |
 
-**Important:** A successful serial open does not prove that the selected device is the intended Arduino, that firmware is responding, or that the LoRa radio/network is working. The current implementation does not yet send a handshake, read firmware diagnostics, or test RF connectivity. A port that remains listed but develops an I/O failure after opening may not be detected until serial I/O and protocol-level health checks are implemented.
+**Important:** A successful serial open alone does not identify the device. The identification handshake verifies that compatible project firmware responds and reports its startup LoRa initialization result. It does not prove RF communication with another radio, successful packet delivery, or network health. Devices with older firmware or generic USB-serial adapters remain unidentified rather than being mislabelled as Arduino devices. A port that remains listed but develops an I/O failure after opening may not be detected until serial I/O and protocol-level health checks are implemented.
 
 The current firmware uses `Serial.begin(9600)`; the desktop connection currently uses this fixed baud rate.
 
@@ -89,7 +91,7 @@ The current Tauri configuration has bundling disabled (`bundle.active: false`), 
 ## Backend commands
 
 - `list_serial_ports()` — enumerates ports and returns available USB metadata plus per-port availability, connection, and fault flags.
-- `connect_serial_port(portName)` — opens the selected port at 9600 baud and retains the serial handle.
+- `connect_serial_port(portName)` — opens the selected port at 9600 baud, requests device identity, and retains the serial handle plus any validated identity response.
 - `disconnect_serial_port()` — closes the active serial handle.
 - `get_connection_status()` — reports the current connection state and detects when the active port is no longer listed by the operating system.
 
