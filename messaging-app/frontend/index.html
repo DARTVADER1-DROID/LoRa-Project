@@ -13,35 +13,53 @@
       <div>
         <p class="eyebrow">LORA MESSAGING</p>
         <h1>Device connections</h1>
-        <p class="subtitle">Serial devices currently detected by this computer.</p>
+        <p class="subtitle">Discover, select, and manage USB serial devices.</p>
       </div>
-      <button id="refresh-button" class="button button-primary" type="button">
-        <span aria-hidden="true">↻</span> Refresh
-      </button>
+      <button id="refresh-button" class="button" type="button">↻ Refresh</button>
     </header>
+
+    <section class="panel connection-panel">
+      <div class="panel-heading">
+        <div>
+          <h2>Connection manager</h2>
+          <p class="muted">Select a detected serial port to connect.</p>
+        </div>
+        <span id="connection-indicator" class="status-pill">DISCONNECTED</span>
+      </div>
+      <div class="connection-controls">
+        <label for="port-select">Serial port</label>
+        <select id="port-select">
+          <option value="">Scanning for ports…</option>
+        </select>
+        <button id="connect-button" class="button button-primary" type="button" disabled>Connect</button>
+        <button id="disconnect-button" class="button button-danger" type="button" disabled>Disconnect</button>
+      </div>
+      <p id="connection-detail" class="connection-detail" aria-live="polite">No serial port is connected.</p>
+    </section>
 
     <section class="panel">
       <div class="panel-heading">
         <div>
-          <h2>Serial ports</h2>
+          <h2>Detected serial ports</h2>
           <p id="port-count" class="muted">Scanning…</p>
         </div>
         <span id="scan-indicator" class="status-pill">SCANNING</span>
       </div>
-
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
               <th>PORT</th>
-              <th>CONNECTION</th>
+              <th>TYPE</th>
               <th>MANUFACTURER</th>
               <th>DEVICE</th>
               <th>USB VID : PID</th>
+              <th>AVAILABILITY</th>
+              <th>STATUS</th>
             </tr>
           </thead>
           <tbody id="ports-body">
-            <tr><td colspan="5" class="empty-state">Looking for serial devices…</td></tr>
+            <tr><td colspan="7" class="empty-state">Looking for serial devices…</td></tr>
           </tbody>
         </table>
       </div>
@@ -52,8 +70,10 @@
     </section>
 
     <p class="notice">
-      Detection only confirms that the operating system exposes a serial port.
-      It does not yet verify the Arduino firmware or LoRa radio.
+      <strong>Status boundary:</strong> Available means the operating system lists the port.
+      Connected means this app successfully opened its serial handle. Neither status proves
+      that Arduino firmware is responding or that the LoRa radio/network is working.
+      A firmware handshake and radio diagnostics are a later step.
     </p>
   </main>
 </body>
