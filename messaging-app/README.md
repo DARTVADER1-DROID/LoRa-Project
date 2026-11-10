@@ -14,8 +14,6 @@ The application uses the operating system's web view through Tauri. It does not 
 
 ## Current implementation
 
-<badge>Implemented</badge> is represented below as plain status labels in this document; the status refers to code present in the repository, not a verified hardware test.
-
 ### Serial-port discovery
 
 1. The application enumerates serial ports when it starts.
