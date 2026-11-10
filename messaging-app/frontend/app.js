@@ -34,9 +34,15 @@ function renderConnection() {
   const fault = connection.state === "fault";
   setStatus(connectionIndicator, connected ? "ok" : fault ? "error" : "neutral",
     connection.state.toUpperCase());
-  connectionDetail.textContent = connection.lastError
+  const identity = connection.deviceIdentity;
+  const identityText = identity
+    ? ` Identified Arduino LoRa device · ID ${identity.deviceId} · Boot ${identity.bootId} · ${identity.firmware} · LoRa ${identity.loraStatus} · Protocol ${identity.protocol}.`
+    : connected
+      ? " No supported firmware identity response received; this may be a generic serial device or older firmware."
+      : "";
+  connectionDetail.textContent = (connection.lastError
     ? `${connection.detail} ${connection.lastError}`
-    : connection.detail;
+    : connection.detail) + identityText;
   disconnectButton.disabled = !connected;
   connectButton.disabled = connected || !portSelect.value;
   portSelect.disabled = connected;
@@ -165,6 +171,7 @@ async function connectSelectedPort() {
     connection = {
       state: "fault",
       detail: "Connection failed.",
+      deviceIdentity: null,
       lastError: String(error)
     };
   }
