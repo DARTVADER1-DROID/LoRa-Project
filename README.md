@@ -6,7 +6,7 @@ A collection of Arduino/LoRa firmware applications and a cross-platform desktop 
 
 ### LoRa messaging firmware
 
-`firmware/messaging/` contains Arduino firmware for a shared broadcast group with peer discovery, message identifiers, acknowledgements, bounded retries, and delivery outcome reporting. The desktop serial connection manager is being developed separately; firmware handshake and desktop message integration are not implemented yet.
+`firmware/messaging/` contains Arduino firmware for a shared broadcast group with peer discovery, message identifiers, acknowledgements, bounded retries, and delivery outcome reporting. The desktop serial connection manager can identify compatible project firmware over USB serial and report its device identity and LoRa initialization result. Desktop messaging integration remains future work.
 
 ### LoRa Messaging desktop app
 
@@ -18,8 +18,9 @@ A collection of Arduino/LoRa firmware applications and a cross-platform desktop 
 - Serial connection opened at 9600 baud, matching the current messaging firmware.
 - Status reporting for available, open, disconnected, and serial-operation fault states.
 - Detection of a connected device disappearing from the operating-system port list.
+- Firmware identification handshake reporting Arduino device ID, boot/session epoch, firmware/protocol versions, and LoRa initialization status.
 
-A successful serial open is not proof that the Arduino firmware is responding or that the LoRa radio/network is healthy. Firmware handshake, serial message exchange, and RF diagnostics remain future work. See [the desktop app README](messaging-app/README.md).
+A successful serial open alone is not proof of firmware identity. The firmware handshake identifies compatible project firmware and reports LoRa initialization success/failure; it does not verify RF communication with another device or message delivery. Desktop message exchange remains future work. See [the desktop app README](messaging-app/README.md).
 
 ### Campus assistance firmware
 
@@ -46,7 +47,7 @@ The initial messaging hardware target is:
 
 ## Development status
 
-Development is incremental. The desktop app currently handles OS-level serial discovery and opening/closing a selected serial port. It does not yet exchange framed application messages with the firmware or verify firmware/radio health.
+Development is incremental. The desktop app handles OS-level serial discovery, selected-port connection management, and identity handshakes with compatible messaging firmware. It does not yet exchange framed user messages with other radios or verify end-to-end RF delivery.
 
 The firmware and protocol are prototypes, not safety-certified systems and not ready for unattended deployment. A real deployment requires hardware validation, field RF testing, electrical and operational safety review, and appropriate user testing.
 
