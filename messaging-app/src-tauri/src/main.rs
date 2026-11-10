@@ -1,6 +1,8 @@
 use serde::Serialize;
+use std::io::{Read, Write};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::thread;
+use std::time::{Duration, Instant};
 use tauri::State;
 
 #[derive(Debug, Serialize)]
@@ -18,9 +20,20 @@ struct SerialPortInfo {
     has_fault: bool,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DeviceIdentity {
+    device_id: String,
+    boot_id: String,
+    firmware: String,
+    lora_status: String,
+    protocol: String,
+}
+
 struct ActiveConnection {
     port_name: String,
     _port: Box<dyn serialport::SerialPort>,
+    device_identity: Option<DeviceIdentity>,
 }
 
 #[derive(Default)]
@@ -42,6 +55,7 @@ struct ConnectionStatus {
     port_name: Option<String>,
     detail: String,
     last_error: Option<String>,
+    device_identity: Option<DeviceIdentity>,
 }
 
 fn connection_status(state: &ConnectionState) -> ConnectionStatus {
@@ -51,6 +65,7 @@ fn connection_status(state: &ConnectionState) -> ConnectionStatus {
             port_name: Some(active.port_name.clone()),
             detail: "The operating system has an open serial handle. Firmware and LoRa health are not verified.".into(),
             last_error: None,
+            device_identity: active.device_identity.clone(),
         };
     }
 
@@ -60,6 +75,7 @@ fn connection_status(state: &ConnectionState) -> ConnectionStatus {
             port_name: state.fault_port_name.clone(),
             detail: "The last serial operation failed or the device disappeared.".into(),
             last_error: Some(error.clone()),
+            device_identity: None,
         };
     }
 
@@ -69,6 +85,44 @@ fn connection_status(state: &ConnectionState) -> ConnectionStatus {
         detail: "No serial port is connected.".into(),
         last_error: None,
     }
+}
+
+
+fn identify_device(port: &mut dyn serialport::SerialPort) -> Option<DeviceIdentity> {
+    let mut buffer = [0u8; 128];
+    let mut pending = String::new();
+    for _ in 0..10 {
+        let _ = port.write_all(b"@APP:IDENTIFY\\n");
+        let _ = port.flush();
+        let deadline = Instant::now() + Duration::from_millis(350);
+        while Instant::now() < deadline {
+            match port.read(&mut buffer) {
+                Ok(count) if count > 0 => {
+                    pending.push_str(&String::from_utf8_lossy(&buffer[..count]));
+                    while let Some(end) = pending.find(char::from(10)) {
+                        let line = pending[..end].trim().to_string();
+                        pending.drain(..=end);
+                        if let Some(fields) = line.strip_prefix("@DEVICE:") {
+                            let mut values = std::collections::HashMap::new();
+                            for field in fields.split(";") {
+                                if let Some((key, value)) = field.split_once("=") { values.insert(key, value); }
+                            }
+                            if let (Some(id), Some(boot), Some(fw), Some(lora), Some(proto)) =
+                                (values.get("ID"), values.get("BOOT"), values.get("FW"), values.get("LORA"), values.get("PROTO")) {
+                                return Some(DeviceIdentity { device_id: (*id).into(), boot_id: (*boot).into(), firmware: (*fw).into(), lora_status: (*lora).into(), protocol: (*proto).into() });
+                            }
+                        }
+                    }
+                    if pending.len() > 512 { pending.clear(); }
+                }
+                Ok(_) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::TimedOut || error.kind() == std::io::ErrorKind::WouldBlock => break,
+                Err(_) => return None,
+            }
+        }
+        thread::sleep(Duration::from_millis(120));
+    }
+    None
 }
 
 #[tauri::command]
@@ -139,8 +193,9 @@ fn connect_serial_port(port_name: String, state: State<'_, AppState>) -> Result<
     }
 
     match serialport::new(&port_name, 9600).timeout(Duration::from_millis(250)).open() {
-        Ok(port) => {
-            connection.active = Some(ActiveConnection { port_name, _port: port });
+        Ok(mut port) => {
+            let device_identity = identify_device(port.as_mut());
+            connection.active = Some(ActiveConnection { port_name, _port: port, device_identity });
             Ok(connection_status(&connection))
         }
         Err(error) => {
