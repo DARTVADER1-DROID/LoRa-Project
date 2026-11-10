@@ -22,7 +22,7 @@
       <div class="panel-heading">
         <div>
           <h2>Connection manager</h2>
-          <p class="muted">Select a detected serial port to connect.</p>
+          <p class="muted">Connect to a port to identify supported Arduino firmware and inspect radio initialization.</p>
         </div>
         <span id="connection-indicator" class="status-pill">DISCONNECTED</span>
       </div>
@@ -73,7 +73,7 @@
       <strong>Status boundary:</strong> Available means the operating system lists the port.
       Connected means this app successfully opened its serial handle. Neither status proves
       that Arduino firmware is responding or that the LoRa radio/network is working.
-      A firmware handshake and radio diagnostics are a later step.
+      A firmware identity handshake verifies the Arduino firmware response and reports its LoRa initialization state; it does not verify RF communication with other devices.
     </p>
   </main>
 </body>
