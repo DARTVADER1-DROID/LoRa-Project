@@ -5,24 +5,18 @@
 #include <QMainWindow>
 #include <QPushButton>
 #include <QSerialPortInfo>
+#include <QStringList>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
 
 namespace
 {
-void populateSerialPorts(QListWidget *portList, QLabel *statusLabel)
+QStringList discoverSerialPorts()
 {
-    portList->clear();
+    QStringList discoveredPorts;
 
     const auto ports = QSerialPortInfo::availablePorts();
-
-    if (ports.isEmpty()) {
-        statusLabel->setText("No serial ports detected.");
-        return;
-    }
-
-    statusLabel->setText(
-        QString("%1 serial port(s) detected").arg(ports.size()));
 
     for (const QSerialPortInfo &port : ports) {
         QString details = port.portName();
@@ -46,8 +40,35 @@ void populateSerialPorts(QListWidget *portList, QLabel *statusLabel)
                            .toUpper();
         }
 
-        portList->addItem(details);
+        discoveredPorts.append(details);
     }
+
+    return discoveredPorts;
+}
+
+void refreshSerialPorts(QListWidget *portList,
+                        QLabel *statusLabel,
+                        QStringList *previousPorts)
+{
+    const QStringList currentPorts = discoverSerialPorts();
+
+    // Avoid rebuilding the list when the available ports have not changed.
+    if (currentPorts == *previousPorts) {
+        return;
+    }
+
+    *previousPorts = currentPorts;
+    portList->clear();
+
+    if (currentPorts.isEmpty()) {
+        statusLabel->setText("No serial ports detected.");
+        return;
+    }
+
+    statusLabel->setText(
+        QString("%1 serial port(s) detected").arg(currentPorts.size()));
+
+    portList->addItems(currentPorts);
 }
 } // namespace
 
@@ -76,13 +97,26 @@ int main(int argc, char *argv[])
     layout->addLayout(toolbarLayout);
     layout->addWidget(portList);
 
-    QObject::connect(refreshButton, &QPushButton::clicked,
-                     [&portList, &statusLabel]() {
-                         populateSerialPorts(portList, statusLabel);
+    QStringList previousPorts;
+
+    // Discover ports immediately when the application starts.
+    refreshSerialPorts(portList, statusLabel, &previousPorts);
+
+    // Recheck the operating system's available serial ports every 2 seconds.
+    auto *portScanTimer = new QTimer(&window);
+    portScanTimer->setInterval(2000);
+
+    QObject::connect(portScanTimer, &QTimer::timeout,
+                     [&portList, &statusLabel, &previousPorts]() {
+                         refreshSerialPorts(portList, statusLabel, &previousPorts);
                      });
 
-    // Discover serial ports immediately when the application starts.
-    populateSerialPorts(portList, statusLabel);
+    QObject::connect(refreshButton, &QPushButton::clicked,
+                     [&portList, &statusLabel, &previousPorts]() {
+                         refreshSerialPorts(portList, statusLabel, &previousPorts);
+                     });
+
+    portScanTimer->start();
 
     window.setCentralWidget(centralWidget);
     window.show();
