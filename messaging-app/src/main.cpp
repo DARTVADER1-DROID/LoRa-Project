@@ -374,7 +374,8 @@ int main(int argc, char *argv[])
 
                          if (!serialPort.open(QIODevice::ReadWrite)) {
                              setConnectionStatus(statusLabel, portTable, "FAULT",
-                                                 serialPort.errorString());
+                                                 serialPort.errorString(), {},
+                                                 portName);
                              scan();
                              return;
                          }
