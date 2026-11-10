@@ -84,6 +84,7 @@ fn connection_status(state: &ConnectionState) -> ConnectionStatus {
         port_name: None,
         detail: "No serial port is connected.".into(),
         last_error: None,
+        device_identity: None,
     }
 }
 
