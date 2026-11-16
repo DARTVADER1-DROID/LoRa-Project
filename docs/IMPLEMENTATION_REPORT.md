@@ -4,11 +4,11 @@
 
 ## 1. Executive summary
 
-The repository contains two independent Arduino LoRa firmware prototypes and a desktop serial-port discovery application.
+The repository contains two independent Arduino LoRa firmware prototypes and a Rust + Tauri desktop application for serial-port connection and firmware identification.
 
 1. **Group messaging:** shared-group text messaging with HELLO peer discovery, message/session identifiers, per-recipient acknowledgements, bounded retries, duplicate suppression, and delivery outcome reporting.
 2. **Campus mobility assistance:** fixed-station/electric-cart workflow with request broadcast, cart queues, claim/assignment handshake, cancellation/completion, heartbeat monitoring, and conservative offline-recovery lock.
-3. **Desktop application:** Rust + Tauri 2 app. On the current main branch it discovers and displays operating-system serial ports. Port discovery is not a firmware handshake or proof of radio health.
+3. **Desktop application:** Rust + Tauri 2 app. It discovers and refreshes operating-system serial ports, lets the user select/connect/disconnect one port at 9600 baud, and attempts a bounded firmware-identification handshake. Compatible messaging firmware reports device ID, boot/session epoch, firmware/protocol versions, and LoRa initialization status (READY or FAILED). This handshake does not prove RF communication with another node or end-to-end message delivery.
 
 These are separate application modes, use different packet formats/network IDs, and are not interoperable.
 
@@ -18,7 +18,7 @@ These are separate application modes, use different packet formats/network IDs, 
 |---|---|
 | firmware/messaging/messaging.ino | Group messaging firmware |
 | firmware/campus_assistance/campus_assistance.ino | Campus station/cart firmware; role selected at compile time |
-| messaging-app/ | Rust/Tauri desktop serial-port discovery app |
+| messaging-app/ | Rust/Tauri desktop serial-port connection and firmware-identification app |
 | docs/ | Hardware, safety, protocol, implementation documentation |
 | tests/ | Host-side protocol and reliability tests |
 | .github/workflows/ | Arduino compilation and source-contract CI |
@@ -181,9 +181,11 @@ Buttons use INPUT_PULLUP and are active-low; software debounce is 40 ms. LCD I2C
 
 ## 6. Desktop application
 
-The messaging-app project is a Rust + Tauri 2 app with HTML/CSS/JavaScript frontend. On current main it discovers OS serial ports at startup, refreshes periodically and on demand, and displays port name, transport type and USB metadata when available.
+The messaging-app project is a Rust + Tauri 2 application with a plain HTML/CSS/JavaScript frontend and Rust serialport backend. It discovers OS serial ports at startup, refreshes the list periodically and on demand, displays available USB metadata, and provides explicit selection, connect and disconnect controls. It opens one selected port at 9600 baud and detects when the active port disappears from OS enumeration.
 
-A serial-port entry does not prove the device is the expected Arduino, firmware is running, radio is connected, or RF communication works. Explicit serial connection management and firmware handshake are separate work on feature/serial-connect-status; do not describe those as shipped on main.
+After opening a port, the desktop app sends `@APP:IDENTIFY\\n` and parses a bounded `@DEVICE:` response. The messaging firmware reports device ID, boot/session epoch, firmware version (`RMP-1.0`), protocol version, and whether LoRa initialization returned READY or FAILED. The firmware keeps the identification endpoint available after LoRa initialization failure. A generic serial device or older firmware remains connected-but-unidentified; the app must not guess its identity.
+
+An open serial handle proves only that the OS opened the port. A valid identity response confirms compatible firmware and reports its startup LoRa initialization result; it does not prove that another LoRa node is reachable, that packets are delivered, or that the RF link is healthy. Desktop message exchange over the RMP protocol remains future work.
 
 ## 7. Build and verification
 
@@ -219,9 +221,9 @@ Compilation and host-side tests do not establish RF range, packet delivery, supp
 5. Decide which station/cart state must survive reset; queues, tombstones and assignment state are currently volatile.
 6. Test simultaneous claims, lost ACKs, duplicates, queue overflow, stale generations, reboot mid-request and RF outages.
 7. Measure 3.3 V transient response, logic levels, antenna behavior and RF performance.
-8. Implement explicit serial open/close, firmware identity handshake and structured telemetry in the desktop app.
+8. Implement framed desktop message exchange, ongoing device-health telemetry, and robust serial stream framing; the current app only connects and performs a one-time identity/LoRa-startup handshake.
 9. Complete supervised campus trials, accessibility review, risk assessment and operational fallback before deployment.
 
 ## 10. Source of truth
 
-This report was prepared from the repository README, hardware/safety notes and both firmware sketches. Statements about implemented behavior refer to code paths present in those files. Hardware behavior, RF performance, compile success and field suitability remain unverified without separate test evidence.
+This report was prepared from the repository README, hardware/safety notes, both firmware sketches, and the desktop frontend/backend sources. Statements about implemented behavior refer to code paths present in those files. Hardware behavior, RF performance, compile success and field suitability remain unverified without separate test evidence.
