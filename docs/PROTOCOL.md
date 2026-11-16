@@ -1,10 +1,10 @@
-# Initial application protocol
+# Application protocol overview
 
 Both firmware applications use LoRa point-to-multipoint broadcasts on a configured network ID. They are separate applications and must not be assumed interoperable.
 
 ## Shared principles
 
-- Explicit network ID and protocol magic/version fields.
+- Both applications use an explicit network ID and packet magic. RMP messaging includes a protocol-version field; the campus packet currently has no version field, so all campus nodes must use compatible firmware builds.
 - Device IDs are application identifiers, not authenticated identities.
 - Message/request IDs are used for duplicate suppression.
 - CRC is enabled in the LoRa modem for accidental corruption detection; it is not authentication.
