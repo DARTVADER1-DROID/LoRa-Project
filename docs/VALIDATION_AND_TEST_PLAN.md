@@ -124,17 +124,21 @@ Record packet attempts, RSSI/SNR if instrumented, retry count, ACK latency, tran
 
 ## 6. Desktop application tests
 
-Current main-branch functionality is serial-port discovery and presentation.
+The desktop implementation includes discovery, manual/periodic refresh, port selection, explicit connect/disconnect at 9600 baud, device-identification request/response, LoRa startup status reporting, and detection of a port disappearing from OS enumeration. These are source-level features; successful builds and physical serial/hardware tests are not yet evidenced by this repository snapshot.
 
 - [ ] App starts with no serial device.
-- [ ] Connected USB serial device appears.
+- [ ] Connected USB serial device appears with available metadata.
 - [ ] Port list refreshes periodically and on demand.
-- [ ] USB metadata appears when exposed by the OS.
-- [ ] Device removal is reflected.
-- [ ] Non-Arduino serial devices are not falsely labeled as project hardware.
-- [ ] UI communicates that port discovery is not firmware/radio handshake.
+- [ ] Connect opens the selected port at 9600 baud; disconnect releases it.
+- [ ] Connecting a second port closes the previous active handle.
+- [ ] Compatible firmware returns a correctly parsed ID/boot/FW/LoRa/protocol identity line.
+- [ ] Firmware with LoRa initialization failure still answers IDENTIFY with LORA=FAILED.
+- [ ] Generic serial devices and older firmware remain unidentified rather than being mislabelled.
+- [ ] A port removed while connected produces a visible fault/disconnected state.
+- [ ] UI distinguishes OS port-open state, firmware identity, and LoRa startup result.
+- [ ] UI does not imply peer-to-peer RF connectivity or message delivery from a successful handshake.
 
-Do not claim radio connectivity until a firmware handshake is implemented and verified.
+The identification handshake reports local firmware/radio initialization only; it is not an end-to-end RF link test.
 
 ## 7. RF and performance measurements
 
