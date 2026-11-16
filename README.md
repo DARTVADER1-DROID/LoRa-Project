@@ -10,13 +10,9 @@ This repository contains two Arduino/LoRa firmware prototypes and a cross-platfo
 
 ### LoRa Messaging desktop app
 
-`messaging-app/` is a Rust + Tauri 2 desktop application with a plain HTML, CSS, and JavaScript frontend. On the current `main` branch it:
+`messaging-app/` is a Rust + Tauri 2 desktop application with a plain HTML, CSS, and JavaScript frontend. It discovers and refreshes operating-system serial ports, displays available USB metadata, and provides explicit port selection, connect, and disconnect controls at 9600 baud. After connecting, it attempts a bounded `@APP:IDENTIFY` handshake and displays compatible firmware's device ID, boot/session epoch, firmware/protocol versions, and LoRa initialization status (READY or FAILED).
 
-- Discovers operating-system serial ports at startup.
-- Refreshes the port list periodically and on demand.
-- Displays port names, transport type, and USB metadata when available.
-
-Port discovery does not prove that a device is an Arduino or that its firmware or LoRa radio is healthy. Explicit connection management and firmware handshake work are tracked separately on the `feature/serial-connect-status` branch.
+A serial-port open is not proof of firmware identity. A valid handshake confirms compatible firmware and reports its local LoRa initialization result; it does not prove RF communication with another node or end-to-end message delivery. See [the desktop app README](messaging-app/README.md) for details.
 
 ### Campus assistance firmware
 
@@ -25,7 +21,9 @@ Port discovery does not prove that a device is an Arduino or that its firmware o
 ## Documentation
 
 - [Detailed implementation report](docs/IMPLEMENTATION_REPORT.md) — architecture, hardware, pin mapping, firmware behavior, desktop app scope, safety boundaries, and remaining engineering work.
-- [Protocols and state machines](docs/PROTOCOL_AND_STATE_MACHINES.md) — packet layouts, packet types, retry behavior, request/assignment flows, queues, and timing parameters.
+- [Application protocol](docs/PROTOCOL.md) — shared protocol principles and campus-assistance lifecycle.
+- [Messaging reliability protocol](docs/MESSAGING_RELIABILITY_PROTOCOL.md) — normative RMP v1 delivery contract and implementation status.
+- [Reliability design](docs/RELIABILITY_DESIGN.md) — system-level messaging and campus reliability requirements.
 - [Verification and test plan](docs/VALIDATION_AND_TEST_PLAN.md) — compile matrix, functional tests, fault injection, RF measurements, and deployment gates.
 - [Hardware and safety notes](docs/HARDWARE_AND_SAFETY.md) — electrical interface, RF compatibility, campus safety, and persistence limitations.
 
