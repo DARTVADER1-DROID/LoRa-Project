@@ -20,14 +20,21 @@ Port discovery does not prove that a device is an Arduino or that its firmware o
 
 ### Campus assistance firmware
 
-`firmware/campus_assistance/` is a separate campus mobility-assistance prototype using fixed pickup stations and electric carts.
+`firmware/campus_assistance/` is a separate campus mobility-assistance prototype using fixed pickup stations and electric carts. One sketch is compiled in either station or cart role.
+
+## Documentation
+
+- [Detailed implementation report](docs/IMPLEMENTATION_REPORT.md) — architecture, hardware, pin mapping, firmware behavior, desktop app scope, safety boundaries, and remaining engineering work.
+- [Protocols and state machines](docs/PROTOCOL_AND_STATE_MACHINES.md) — packet layouts, packet types, retry behavior, request/assignment flows, queues, and timing parameters.
+- [Verification and test plan](docs/VALIDATION_AND_TEST_PLAN.md) — compile matrix, functional tests, fault injection, RF measurements, and deployment gates.
+- [Hardware and safety notes](docs/HARDWARE_AND_SAFETY.md) — electrical interface, RF compatibility, campus safety, and persistence limitations.
 
 ## Repository layout
 
 - `firmware/messaging/` — LoRa group-messaging firmware
 - `firmware/campus_assistance/` — campus assistance firmware
 - `messaging-app/` — Rust + Tauri desktop application
-- `docs/` — hardware, protocol, and reliability design documents
+- `docs/` — hardware, protocol, implementation, and validation documents
 - `tests/` — host-side protocol and reliability tests
 
 ## Hardware and safety
@@ -41,11 +48,11 @@ Read [hardware and safety notes](docs/HARDWARE_AND_SAFETY.md) before wiring or p
 ## Build and test
 
 - Desktop app: use Cargo from `messaging-app/`; see [desktop app instructions](messaging-app/README.md).
-- Firmware: compile the sketches with Arduino CLI or Arduino IDE.
+- Firmware: compile the sketches with Arduino CLI or Arduino IDE. Campus station and cart roles are separate builds; see the implementation report for the role configuration and pin map.
 - Host-side tests: `python3 -m unittest discover -s tests -v`.
 
-GitHub Actions compiles the Arduino firmware variants and runs the source-contract tests.
+GitHub Actions compiles the Arduino firmware variants and runs the source-contract tests. Consult the [verification and test plan](docs/VALIDATION_AND_TEST_PLAN.md) for hardware-in-the-loop and RF validation that CI cannot perform.
 
 ## Development status
 
-This is incremental prototype development. Neither firmware nor the desktop application is safety-certified or ready for unattended deployment. Compilation and host-side tests do not replace physical radio, electrical, hardware-in-the-loop, and field validation.
+This is incremental prototype development. Neither firmware nor the desktop application is safety-certified or ready for unattended deployment. Compilation and host-side tests do not replace physical radio, electrical, hardware-in-the-loop, accessibility, and field validation. The implementation report distinguishes code that exists from work that remains to be validated or implemented.
