@@ -16,7 +16,7 @@ A serial-port open is not proof of firmware identity. A valid handshake confirms
 
 ### Campus assistance firmware
 
-`firmware/campus_assistance/` is a separate campus mobility-assistance prototype using fixed pickup stations and electric carts. One sketch is compiled in either station or cart role.
+`firmware/campus_assistance/` is a separate campus mobility-assistance prototype using fixed pickup stations and electric carts. One sketch is compiled in either station or cart role. The dedicated [Campus Assistance engineering documentation](docs/campus-assistance/README.md) describes the target system requirements, architecture, accessible workflow, hardware, LoRa protocol design, firmware model, safety and validation plan. It explicitly distinguishes the newly agreed target design from the current prototype implementation.
 
 ## Documentation
 
@@ -26,6 +26,7 @@ A serial-port open is not proof of firmware identity. A valid handshake confirms
 - [Reliability design](docs/RELIABILITY_DESIGN.md) — system-level messaging and campus reliability requirements.
 - [Verification and test plan](docs/VALIDATION_AND_TEST_PLAN.md) — compile matrix, functional tests, fault injection, RF measurements, and deployment gates.
 - [Hardware and safety notes](docs/HARDWARE_AND_SAFETY.md) — electrical interface, RF compatibility, campus safety, and persistence limitations.
+- [Campus Assistance — complete project documentation](docs/campus-assistance/README.md) — standalone engineering documentation suite for the blind/visually impaired student campus mobility assistance system.
 
 ## Repository layout
 
