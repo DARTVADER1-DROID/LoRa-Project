@@ -1,6 +1,6 @@
 # Campus Assistance — LoRa-Based Campus Mobility Support
 
-This repository is now focused on the **Campus Assistance System for blind and visually impaired students**.
+This repository is focused on the **Campus Assistance System for blind and visually impaired students**.
 
 The active project specification is maintained in [docs/campus-assistance/](docs/campus-assistance/README.md). It defines the agreed target architecture, requirements, workflows, hardware constraints, LoRa protocol direction, firmware/data model, safety boundaries and verification plan.
 
@@ -19,16 +19,17 @@ The active project specification is maintained in [docs/campus-assistance/](docs
 
 ## Documentation
 
-Start with [the Campus Assistance documentation index](docs/campus-assistance/README.md), then follow its ten engineering documents and supporting diagrams.
+Start with [the Campus Assistance documentation index](docs/campus-assistance/README.md), then follow its engineering documents and supporting diagrams. The [Firmware LLD](docs/campus-assistance/11-firmware-lld/README.md) defines the implementation contracts.
 
 ## Repository structure
 
 - `docs/campus-assistance/` — active project specification and engineering documentation.
+- `firmware/campus_assistance/` — interface-only C++/Arduino firmware skeleton; implementation intentionally pending.
 - `.gitignore` — repository-wide local build-artifact exclusions.
 
 ## Firmware development status
 
-**The active firmware implementation has intentionally been cleared.** The next implementation work will begin with a detailed Low-Level Design (LLD), based on the approved project requirements. No legacy firmware should be treated as compliant with the current target design.
+The approved Firmware LLD has been translated into an organized **interface/stub codebase** under `firmware/campus_assistance/`. It contains shared portable contracts, separate station/cart entry points for Uno and ESP32, and implementation-obligation comments. It is not operational firmware and is not yet wired to a complete Arduino IDE/PlatformIO build. No legacy firmware should be treated as compliant with the current target design.
 
 ## Safety and regulatory gates
 
