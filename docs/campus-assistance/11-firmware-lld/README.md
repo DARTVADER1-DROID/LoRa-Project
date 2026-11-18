@@ -1,12 +1,12 @@
 # Firmware Low-Level Design (LLD)
 
-**Status:** Interface specification only — no implementation.
+**Status:** Interface specification; translated into a C++/Arduino stub skeleton (not operational firmware).
 **Targets:** Station and cart firmware; Arduino Uno and a tentative ESP32 board.
 **Authority:** Refines documents 01–10. Confirmed requirements and decision register take precedence.
 
 ## Purpose
 
-This folder is the implementation blueprint. It defines layers, responsibilities, class contracts, function signatures, state ownership, error behavior and test seams. It intentionally contains no method bodies, pin assignments, register settings or executable firmware.
+This folder is the implementation blueprint. It defines layers, responsibilities, class contracts, function signatures, state ownership, error behavior and test seams. It intentionally contains no completed implementation, pin assignments, register settings or selected RF parameters.
 
 ## Documents
 
@@ -15,6 +15,10 @@ This folder is the implementation blueprint. It defines layers, responsibilities
 3. [Function contracts and state machines](03-function-contracts-and-state-machines.md)
 4. [Protocol and distributed coordination](04-protocol-and-distributed-coordination.md)
 5. [Memory, portability and verification](05-memory-portability-and-verification.md)
+
+## Code skeleton
+
+The LLD contracts have been laid out as an organized C++/Arduino skeleton in [firmware/campus_assistance](../../../firmware/campus_assistance/README.md). The skeleton separates shared domain/protocol/application contracts, platform ports and four role/MCU sketch entry points. Methods remain stubs and non-void methods return NOT_IMPLEMENTED until implemented. The sketches are inert. No claim of build readiness or hardware functionality is made.
 
 ## Normative constraints
 
@@ -35,7 +39,7 @@ This folder is the implementation blueprint. It defines layers, responsibilities
 
 ## Conventions
 
-Signatures use C++-like notation as contracts, not compilable source. Status and Result<T> represent explicit success/error outcomes. RequestId always means the complete identity tuple. Capacities and timing values are validated configuration, not magic constants. Functions that service radio, UI, buttons or timers must be non-blocking or explicitly bounded. Avoid dynamic allocation in time-critical paths.
+Signatures are C++ contracts. Status and Result-like return values represent explicit success/error outcomes. RequestId always means the complete identity tuple. Capacities and timing values are validated configuration, not magic constants. Functions that service radio, UI, buttons or timers must be non-blocking or explicitly bounded. Avoid dynamic allocation in time-critical paths.
 
 ## Deliberately open
 
