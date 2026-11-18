@@ -4,3 +4,5 @@
 #include "ca/domain.hpp"
 #include "ca/protocol.hpp"
 #include "ca/application.hpp"
+#include "ca/config.hpp"
+#include "ca/ui.hpp"
