@@ -8,94 +8,99 @@ Working short name: **Campus Assistance**.
 
 ## 2. Background
 
-Large educational campuses often contain separated facilities: academic departments, libraries, laboratories, administrative buildings, canteens, mess facilities and other student services. A blind or visually impaired student may need assistance coordinating transport between these locations. A fixed-point request system can provide a simple way to request an electric cart without requiring the student to operate a smartphone application or depend on internet connectivity.
+Large educational campuses contain separated facilities such as departments, libraries, laboratories, administrative buildings, canteens and mess facilities. A blind or visually impaired student may need assistance coordinating transport between these locations. A fixed-point request system can provide a simple way to request an electric cart without requiring a smartphone application or internet connectivity.
 
-The proposed system uses fixed assistance stations and electric carts equipped with LoRa radio nodes. A station provides a tactile-button-driven and audible/visual interface. Carts receive requests over the radio network, queue them and present them to the driver. The driver manually reports progress using a small number of controls.
+The proposed system uses fixed assistance stations and electric carts equipped with LoRa nodes. Students submit requests at stations. All carts listen continuously and maintain local lists of requests that remain unaccepted and unassigned. A driver explicitly enables the cart to accept a request. Each cart serves at most one accepted request at a time and manually reports journey progress.
 
 The system is an assistance-request and dispatch communication system. It is not an autonomous navigation, obstacle detection, vehicle control or emergency-response system.
 
 ## 3. Problem statement
 
-Design and evaluate a low-cost, campus-deployable, internet-independent communication system that enables a blind or visually impaired student to request electric-cart assistance between registered campus locations. The system should provide understandable feedback at the request station, distribute requests to carts using LoRa, maintain a simple FIFO request queue, and let the driver report meaningful journey states with no more than two physical buttons per device.
-
-The design must remain modular as the number of registered stations and carts grows, while avoiding expensive or complex peripherals and unnecessary controls.
+Design and evaluate a low-cost, campus-deployable, internet-independent communication system that enables a blind or visually impaired student to request electric-cart assistance between registered campus locations. The system should provide accessible station interaction, distribute requests over LoRa, maintain local FIFO lists of unaccepted requests, respect driver-controlled availability, prevent duplicate cart assignment and provide manual journey-status reporting using no more than two physical buttons per device.
 
 ## 4. Aim
 
-To develop a modular LoRa-based campus assistance prototype that supports accessible station-based ride requests, configurable campus locations, cart-side FIFO request handling and manual journey-status reporting.
+To develop a modular LoRa-based campus assistance prototype supporting accessible station requests, driver-gated cart assignment, one active ride per cart, local FIFO pending-request handling, configurable campus locations and manual journey-status reporting.
 
 ## 5. Objectives
 
-1. Define a simple system architecture for fixed stations and electric carts.
-2. Implement raw-LoRa communication between station and cart nodes without requiring internet infrastructure.
-3. Provide station-side selection of a registered destination using a minimal physical interface.
-4. Provide audible feedback using a buzzer and complementary text feedback on a 16×2 LCD.
-5. Limit each station and each cart to a maximum of two physical buttons.
-6. Support a scalable number of stations and carts through unique firmware-provisioned IDs.
-7. Support any registered station as a destination, subject to the station registry configured in the devices.
-8. Automatically receive and queue requests at carts, using FIFO order within each cart's queue.
-9. Provide clear request lifecycle states: received, on the way, arrived at pickup and journey completed.
-10. Allow a student to cancel an active request.
-11. Provide duplicate detection, bounded queues, finite retry policies and explicit communication-failure feedback.
-12. Produce reproducible hardware, firmware, protocol and validation documentation suitable for a final-year project report, research paper and potential patentability assessment.
+1. Define a distributed architecture for fixed stations and electric carts.
+2. Implement raw-LoRa communication without internet infrastructure.
+3. Provide station-side destination selection using a minimal accessible interface.
+4. Provide buzzer feedback and complementary 16×2 LCD text.
+5. Limit each station and cart to a maximum of two physical buttons.
+6. Support scalable station/cart identities through firmware provisioning.
+7. Support registered stations as destinations.
+8. Make every cart continuously listen for requests and maintain a bounded local FIFO list of unaccepted/unassigned requests.
+9. Require explicit driver enablement before a cart claims a request.
+10. Limit each cart to one accepted/active assignment at a time.
+11. Coordinate claims and assignment so only one cart wins a request.
+12. Clear a cart's local pending list when its driver disables acceptance, without cancelling the student-owned request.
+13. Require manual driver reactivation after journey completion.
+14. Expire unaccepted requests after a configurable duration, initially 10 minutes.
+15. Provide Received/Assigned, On the way, Arrived at pickup and Journey completed lifecycle feedback.
+16. Support student cancellation, duplicate detection, bounded retries and explicit communication-failure feedback.
+17. Produce reproducible hardware, firmware, protocol and validation documentation for a final-year project, research paper and patentability assessment.
 
 ## 6. Intended users and stakeholders
 
-- **Primary user:** blind or visually impaired student requesting assistance.
-- **Driver:** operates the electric cart and updates journey status.
-- **Station maintainer:** installs and configures fixed station nodes.
-- **Project administrator:** provisions device IDs and station registry data in firmware.
-- **Institution:** provides campus locations, operational procedures, supervision and safety review.
-- **Accessibility stakeholders:** students, disability support staff and accessibility specialists who evaluate the interaction design.
+- Primary user: blind or visually impaired student.
+- Driver: operates the cart, controls request acceptance and reports journey progress.
+- Station maintainer: installs and configures fixed station nodes.
+- Project administrator: provisions IDs, station registry and firmware.
+- Institution: provides campus locations, operational procedures, supervision and safety review.
+- Accessibility stakeholders: evaluate the interface with appropriate consent.
 
 ## 7. Scope
 
 ### Included
 
-- Fixed pickup/request stations at campus locations.
-- Electric carts equipped with LoRa nodes.
+- Fixed campus request stations and electric carts.
 - Student pickup-station and destination selection.
-- Firmware-configured station and cart IDs.
-- Firmware-configured list of registered station IDs and labels.
-- LoRa-only request, status, cancellation and acknowledgement communication.
-- Per-cart FIFO request queue.
-- Driver status control using at most two buttons.
-- 16×2 LCD and buzzer feedback.
-- Arduino Uno and ESP32 firmware targets.
-- Bench testing, RF measurements, usability testing and supervised pilot evaluation.
+- Firmware-configured station/cart IDs and station registry.
+- LoRa-only request, claim, assignment, status, cancellation, expiry and acknowledgement messages.
+- Per-cart FIFO pending list of unaccepted/unassigned requests.
+- Zero-or-one active assignment per cart.
+- Persistent driver-controlled Accepting Requests mode.
+- Continuous cart listening, including while not accepting.
+- Local pending-list clear when acceptance is disabled.
+- Manual reactivation after journey completion.
+- Default 10-minute configurable expiry for unaccepted requests.
+- Two-button maximum, 16×2 LCD and buzzer.
+- Arduino Uno and ESP32 dedicated firmware targets.
+- Bench, RF, usability and supervised pilot testing.
 
-### Excluded from the agreed initial scope
+### Excluded from the initial scope
 
 - GPS-based position tracking.
-- Automatic cart approach detection or proximity sensing.
+- Automatic cart approach detection.
 - Autonomous driving, steering, braking or motor control.
-- Smartphone application or cloud backend.
-- Wi-Fi, cellular, Bluetooth or internet-based communication.
-- Spoken voice announcements; the selected feedback is simple buzzer patterns.
-- Interface-based device registration. Initial registration is through firmware configuration.
+- Smartphone application, cloud backend or internet dependency.
+- Wi-Fi, cellular or Bluetooth communication.
+- Spoken voice announcements.
+- Interface-based device registration.
 - Automated route optimization or nearest-cart selection.
-- Complex priority scheduling. The agreed queue discipline is FIFO.
+- Priority scheduling beyond FIFO pending-list order.
 
 ## 8. Design principles
 
-- Keep hardware inexpensive and readily replaceable.
-- Use two physical buttons maximum per station and cart.
-- Prefer state-dependent button actions over adding controls.
-- Keep station and cart firmware role-specific and understandable.
-- Keep queues and packet buffers bounded, especially on Arduino Uno.
-- Make every status claim correspond to an actual received protocol event.
-- Distinguish radio packet reception from human awareness and physical service completion.
-- Do not represent prototype assumptions as experimentally proven results.
+- Keep hardware low-cost and avoid unnecessary controls.
+- Separate pending unaccepted requests from an accepted active assignment.
+- Never treat packet reception or a transmitted claim as proof of assignment.
+- Make the originating station authoritative for assignment and expiry.
+- Keep queues, buffers, retries and transactions bounded.
+- Make all user-visible status claims evidence-based.
+- Distinguish MCU acknowledgement from driver awareness and physical service completion.
+- Do not present assumptions as measured outcomes.
 
 ## 9. Expected academic outputs
 
 - Working station and cart prototypes.
-- Dedicated Arduino Uno and ESP32 firmware targets.
-- Documented packet protocol and state machines.
-- Hardware schematics, pin maps and bill of materials.
-- RF link measurements and queue/reliability experiments.
-- Accessibility evaluation with appropriate consent and supervision.
+- Dedicated Arduino Uno and ESP32 firmware builds.
+- Documented packet protocol, algorithms and state machines.
+- Schematics, pin maps and bill of materials.
+- RF, queue, latency, power and usability measurements.
 - Final-year project report and research paper.
-- Prior-art review and a separately assessed patent disclosure, if a genuinely novel and non-obvious technical contribution is identified.
+- Prior-art review and institutional IP assessment, if a patent disclosure is justified.
 
-A patent is not guaranteed by building the system. Patentability depends on novelty, inventive step/non-obviousness, industrial applicability and jurisdiction-specific exclusions. A prior-art search and institutional IP review are required before public disclosure if patent filing is contemplated.
+Patentability is not guaranteed. Novelty, inventive step/non-obviousness, industrial applicability and jurisdiction-specific rules must be assessed before public disclosure if filing is contemplated.
