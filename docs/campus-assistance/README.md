@@ -21,6 +21,10 @@ This folder is the project-level engineering specification, separate from the re
 | 9 | [Verification and research plan](09-verification-research-plan.md) | Functional/RF/accessibility tests, metrics, research and patent preparation |
 | 10 | [Decisions and open engineering items](10-decisions-and-open-items.md) | Confirmed decisions, proposals, unresolved choices and implementation sequence |
 
+## 7. Firmware Low-Level Design
+
+The implementation blueprint is maintained separately in [11 — Firmware LLD](11-firmware-lld/README.md). It defines architecture layers, class/interface contracts, function signatures, state machines, distributed claim/assignment semantics, memory constraints and verification requirements. It is intentionally interface-only: **no firmware implementation is included**.
+
 Supporting diagrams:
 - [System architecture diagram](diagrams/system-architecture.md)
 - [Request sequence diagram](diagrams/request-sequence.md)
