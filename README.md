@@ -24,12 +24,11 @@ Start with [the Campus Assistance documentation index](docs/campus-assistance/RE
 ## Repository structure
 
 - `docs/campus-assistance/` — active project specification and engineering documentation.
-- `archive/` — preserved legacy firmware, desktop application, tests, old documentation and CI workflow. These files are historical reference only and are not part of the active implementation baseline.
 - `.gitignore` — repository-wide local build-artifact exclusions.
 
 ## Firmware development status
 
-**The active firmware implementation has intentionally been cleared.** The next implementation work will begin with a detailed Low-Level Design (LLD), based on the approved project requirements. No archived firmware should be treated as compliant with the current target design.
+**The active firmware implementation has intentionally been cleared.** The next implementation work will begin with a detailed Low-Level Design (LLD), based on the approved project requirements. No legacy firmware should be treated as compliant with the current target design.
 
 ## Safety and regulatory gates
 
