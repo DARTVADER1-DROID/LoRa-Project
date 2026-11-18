@@ -1,155 +1,172 @@
-# 04 — Operating Workflow and State Machines
+# 04 — Operating Workflow, Interfaces and State Machines
 
-## 1. User journey
+## 1. Operating model
 
-Example: a student is at the Library and wants to travel to the Canteen.
+The student creates a request at a fixed station. All carts listen and maintain local pending lists of unaccepted requests. A driver explicitly controls whether their cart may claim a request. A cart serves one accepted request at a time; it does not build a service queue of multiple accepted rides.
 
-1. Student uses the Library station.
-2. Station announces/indicates the destination-selection mode.
-3. Student navigates the registered destination list using the two-button interaction.
-4. Student confirms Canteen.
-5. Station creates and broadcasts a request with origin=Library and destination=Canteen.
-6. The request is received by eligible carts and enters the cart queue/ownership process.
-7. Once one cart is assigned, the station reports that the request has been received/assigned.
-8. Driver progresses through the status sequence.
-9. Student hears the station's audible updates and can cancel if the request is still cancellable.
-10. Driver marks the journey completed after dropping the student at the destination.
-11. The request is acknowledged and retired.
+The two physical buttons are context-sensitive. The 16×2 LCD presents the current screen/action, and the buzzer confirms important events. The exact short/long-press mapping must be finalized through usability testing, but no interface may exceed two physical buttons.
 
-## 2. Required journey states
+## 2. Student station workflow
 
-The agreed user-facing stages are:
+1. Student activates the station interface.
+2. Station guides destination selection using the agreed two-button interaction and audible cues.
+3. Student confirms a registered destination.
+4. Station validates the destination and creates a unique request ID.
+5. Station broadcasts the request and starts its 10-minute default validity timer.
+6. Carts that hear the request may add it to their local unaccepted pending lists.
+7. The station waits for a committed cart assignment, not merely a packet-reception ACK.
+8. Once a cart is assigned, the station announces/displays the assignment/received state.
+9. The station relays driver status updates as they are confirmed.
+10. Student may cancel while cancellation is permitted.
+11. The station reports completion, cancellation, expiry or communication uncertainty accurately.
 
-| State | Meaning | Who initiates it |
+If no cart is assigned within 10 minutes, the station expires the request and informs the student. The student may submit a new request.
+
+## 3. Request lifecycle states
+
+| State | Meaning | Initiator / authority |
 |---|---|---|
-| RECEIVED | A cart has received and taken responsibility for the request. This must be backed by a matching protocol acknowledgement/assignment. | Cart/assignment protocol |
-| ON_THE_WAY | Driver has indicated that the cart is travelling toward the pickup station. | Driver |
-| ARRIVED_AT_PICKUP | Driver has reached the pickup station and manually confirms arrival. | Driver |
-| COMPLETED | Driver has dropped the student at the destination and manually confirms completion. | Driver |
+| CREATED | Station has created the request and started its timer. | Origin station |
+| PENDING_UNASSIGNED | Request is live and available to be claimed; carts may hold local copies. | Origin station |
+| CLAIM_PENDING | A cart has sent a claim; no assignment is yet confirmed. | Claiming cart |
+| ASSIGNED / RECEIVED | Station has committed one cart and the matching assignment confirmation is acknowledged. | Origin station + winning cart |
+| ON_THE_WAY | Driver has indicated departure toward pickup. | Driver via cart |
+| ARRIVED_AT_PICKUP | Driver has reached pickup and manually confirmed. | Driver via cart |
+| IN_JOURNEY | Optional internal state after pickup; may be represented without a separate student-facing label. | Driver/workflow |
+| COMPLETED | Driver confirms the student was dropped at destination. | Driver via cart |
+| CANCELLED | Student cancellation is committed by the station and propagated. | Student via station |
+| EXPIRED | Ten-minute unaccepted-request lifetime elapsed at the origin station. | Origin station |
+| COMMUNICATION_UNCERTAIN | A critical transition cannot be confirmed. | Any node detecting timeout |
 
-Do not use one ambiguous “Arrived” state for both pickup and destination. The two-button interface must provide distinct actions for **Arrived at pickup** and **Complete journey**.
+Normal service sequence:
+`CREATED → PENDING_UNASSIGNED → CLAIM_PENDING → ASSIGNED/RECEIVED → ON_THE_WAY → ARRIVED_AT_PICKUP → COMPLETED`
 
-## 3. Request lifecycle
+Alternative terminal outcomes: `CANCELLED` or `EXPIRED`. Do not let a late packet overwrite a terminal state.
 
-Recommended request state model:
+## 4. Driver availability state machine
 
-```
-CREATED
-   |
-   v
-PENDING_DISPATCH
-   |
-   v
-RECEIVED / ASSIGNED
-   |
-   v
-ON_THE_WAY
-   |
-   v
-ARRIVED_AT_PICKUP
-   |
-   v
-IN_JOURNEY (optional internal state)
-   |
-   v
-COMPLETED
-```
+Driver availability is separate from the request lifecycle.
 
-Alternative exits:
-- CREATED or PENDING_DISPATCH → CANCELLED_BY_STUDENT
-- RECEIVED / ASSIGNED → CANCELLED_BY_STUDENT (subject to race resolution)
-- PENDING_DISPATCH → EXPIRED
-- Any active state → COMMUNICATION_UNCERTAIN when critical status/ownership cannot be confirmed.
+| Driver/cart mode | Receive requests | Add valid unassigned requests to local pending list | Claim | Active assignment |
+|---|---|---|---|---|
+| NOT_ACCEPTING | Yes | Yes, after any disable-time clear | No | No |
+| ACCEPTING_IDLE | Yes | Yes | Yes, oldest eligible request only | At most one |
+| SERVING | Yes | Yes | No | Exactly one |
+| DISABLED_AFTER_DISABLE | Yes | Yes, as a fresh pending list | No | No |
 
-The **IN_JOURNEY** state is recommended internally after pickup arrival, even though it is not one of the four primary status labels requested. If the student-facing status set must remain exactly four labels, this internal state can be omitted and the driver can use a completion action after pickup arrival. The implementation must still distinguish the pickup-arrival event from completion.
+Rules:
+- The driver manually enables persistent **Accepting Requests** mode.
+- The mode stays enabled until the driver disables it or a request is assigned.
+- A cart accepts at most one active assignment.
+- Once assigned, it stops claiming other requests and enters SERVING.
+- On journey completion, the cart returns to NOT_ACCEPTING; the driver must manually enable acceptance again.
+- If the driver disables acceptance before assignment, the cart clears its current local pending list immediately.
+- Clearing a cart's local list does not cancel the student request or erase other carts' copies.
+- While disabled, the cart continues listening. New requests received after the clear may populate a fresh local pending list, but cannot be claimed until the driver enables acceptance.
+- A cart that re-enters ACCEPTING_IDLE examines its local pending requests in FIFO order, skipping entries that are expired, cancelled or assigned elsewhere.
 
-## 4. Two-button station interaction — target proposal
+## 5. Two-button station interface
 
-A two-button interface can support destination selection without extra controls. Proposed mapping:
+The station has at most two buttons, a 16×2 LCD and a buzzer.
 
-- **Button A — NEXT / SELECT:** short press moves to the next registered destination; long press confirms the highlighted destination.
-- **Button B — BACK / CANCEL:** short press moves backward or returns to the previous screen; long press cancels the current request when cancellation is allowed.
+Proposed contextual mapping:
+- Button A short press: NEXT destination.
+- Button B short press: PREVIOUS / BACK.
+- Button A long press: CONFIRM selected destination / submit.
+- Button B long press: CANCEL, when a request is active and cancellation is permitted.
 
-The exact mapping must be user-tested. It is a proposed interaction model, not yet validated with blind or visually impaired participants.
+This mapping is a design proposal, not yet validated. Destination selection is a key accessibility risk: the buzzer cannot speak destination names. The design must include a tested nonvisual method, such as tactile/Braille destination directory and a consistent audible selection code. LCD text alone is insufficient for a blind student.
 
 Suggested screen flow:
-1. Idle: “Request assistance”.
-2. Destination list: one destination shown at a time, with an audible cue on each change.
-3. Confirmation: “To: CANTEEN / Hold A to send”.
-4. Sending: “Sending request”.
-5. Pending: “Request sent / Waiting for cart”.
-6. Assigned: “Cart received”.
-7. Status: audible patterns for received, on the way, arrived at pickup and completed.
-8. Cancellation confirmation: use a deliberate long press and a distinct cancel tone to reduce accidental cancellation.
+1. Idle / request assistance.
+2. Destination selection.
+3. Destination confirmation.
+4. Sending request.
+5. Waiting for cart assignment.
+6. Assigned / received.
+7. Journey progress.
+8. Completed, cancelled, expired or communication uncertain.
 
-Since students may not be able to read the LCD, each screen change and important state must have a distinguishable audible pattern. The buzzer is not a speech synthesizer; destination names need a nonvisual selection strategy such as counted/unique beep patterns, tactile station list, or assistance during initial use. This accessibility issue is a key usability test, not a solved assumption.
+Use distinct audible patterns for selection movement, confirmation, assignment, status changes, cancellation, expiry and errors. Patterns must be user-tested in campus noise.
 
-## 5. Two-button cart interaction — target proposal
+## 6. Two-button cart interface
 
-The cart has a maximum of two buttons. Proposed contextual mapping:
+The cart has at most two physical buttons, one 16×2 LCD and a buzzer. Buttons are context-sensitive and must not allow accidental skipping of required journey stages.
 
-- **Button A — NEXT / CONFIRM:** short press cycles the visible action/request information; long press confirms the current status action.
-- **Button B — BACK / STATUS:** short press moves backward/cycles available details; long press opens/executes the contextually permitted secondary action.
+Required driver actions:
+- Enable Accepting Requests.
+- Disable Accepting Requests.
+- Confirm/advance the active request through the required journey stages.
+- Manually re-enable acceptance after completion.
 
-An even simpler implementation may assign:
-- Button A: advance the active request to the next permitted stage.
-- Button B: repeat status/confirm or cancel the active request, depending on the agreed operating policy.
+Proposed interface principles:
+- LCD always shows the cart mode and the next valid action.
+- A deliberate long press is used for mode changes or irreversible actions.
+- Short presses navigate/inspect; confirmation is separate where practical.
+- The same button may have different meanings on different screens, but the LCD must state the action before it is accepted.
+- Buzzer confirms mode changes, accepted commands and invalid actions.
+- Driver interaction should occur only when safely stopped; no control action should require looking at the LCD while driving.
 
-The cart display must show the current request and the next permitted action before the driver confirms it. Avoid accidental stage skipping. Driver actions should be edge-detected, debounced and require a deliberate press duration where appropriate.
+The exact button mapping is intentionally left open until a state-by-state interaction table is prototyped. The two-button limit is fixed; the mapping is not.
 
-## 6. Driver workflow
+## 7. Request queue and assignment behavior
 
-For each active FIFO request:
-1. Cart displays pickup station and destination.
-2. Driver confirms **Received** if receipt is not already automatically committed by the protocol.
-3. Driver presses the context-appropriate control for **On the way** when departing toward pickup.
-4. Driver presses the control for **Arrived at pickup** upon reaching the pickup station.
-5. Driver transports the student manually.
-6. Driver presses the completion control after dropping the student at the destination.
-7. Cart sends the status/completion packet and waits for matching acknowledgement before permanently retiring the transaction.
-8. Cart selects the next queued request.
+The cart has two distinct data concepts:
+- **Active assignment:** zero or one request accepted by this cart and currently being served.
+- **Pending list:** zero or more unaccepted/unassigned request references heard by this cart.
 
-The precise point at which “Received” is entered (automatic on confirmed queue insertion versus driver-confirmed) must be finalized in the implementation decision log. The design should not add a third button to resolve it.
+Rules:
+1. Pending list order is FIFO per cart.
+2. Merely receiving a request does not assign it.
+3. The cart may claim only when driver acceptance is enabled and there is no active assignment.
+4. The oldest eligible pending request is attempted first.
+5. Successful station-confirmed assignment removes the request from the winning cart's pending list and creates its active assignment.
+6. Other carts remove that request from their pending lists when they receive the assignment announcement.
+7. No cart may claim a second request while serving.
+8. If the queue is full, the cart must not overwrite an entry. It sends an explicit capacity response; station retry/rebroadcast policy must preserve request availability to other carts.
+9. Expired/cancelled/already-assigned entries are removed or marked terminal without reordering the remaining live entries.
+10. When the driver disables acceptance, clear the local pending list. Do not send a student cancellation.
 
-## 7. FIFO queue rules
+## 8. Ten-minute request expiry
 
-- FIFO is based on the order in which a cart accepts unique, valid requests into its local queue.
-- The active request is not displaced by a newly received request.
-- A duplicate packet for an already queued or active request does not create another entry.
-- A cancelled request is removed/marked terminal without reordering remaining requests.
-- A completed request is retired.
-- If the queue is full, the cart must not overwrite the oldest request. It returns a QUEUE_FULL response.
-- Queue capacity is a compile-time configurable limit, selected after RAM measurements for each MCU.
-- FIFO applies to each cart independently. No claim of campus-wide global FIFO is made.
+- Default: **10 minutes** from creation at the originating station.
+- Firmware configurable; do not bake 10 minutes into the packet schema.
+- Station is authoritative for the expiry deadline.
+- A cart may locally age entries as a cleanup optimization, but it must reject/avoid claims if the station reports expiry.
+- The station broadcasts expiry so carts can remove the request.
+- A claim received after expiry is rejected.
+- Expiry applies to unaccepted/unassigned requests. Once a cart is assigned, the request follows the active journey/cancellation rules rather than the pending-request expiry timer.
 
-## 8. Cancellation behavior
+## 9. Cancellation behavior
 
-Student cancellation:
-- Station sends a cancellation message containing the exact request identity and generation.
-- If the request is still pending, carts that have queued it remove it.
-- If a cart is assigned or already travelling, the cancellation is forwarded to the assigned cart.
-- A cancellation acknowledgement confirms MCU processing, not that the driver has physically stopped or that the student is safe.
-- If cancellation races with arrival or completion, the station and cart resolve the event using request state and sequence/generation checks. Terminal completion must not be overwritten by a late cancellation.
+- Student cancellation is sent by the origin station with the full request identity.
+- All carts that have the request in pending lists remove it.
+- If assigned, cancellation is forwarded to the winning cart and shown to the driver.
+- If cancellation races with assignment, station-side ordering decides whether assignment or cancellation committed first.
+- A cancellation ACK confirms firmware processing, not physical stopping or human awareness.
+- The driver follows the institution's safe operating procedure if cancellation arrives after movement begins.
+- The system never controls vehicle motion.
 
-Operational rule: if a student cancels after a cart has started moving, the driver must receive a clear cancellation notification and follow the institution's safe stopping procedure. The firmware does not control the vehicle.
+## 10. Communication loss and restart
 
-## 9. Lost communication and restart
+- Critical messages use bounded retries and explicit acknowledgement.
+- If an assignment is not confirmed, the cart must not assume it won.
+- If status ACK is missing, show “Status not confirmed” or “Communication uncertain”.
+- Retransmit the same request identity; do not create a new student request merely because an ACK was lost.
+- After reboot, recover or explicitly flag any uncertain active assignment before processing new claims.
+- Do not silently reassign a request whose ownership is ambiguous.
 
-- Retry critical messages a finite number of times.
-- If acknowledgement is not received, display **Status not confirmed** rather than success.
-- Do not create a second request simply because an acknowledgement was lost; retransmit the same request identity.
-- After reboot, a node must not silently forget an in-progress assignment if that could lead to duplicate dispatch. Persistence strategy is an open item: EEPROM/flash writes must be minimized and power-loss behavior tested.
-- If state cannot be reconstructed safely, show **Needs operator check** and require manual reconciliation before reassigning the student request.
+## 11. Audible feedback
 
-## 10. Audible feedback
-
-Use a small, documented pattern table, for example:
-- Request accepted locally: one short beep.
+Illustrative pattern concepts:
+- Selection moved: one short beep.
+- Local request transmitted: one confirmation tone.
 - Cart assignment confirmed: two short beeps.
 - On the way: one long beep.
 - Arrived at pickup: three short beeps.
 - Completed: long-short-long.
 - Cancelled: two low-pitch beeps.
+- Expired: long warning tone.
 - Error / no acknowledgement: repeated short warning pattern.
 
-These are illustrative patterns only. Final frequency, duration and sequence must be measured and user-tested in campus noise. Avoid relying only on pitch if hearing variation or environmental noise makes patterns ambiguous.
+Exact frequencies, durations and sequences are not frozen. Test audibility, distinctiveness and user interpretation with intended users and representative campus noise.
