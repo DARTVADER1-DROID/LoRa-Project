@@ -49,6 +49,15 @@ public:
     if (!loaded.ok() || bytesRead > kMaxEncodedBytes || !decodeSnapshot(bytesRead))
       return Status(ErrorCode::STORAGE_FAILURE);
 
+    FixedRequestRepository<StorageCapacity> recovered = state_;
+    if (!recovered.expireUnassignedForRecovery().ok())
+      return Status(ErrorCode::STORAGE_FAILURE);
+    if (!sameState(state_, recovered)) {
+      if (!persistSnapshot(recovered))
+        return Status(ErrorCode::STORAGE_FAILURE);
+      state_ = recovered;
+    }
+
     configured_ = true;
     return Status();
   }
@@ -75,6 +84,8 @@ public:
   Status insertNew(const RequestRecord& record) override {
     if (!ready())
       return Status(ErrorCode::INVALID_STATE);
+    if (record.id.originStationId != stationId_)
+      return Status(ErrorCode::INVALID_ARGUMENT);
     FixedRequestRepository<StorageCapacity> candidate = state_;
     const Status result = candidate.insertNew(record);
     if (!result.ok())
@@ -356,7 +367,8 @@ private:
 
     for (uint16_t i = 0; i < count; ++i) {
       const RequestRecord record = decodeRecord(encoded_, offset);
-      if (!state_.restoreRecord(record).ok())
+      if (record.id.originStationId != stationId_ ||
+          !state_.restoreRecord(record).ok())
         return false;
     }
     if (offset != length - kChecksumBytes)
