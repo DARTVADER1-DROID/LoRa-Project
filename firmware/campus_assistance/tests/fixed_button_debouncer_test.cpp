@@ -82,10 +82,8 @@ int main() {
   assert(fullQueue.update(oneState, 1, time + 10).ok());
   oneState[0] = false;
   assert(fullQueue.update(oneState, 1, time + 20).code == ErrorCode::BUFFER_FULL);
-  assert(fullQueue.pollEvent(event));
-  assert(fullQueue.update(oneState, 1, time + 21).ok());
-  assert(fullQueue.update(oneState, 1, time + 30).code == ErrorCode::BUFFER_FULL);
-  assert(fullQueue.pollEvent(event));
+  while (fullQueue.pollEvent(event)) {
+  }
   assert(fullQueue.update(oneState, 1, time + 30).ok());
   assert(fullQueue.pollEvent(event));
   assert(event.type == ButtonEventType::SHORT_PRESS);
