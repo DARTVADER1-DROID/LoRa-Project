@@ -157,13 +157,14 @@ Status MessagePayloadCodec::decode(const ProtocolMessage& message,
     return Status();
 
   case MessageType::CLAIM_WITHDRAW:
-    if (message.payloadLength != 10)
+    if (message.payloadLength != 14 || message.header.transactionId == 0)
       return Status(ErrorCode::PROTOCOL_MISMATCH);
     event.payload.claimWithdraw.requestId = getRequestId(input, offset);
     event.payload.claimWithdraw.cartId = get16(input, offset);
-    event.payload.claimWithdraw.transactionId = message.header.transactionId;
+    event.payload.claimWithdraw.transactionId = get32(input, offset);
     if (!RequestIdentity::isValid(event.payload.claimWithdraw.requestId) ||
-        event.payload.claimWithdraw.cartId == 0 || message.header.transactionId == 0)
+        event.payload.claimWithdraw.cartId == 0 ||
+        event.payload.claimWithdraw.transactionId == 0)
       return Status(ErrorCode::INVALID_ARGUMENT);
     return Status();
 
@@ -288,11 +289,12 @@ Status MessagePayloadCodec::encode(const ProtocolEvent& event,
   case ProtocolEventType::CLAIM_WITHDRAW_RECEIVED:
     if (!RequestIdentity::isValid(event.payload.claimWithdraw.requestId) ||
         event.payload.claimWithdraw.cartId == 0 ||
-        event.payload.claimWithdraw.transactionId == 0)
+        event.payload.claimWithdraw.transactionId == 0 ||
+        message.header.transactionId == 0)
       return Status(ErrorCode::INVALID_ARGUMENT);
-    message.header.transactionId = event.payload.claimWithdraw.transactionId;
     putRequestId(message.payload, offset, event.payload.claimWithdraw.requestId);
     put16(message.payload, offset, event.payload.claimWithdraw.cartId);
+    put32(message.payload, offset, event.payload.claimWithdraw.transactionId);
     break;
 
   case ProtocolEventType::CLAIM_RESULT_RECEIVED:
