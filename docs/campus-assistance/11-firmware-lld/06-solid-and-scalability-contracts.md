@@ -68,7 +68,7 @@ Do not merge unrelated responsibilities back into a convenience "manager" class.
 There is exactly one assignment-commit authority: `StationClaimCoordinator::commitWinner`.
 
 - `RequestLifecycle` does not expose `commitAssignment`.
-- `RequestLedger` stores complete records: full RequestId, destination, creation/expiry basis, lifecycle state, assigned cart, assignment epoch and last accepted journey event sequence.
+- `IRequestRepository` stores complete records: full RequestId, destination, creation/expiry basis, lifecycle state, assigned cart, assignment epoch, claim transaction identity and last accepted journey event sequence. A concrete fixed-capacity ledger is a future implementation of this interface.
 - The repository exposes only conditional atomic state transitions, including exact-transaction assignment commit and station-time expiry checks.
 - The claim coordinator serializes competing claims and invokes this atomic guard. A failed or duplicate claim cannot overwrite the winner.
 - The station emits ASSIGN only after the atomic commit succeeds.
