@@ -90,7 +90,10 @@ public:
 // Structural network membership checks only; this is not cryptographic identity.
 class DefaultMessageValidator final : public MessageValidator {
 public:
-  DefaultMessageValidator(const IStationRegistry& stations, const ICartRegistry& carts);
+  explicit DefaultMessageValidator(const IStationRegistry& stations);
+  explicit DefaultMessageValidator(const ICartRegistry& carts);
+  DefaultMessageValidator(const IStationRegistry& stations,
+                          const ICartRegistry& carts);
 
   Status validate(const ProtocolMessage& message,
                   const DeviceConfig& localConfig) const override;
