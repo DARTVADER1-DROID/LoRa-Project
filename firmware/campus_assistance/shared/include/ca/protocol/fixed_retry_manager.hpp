@@ -9,6 +9,7 @@ namespace ca {
 template <uint16_t StorageCapacity>
 class FixedRetryManager final : public RetryManager {
   static_assert(StorageCapacity > 0, "StorageCapacity must be nonzero");
+  static_assert(StorageCapacity <= 32767, "Outcome capacity exceeds uint16_t");
 
 public:
   explicit FixedRetryManager(const RetryPolicy& policy)
@@ -21,7 +22,8 @@ public:
     if (message.header.transactionId == 0 ||
         message.payloadLength > kMaxProtocolPayloadBytes ||
         policy_.maxAttempts == 0 || policy_.initialBackoffMs == 0 ||
-        policy_.maxBackoffMs < policy_.initialBackoffMs)
+        policy_.maxBackoffMs < policy_.initialBackoffMs ||
+        policy_.maxBackoffMs > 0x7FFFFFFFUL)
       return Status(ErrorCode::INVALID_ARGUMENT);
 
     nowMs_ = nowMs;
