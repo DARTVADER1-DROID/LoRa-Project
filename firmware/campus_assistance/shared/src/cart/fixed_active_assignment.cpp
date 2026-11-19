@@ -4,9 +4,12 @@ namespace ca {
 
 FixedActiveAssignment::FixedActiveAssignment()
     : current_(), occupied_(false), journey_(JourneyStatus::RECEIVED),
-      lastSequence_(0) {}
+      lastSequence_(0) {
+}
 
-bool FixedActiveAssignment::isOccupied() const { return occupied_; }
+bool FixedActiveAssignment::isOccupied() const {
+  return occupied_;
+}
 
 Status FixedActiveAssignment::activate(const AssignmentRecord& assignment) {
   if (!RequestIdentity::isValid(assignment.requestId) ||
@@ -30,7 +33,7 @@ Status FixedActiveAssignment::activate(const AssignmentRecord& assignment) {
 }
 
 Status FixedActiveAssignment::updateJourneyStatus(JourneyStatus status,
-                                                   EventSequence sequence) {
+                                                  EventSequence sequence) {
   if (!occupied_ || !isValidJourneyStatus(status))
     return Status(ErrorCode::INVALID_STATE);
   if (compareSequence(sequence, lastSequence_) != SerialNumberOrder::NEWER)
@@ -40,13 +43,13 @@ Status FixedActiveAssignment::updateJourneyStatus(JourneyStatus status,
 
   journey_ = status;
   lastSequence_ = sequence;
-  current_.state = status == JourneyStatus::ON_THE_WAY
-                       ? RequestState::ON_THE_WAY
-                       : (status == JourneyStatus::ARRIVED_AT_PICKUP
-                              ? RequestState::ARRIVED_AT_PICKUP
-                              : (status == JourneyStatus::COMPLETED
-                                     ? RequestState::COMPLETED
-                                     : RequestState::ASSIGNED));
+  current_.state =
+      status == JourneyStatus::ON_THE_WAY
+          ? RequestState::ON_THE_WAY
+          : (status == JourneyStatus::ARRIVED_AT_PICKUP
+                 ? RequestState::ARRIVED_AT_PICKUP
+                 : (status == JourneyStatus::COMPLETED ? RequestState::COMPLETED
+                                                       : RequestState::ASSIGNED));
   return Status();
 }
 

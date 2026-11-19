@@ -3,7 +3,8 @@
 namespace ca {
 
 BasicDriverAvailabilityController::BasicDriverAvailabilityController()
-    : acceptance_(AcceptanceMode::NOT_ACCEPTING), service_(CartServiceState::IDLE) {}
+    : acceptance_(AcceptanceMode::NOT_ACCEPTING), service_(CartServiceState::IDLE) {
+}
 
 AcceptanceMode BasicDriverAvailabilityController::acceptanceMode() const {
   return acceptance_;
@@ -22,7 +23,8 @@ Status BasicDriverAvailabilityController::enableAcceptance(const DriverAction& a
   return Status();
 }
 
-Status BasicDriverAvailabilityController::disableAcceptance(const DriverAction& action) {
+Status
+BasicDriverAvailabilityController::disableAcceptance(const DriverAction& action) {
   if (action.type != DriverActionType::DISABLE_ACCEPTANCE)
     return Status(ErrorCode::INVALID_ARGUMENT);
 
@@ -57,8 +59,7 @@ Status BasicDriverAvailabilityController::onJourneyCompleted() {
 }
 
 bool BasicDriverAvailabilityController::mayClaim() const {
-  return acceptance_ == AcceptanceMode::ACCEPTING &&
-         service_ == CartServiceState::IDLE;
+  return acceptance_ == AcceptanceMode::ACCEPTING && service_ == CartServiceState::IDLE;
 }
 
 Status BasicDriverAvailabilityController::onClaimStarted() {

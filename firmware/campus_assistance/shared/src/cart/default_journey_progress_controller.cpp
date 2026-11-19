@@ -14,8 +14,7 @@ Status DefaultJourneyProgressController::validateTransition(
       next == JourneyStatus::ARRIVED_AT_PICKUP &&
       action.type == DriverActionType::ADVANCE_JOURNEY)
     return Status();
-  if (current == JourneyStatus::ARRIVED_AT_PICKUP &&
-      next == JourneyStatus::COMPLETED &&
+  if (current == JourneyStatus::ARRIVED_AT_PICKUP && next == JourneyStatus::COMPLETED &&
       action.type == DriverActionType::CONFIRM_COMPLETION)
     return Status();
 
