@@ -88,5 +88,15 @@ int main() {
   assert(!active.isOccupied());
   assert(availability.serviceState() == CartServiceState::IDLE);
   assert(availability.acceptanceMode() == AcceptanceMode::NOT_ACCEPTING);
+
+  // A snapshot repairs missed intermediate journey events without replaying them.
+  snapshot.requestId = {1, 4, 1};
+  snapshot.state = RequestState::COMPLETED;
+  snapshot.assignedCartId = 7;
+  snapshot.assignmentEpoch = 3;
+  snapshot.lastEventSequence = 3;
+  assert(reconciler.applySnapshot(snapshot).ok());
+  assert(!active.isOccupied());
+  assert(availability.serviceState() == CartServiceState::IDLE);
   return 0;
 }
