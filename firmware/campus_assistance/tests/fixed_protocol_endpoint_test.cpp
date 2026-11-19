@@ -174,6 +174,16 @@ int main() {
   assert(!endpoint.pollEvent(decoded));
   assert(transport.sentCount == 3);
 
+  // Best-effort messages may omit a delivery transaction and are not ACKed.
+  request.payload.request.destinationId = 4;
+  request.envelope.transactionId = 0;
+  assert(MessagePayloadCodec::encode(request, incoming).ok());
+  assert(transport.inject(incoming, codec));
+  endpoint.service(5);
+  assert(endpoint.pollEvent(decoded));
+  assert(decoded.payload.request.destinationId == 4);
+  assert(transport.sentCount == 3);
+
   // Reliable station broadcasts are expanded to one transaction per cart;
   // an ACK from one cart cannot satisfy another cart's delivery.
   DeviceConfig stationConfig = config;
