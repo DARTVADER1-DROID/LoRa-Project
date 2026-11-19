@@ -87,6 +87,8 @@ enum class ProtocolEventType : uint8_t {
   SNAPSHOT_RECEIVED,
   ACKNOWLEDGEMENT_RECEIVED
 };
+enum class SerialNumberOrder : uint8_t { OLDER, EQUAL, NEWER, AMBIGUOUS };
+
 enum class ErrorCode : uint8_t {
   NONE,
   INVALID_ARGUMENT,
@@ -110,6 +112,13 @@ enum class ErrorCode : uint8_t {
   CAPACITY_EXCEEDED,
   NOT_IMPLEMENTED
 };
+
+// Shared value semantics. Sequence comparison follows the 32-bit serial-number
+// rule; an exact half-range difference is intentionally ambiguous.
+SerialNumberOrder compareSequence(uint32_t candidate, uint32_t reference);
+bool hasElapsed(uint32_t nowMs, uint32_t startMs, uint32_t durationMs);
+bool isTerminalRequestState(RequestState state);
+bool isValidJourneyStatus(JourneyStatus status);
 
 struct Status {
   ErrorCode code;
