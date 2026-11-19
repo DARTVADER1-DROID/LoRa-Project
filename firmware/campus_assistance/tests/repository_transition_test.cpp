@@ -8,20 +8,20 @@ using namespace ca;
 namespace {
 
 bool sameId(const RequestId& a, const RequestId& b) {
-  return a.originStationId == b.originStationId &&
-         a.sequence == b.sequence && a.generation == b.generation;
+  return a.originStationId == b.originStationId && a.sequence == b.sequence &&
+         a.generation == b.generation;
 }
 
 class FakeRequestRepository : public IRequestRepository {
 public:
-  FakeRequestRepository() : count_(0) {
-    memset(records_, 0, sizeof(records_));
-  }
+  FakeRequestRepository() : count_(0) { memset(records_, 0, sizeof(records_)); }
 
   Status insertNew(const RequestRecord& record) override {
-    if (count_ >= kCapacity) return Status(ErrorCode::CAPACITY_EXCEEDED);
+    if (count_ >= kCapacity)
+      return Status(ErrorCode::CAPACITY_EXCEEDED);
     RequestRecord ignored;
-    if (find(record.id, ignored)) return Status(ErrorCode::DUPLICATE);
+    if (find(record.id, ignored))
+      return Status(ErrorCode::DUPLICATE);
     records_[count_++] = record;
     return Status();
   }
@@ -36,11 +36,14 @@ public:
     return false;
   }
 
-  Status beginClaimIfEligible(const RequestId& id, DeviceId cartId,
-                              TransactionId transactionId, uint32_t now,
+  Status beginClaimIfEligible(const RequestId& id,
+                              DeviceId cartId,
+                              TransactionId transactionId,
+                              uint32_t now,
                               RequestRecord& updated) override {
     RequestRecord* r = mutableFind(id);
-    if (!r) return Status(ErrorCode::NOT_FOUND);
+    if (!r)
+      return Status(ErrorCode::NOT_FOUND);
     if (isDue(*r, now)) {
       r->state = RequestState::EXPIRED;
       r->claimState = ClaimState::WITHDRAWN;
@@ -48,8 +51,7 @@ public:
       return Status(ErrorCode::EXPIRED);
     }
     if (r->state != RequestState::PENDING_UNASSIGNED ||
-        (r->claimState != ClaimState::IDLE &&
-         r->claimState != ClaimState::WITHDRAWN))
+        (r->claimState != ClaimState::IDLE && r->claimState != ClaimState::WITHDRAWN))
       return Status(ErrorCode::INVALID_STATE);
     if (transactionId == 0 || cartId == 0)
       return Status(ErrorCode::INVALID_ARGUMENT);
@@ -61,20 +63,21 @@ public:
     return Status();
   }
 
-  Status withdrawClaimIfPending(const RequestId& id, DeviceId cartId,
+  Status withdrawClaimIfPending(const RequestId& id,
+                                DeviceId cartId,
                                 TransactionId transactionId,
                                 RequestRecord& updated) override {
     RequestRecord* r = mutableFind(id);
-    if (!r) return Status(ErrorCode::NOT_FOUND);
+    if (!r)
+      return Status(ErrorCode::NOT_FOUND);
     if (r->claimState == ClaimState::COMMITTED)
       return Status(ErrorCode::ALREADY_ASSIGNED);
-    if (r->claimState == ClaimState::WITHDRAWN &&
-        r->claimCartId == cartId && r->claimTransactionId == transactionId) {
+    if (r->claimState == ClaimState::WITHDRAWN && r->claimCartId == cartId &&
+        r->claimTransactionId == transactionId) {
       updated = *r;
       return Status();
     }
-    if (r->claimState != ClaimState::PENDING ||
-        r->claimCartId != cartId ||
+    if (r->claimState != ClaimState::PENDING || r->claimCartId != cartId ||
         r->claimTransactionId != transactionId)
       return Status(ErrorCode::STALE_EVENT);
     r->claimState = ClaimState::WITHDRAWN;
@@ -83,25 +86,27 @@ public:
     return Status();
   }
 
-  Status commitAssignmentIfClaimPending(
-      const RequestId& id, DeviceId cartId, TransactionId transactionId,
-      AssignmentEpoch epoch, uint32_t now, RequestRecord& updated) override {
+  Status commitAssignmentIfClaimPending(const RequestId& id,
+                                        DeviceId cartId,
+                                        TransactionId transactionId,
+                                        AssignmentEpoch epoch,
+                                        uint32_t now,
+                                        RequestRecord& updated) override {
     RequestRecord* r = mutableFind(id);
-    if (!r) return Status(ErrorCode::NOT_FOUND);
+    if (!r)
+      return Status(ErrorCode::NOT_FOUND);
     if (isDue(*r, now)) {
       r->state = RequestState::EXPIRED;
       r->claimState = ClaimState::WITHDRAWN;
       updated = *r;
       return Status(ErrorCode::EXPIRED);
     }
-    if (r->claimState == ClaimState::COMMITTED &&
-        r->claimCartId == cartId &&
+    if (r->claimState == ClaimState::COMMITTED && r->claimCartId == cartId &&
         r->claimTransactionId == transactionId) {
       updated = *r;
       return Status();
     }
-    if (r->claimState != ClaimState::PENDING ||
-        r->claimCartId != cartId ||
+    if (r->claimState != ClaimState::PENDING || r->claimCartId != cartId ||
         r->claimTransactionId != transactionId ||
         r->state != RequestState::CLAIM_PENDING)
       return Status(ErrorCode::STALE_EVENT);
@@ -113,12 +118,13 @@ public:
     return Status();
   }
 
-  Status cancelIfUnassigned(const RequestId& id, CancellationSource,
+  Status cancelIfUnassigned(const RequestId& id,
+                            CancellationSource,
                             RequestRecord& updated) override {
     RequestRecord* r = mutableFind(id);
-    if (!r) return Status(ErrorCode::NOT_FOUND);
-    if (r->state == RequestState::ASSIGNED ||
-        r->state == RequestState::ON_THE_WAY ||
+    if (!r)
+      return Status(ErrorCode::NOT_FOUND);
+    if (r->state == RequestState::ASSIGNED || r->state == RequestState::ON_THE_WAY ||
         r->state == RequestState::ARRIVED_AT_PICKUP ||
         r->state == RequestState::COMPLETED)
       return Status(ErrorCode::ALREADY_ASSIGNED);
@@ -133,13 +139,14 @@ public:
     return Status();
   }
 
-  Status expireIfDue(const RequestId& id, uint32_t now,
-                     RequestRecord& updated) override {
+  Status
+  expireIfDue(const RequestId& id, uint32_t now, RequestRecord& updated) override {
     RequestRecord* r = mutableFind(id);
-    if (!r) return Status(ErrorCode::NOT_FOUND);
-    if (!isDue(*r, now)) return Status(ErrorCode::INVALID_STATE);
-    if (r->state == RequestState::ASSIGNED ||
-        r->state == RequestState::ON_THE_WAY ||
+    if (!r)
+      return Status(ErrorCode::NOT_FOUND);
+    if (!isDue(*r, now))
+      return Status(ErrorCode::INVALID_STATE);
+    if (r->state == RequestState::ASSIGNED || r->state == RequestState::ON_THE_WAY ||
         r->state == RequestState::ARRIVED_AT_PICKUP ||
         r->state == RequestState::COMPLETED)
       return Status(ErrorCode::ALREADY_ASSIGNED);
@@ -153,10 +160,10 @@ public:
   Status applyJourneyUpdateIfCurrent(const JourneyUpdate& update,
                                      RequestRecord& updated) override {
     RequestRecord* r = mutableFind(update.requestId);
-    if (!r) return Status(ErrorCode::NOT_FOUND);
+    if (!r)
+      return Status(ErrorCode::NOT_FOUND);
     if (r->assignedCartId != update.assignedCartId ||
-        r->state == RequestState::CANCELLED ||
-        r->state == RequestState::EXPIRED)
+        r->state == RequestState::CANCELLED || r->state == RequestState::EXPIRED)
       return Status(ErrorCode::STALE_EVENT);
     if (update.eventSequence <= r->lastJourneyEventSequence)
       return Status(ErrorCode::STALE_EVENT);
@@ -186,7 +193,8 @@ private:
 
   RequestRecord* mutableFind(const RequestId& id) {
     for (uint8_t i = 0; i < count_; ++i)
-      if (sameId(records_[i].id, id)) return &records_[i];
+      if (sameId(records_[i].id, id))
+        return &records_[i];
     return 0;
   }
 };
@@ -210,8 +218,8 @@ void testWithdrawWinsAgainstCommit() {
   assert(repository.insertNew(request).ok());
   assert(repository.beginClaimIfEligible(request.id, 7, 101, 200, updated).ok());
   assert(repository.withdrawClaimIfPending(request.id, 7, 101, updated).ok());
-  assert(repository.commitAssignmentIfClaimPending(
-             request.id, 7, 101, 1, 201, updated).code == ErrorCode::STALE_EVENT);
+  assert(repository.commitAssignmentIfClaimPending(request.id, 7, 101, 1, 201, updated)
+             .code == ErrorCode::STALE_EVENT);
   assert(repository.find(request.id, updated));
   assert(updated.state == RequestState::PENDING_UNASSIGNED);
   assert(updated.claimState == ClaimState::WITHDRAWN);
@@ -222,10 +230,10 @@ void testCommitWinsAgainstDelayedWithdraw() {
   RequestRecord request = makeRequest(1000), updated = {};
   assert(repository.insertNew(request).ok());
   assert(repository.beginClaimIfEligible(request.id, 8, 202, 200, updated).ok());
-  assert(repository.commitAssignmentIfClaimPending(
-             request.id, 8, 202, 2, 201, updated).ok());
-  assert(repository.withdrawClaimIfPending(
-             request.id, 8, 202, updated).code == ErrorCode::ALREADY_ASSIGNED);
+  assert(repository.commitAssignmentIfClaimPending(request.id, 8, 202, 2, 201, updated)
+             .ok());
+  assert(repository.withdrawClaimIfPending(request.id, 8, 202, updated).code ==
+         ErrorCode::ALREADY_ASSIGNED);
   assert(repository.find(request.id, updated));
   assert(updated.assignedCartId == 8);
   assert(updated.claimState == ClaimState::COMMITTED);
@@ -236,16 +244,19 @@ void testCancellationAndExpiryClosePendingClaim() {
   RequestRecord request = makeRequest(1000), updated = {};
   assert(cancelledRepo.insertNew(request).ok());
   assert(cancelledRepo.beginClaimIfEligible(request.id, 3, 303, 200, updated).ok());
-  assert(cancelledRepo.cancelIfUnassigned(
-             request.id, CancellationSource::STUDENT, updated).ok());
-  assert(cancelledRepo.commitAssignmentIfClaimPending(
-             request.id, 3, 303, 1, 201, updated).code == ErrorCode::STALE_EVENT);
+  assert(
+      cancelledRepo.cancelIfUnassigned(request.id, CancellationSource::STUDENT, updated)
+          .ok());
+  assert(
+      cancelledRepo.commitAssignmentIfClaimPending(request.id, 3, 303, 1, 201, updated)
+          .code == ErrorCode::STALE_EVENT);
 
   assert(expiredRepo.insertNew(request).ok());
   assert(expiredRepo.beginClaimIfEligible(request.id, 4, 404, 200, updated).ok());
   assert(expiredRepo.expireIfDue(request.id, 1000, updated).ok());
-  assert(expiredRepo.commitAssignmentIfClaimPending(
-             request.id, 4, 404, 1, 1001, updated).code == ErrorCode::EXPIRED);
+  assert(
+      expiredRepo.commitAssignmentIfClaimPending(request.id, 4, 404, 1, 1001, updated)
+          .code == ErrorCode::EXPIRED);
 }
 
 void testExpiredRequestCannotBeClaimed() {
