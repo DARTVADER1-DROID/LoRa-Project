@@ -143,5 +143,58 @@ int main() {
   assert(decoded.payload.request.destinationId == 4);
   assert(transport.sentCount == 2); // ACK emitted for the received request.
   assert(!endpoint.pollEvent(decoded));
+
+  // Reliable station broadcasts are expanded to one transaction per cart;
+  // an ACK from one cart cannot satisfy another cart's delivery.
+  DeviceConfig stationConfig = config;
+  stationConfig.role = DeviceRole::STATION;
+  stationConfig.deviceId = 1;
+  CartRegistryEntry cartEntries[2] = {{4, true}, {5, true}};
+  FixedCartRegistry<2> cartRegistry;
+  CartRegistryView cartView = {2, cartEntries, 2};
+  assert(cartRegistry.load(cartView).ok());
+
+  FakeRadioTransport broadcastTransport;
+  FixedRetryManager<4> broadcastRetries(policy);
+  FixedProtocolEndpoint<4> broadcastEndpoint(
+      codec, validator, broadcastTransport, broadcastRetries, stationConfig,
+      radio, cartRegistry);
+  assert(broadcastEndpoint.begin().ok());
+
+  ProtocolEvent assignment = {};
+  assignment.type = ProtocolEventType::ASSIGNMENT_RECEIVED;
+  assignment.envelope.protocolVersion = stationConfig.protocolVersion;
+  assignment.envelope.networkId = stationConfig.networkId;
+  assignment.envelope.sourceDeviceId = stationConfig.deviceId;
+  assignment.envelope.destinationDeviceId = 0;
+  assignment.envelope.transactionId = 500;
+  assignment.payload.assignment.assignment.requestId = {1, 11, 1};
+  assignment.payload.assignment.assignment.assignedCartId = 4;
+  assignment.payload.assignment.assignment.epoch = 1;
+  assignment.payload.assignment.assignment.state = RequestState::ASSIGNED;
+  assert(MessagePayloadCodec::encode(assignment, outgoing).ok());
+  assert(broadcastEndpoint.enqueue(outgoing, DeliveryClass::RETRY_UNTIL_ACK).ok());
+  broadcastEndpoint.service(0);
+  assert(broadcastTransport.sentCount == 2);
+
+  ProtocolEvent wrongAck = {};
+  wrongAck.type = ProtocolEventType::ACKNOWLEDGEMENT_RECEIVED;
+  wrongAck.envelope.protocolVersion = stationConfig.protocolVersion;
+  wrongAck.envelope.networkId = stationConfig.networkId;
+  wrongAck.envelope.sourceDeviceId = 4;
+  wrongAck.envelope.destinationDeviceId = stationConfig.deviceId;
+  wrongAck.envelope.transactionId = 500 + 5UL * 65537UL;
+  assert(MessagePayloadCodec::encode(wrongAck, incoming).ok());
+  assert(broadcastTransport.inject(incoming, codec));
+  broadcastEndpoint.service(1);
+  assert(!broadcastEndpoint.pollRetryOutcome(outcome));
+
+  wrongAck.envelope.transactionId = 500 + 4UL * 65537UL;
+  assert(MessagePayloadCodec::encode(wrongAck, incoming).ok());
+  assert(broadcastTransport.inject(incoming, codec));
+  broadcastEndpoint.service(2);
+  assert(broadcastEndpoint.pollRetryOutcome(outcome));
+  assert(outcome.transactionId == 500 + 4UL * 65537UL);
+  assert(outcome.outcome == RetryOutcomeCode::ACKNOWLEDGED);
   return 0;
 }
