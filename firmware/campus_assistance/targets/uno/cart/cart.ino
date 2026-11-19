@@ -5,6 +5,11 @@
 #include "ca/platform/arduino_core_adapters.hpp"
 #include "ca/platform/arduino_pcf8574_lcd.hpp"
 #include "ca/platform/arduino_sx127x_transport.hpp"
+#include "ca/platform/arduino_byte_storage.hpp"
+#include "ca/storage/fixed_dual_slot_persistence.hpp"
+
+ArduinoUnoEepromByteStorage<352> byteStorage;
+FixedDualSlotPersistence<176> persistence(byteStorage, 1);
 #include "ca/platform/uno/uno_r3_profile.hpp"
 
 using namespace ca;
@@ -19,6 +24,8 @@ ArduinoBuzzer buzzer(kBoardPins.buzzerPin);
 
 // Hardware composition is not yet wired to the role application.
 void setup() {
+  const Status persistenceStatus = persistence.begin();
+  (void)persistenceStatus;
   (void)radio;
   (void)buttons;
   (void)display;
