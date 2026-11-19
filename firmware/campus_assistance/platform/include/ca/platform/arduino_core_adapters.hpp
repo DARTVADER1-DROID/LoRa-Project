@@ -21,8 +21,8 @@ public:
 
   Status begin(const ButtonConfig& config) override {
     if (initialized_ || !isValidPinMap(pins_) ||
-        config.buttonCount != pins_.buttonCount ||
-        config.buttonCount == 0 || config.buttonCount > kMaxPhysicalButtons)
+        config.buttonCount != pins_.buttonCount || config.buttonCount == 0 ||
+        config.buttonCount > kMaxPhysicalButtons)
       return Status(ErrorCode::CONFIGURATION_INVALID);
 
     for (uint8_t i = 0; i < config.buttonCount; ++i)
@@ -55,8 +55,7 @@ public:
       : pin_(pin), config_(), active_(false), startedAtMs_(0) {}
 
   Status begin(const BuzzerConfig& config) override {
-    if (pin_ < 0 || config.defaultToneHz == 0 ||
-        config.defaultDurationMs == 0)
+    if (pin_ < 0 || config.defaultToneHz == 0 || config.defaultDurationMs == 0)
       return Status(ErrorCode::CONFIGURATION_INVALID);
     config_ = config;
     pinMode(pin_, OUTPUT);
@@ -74,8 +73,7 @@ public:
   }
 
   void service(uint32_t nowMs) override {
-    if (active_ &&
-        hasElapsed(nowMs, startedAtMs_, config_.defaultDurationMs)) {
+    if (active_ && hasElapsed(nowMs, startedAtMs_, config_.defaultDurationMs)) {
       noTone(pin_);
       active_ = false;
     }
