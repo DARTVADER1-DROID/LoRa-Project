@@ -92,8 +92,7 @@ class DefaultMessageValidator final : public MessageValidator {
 public:
   explicit DefaultMessageValidator(const IStationRegistry& stations);
   explicit DefaultMessageValidator(const ICartRegistry& carts);
-  DefaultMessageValidator(const IStationRegistry& stations,
-                          const ICartRegistry& carts);
+  DefaultMessageValidator(const IStationRegistry& stations, const ICartRegistry& carts);
 
   Status validate(const ProtocolMessage& message,
                   const DeviceConfig& localConfig) const override;
