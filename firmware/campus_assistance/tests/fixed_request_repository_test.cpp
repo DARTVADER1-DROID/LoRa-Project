@@ -49,6 +49,28 @@ int main() {
   j.eventSequence = 3;
   assert(repo.applyJourneyUpdateIfCurrent(j, out).ok());
   assert(out.state == RequestState::COMPLETED);
+
+  // A withdrawal can arrive before its claim after RF retransmission/reordering.
+  FixedRequestRepository<1> withdrawalTombstone;
+  RequestRecord tombstoneRecord = makeRecord();
+  tombstoneRecord.id.sequence = 2;
+  assert(withdrawalTombstone.configure().ok());
+  assert(withdrawalTombstone.insertNew(tombstoneRecord).ok());
+  assert(withdrawalTombstone
+             .withdrawClaimIfPending(tombstoneRecord.id, 12, 120, out)
+             .ok());
+  assert(withdrawalTombstone
+             .withdrawClaimIfPending(tombstoneRecord.id, 12, 120, out)
+             .ok());
+  assert(withdrawalTombstone
+             .beginClaimIfEligible(tombstoneRecord.id, 12, 120, 101, out)
+             .code == ErrorCode::STALE_EVENT);
+  assert(withdrawalTombstone
+             .beginClaimIfEligible(tombstoneRecord.id, 13, 130, 102, out)
+             .ok());
+  assert(out.claimCartId == 13);
+  assert(out.claimTransactionId == 130);
+
   FixedRequestRepository<1> wrap;
   RequestRecord w = makeRecord();
   w.createdAtMs = 0xFFFFFF00UL;
