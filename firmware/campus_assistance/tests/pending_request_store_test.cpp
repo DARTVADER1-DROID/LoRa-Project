@@ -1,5 +1,5 @@
 #include "CampusAssistance.h"
-#include "ca/fixed_pending_request_store.hpp"
+#include "ca/storage/fixed_pending_request_store.hpp"
 
 #include <assert.h>
 
