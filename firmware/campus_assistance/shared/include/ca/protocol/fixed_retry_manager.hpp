@@ -30,7 +30,9 @@ public:
     nowMs_ = nowMs;
     for (uint16_t i = 0; i < StorageCapacity; ++i) {
       if (!entries_[i].active ||
-          entries_[i].message.header.transactionId != message.header.transactionId)
+          entries_[i].message.header.transactionId != message.header.transactionId ||
+          entries_[i].message.header.messageSequence !=
+              message.header.messageSequence)
         continue;
       if (!sameMessage(entries_[i].message, message) || entries_[i].terminalPending)
         return Status(ErrorCode::INVALID_STATE);
@@ -59,6 +61,7 @@ public:
       Entry& entry = entries_[i];
       if (entry.active && entry.terminalPending && !outcomesFull()) {
         pushOutcome(entry.message.header.transactionId,
+                    entry.message.header.messageSequence,
                     entry.terminalOutcome,
                     entry.attemptsUsed);
         entry = Entry();
@@ -85,10 +88,11 @@ public:
   }
 
   Status onTransmissionAttempt(TransactionId transactionId,
+                               uint32_t messageSequence,
                                bool accepted,
                                uint32_t nowMs) override {
     (void)accepted; // A rejected transport submission still consumes an attempt.
-    Entry* entry = find(transactionId);
+    Entry* entry = find(transactionId, messageSequence);
     if (entry == 0 || !entry->awaitingAttempt)
       return Status(ErrorCode::NOT_FOUND);
 
@@ -118,20 +122,20 @@ public:
   Status onAcknowledgement(TransactionId transactionId,
                            DeviceId acknowledgingDeviceId,
                            uint32_t acknowledgedMessageSequence) override {
-    Entry* entry = find(transactionId);
+    Entry* entry = find(transactionId, acknowledgedMessageSequence);
     if (entry == 0)
       return Status(ErrorCode::NOT_FOUND);
     if (entry->message.header.destinationDeviceId == 0 ||
         entry->message.header.destinationDeviceId != acknowledgingDeviceId ||
-        entry->message.header.messageSequence != acknowledgedMessageSequence ||
         entry->attemptsUsed == 0)
       return Status(ErrorCode::STALE_EVENT);
     finish(*entry, RetryOutcomeCode::ACKNOWLEDGED);
     return Status();
   }
 
-  Status cancel(TransactionId transactionId) override {
-    Entry* entry = find(transactionId);
+  Status cancel(TransactionId transactionId,
+                uint32_t messageSequence) override {
+    Entry* entry = find(transactionId, messageSequence);
     if (entry == 0)
       return Status(ErrorCode::NOT_FOUND);
     finish(*entry, RetryOutcomeCode::CANCELLED);
@@ -187,11 +191,14 @@ private:
 
   bool outcomesFull() const { return outcomeCount_ >= kOutcomeCapacity; }
 
-  void
-  pushOutcome(TransactionId transactionId, RetryOutcomeCode code, uint8_t attempts) {
+  void pushOutcome(TransactionId transactionId,
+                   uint32_t messageSequence,
+                   RetryOutcomeCode code,
+                   uint8_t attempts) {
     const uint16_t tail = static_cast<uint16_t>(
         (static_cast<uint32_t>(outcomeHead_) + outcomeCount_) % kOutcomeCapacity);
     outcomes_[tail].transactionId = transactionId;
+    outcomes_[tail].messageSequence = messageSequence;
     outcomes_[tail].outcome = code;
     outcomes_[tail].attemptsUsed = attempts;
     ++outcomeCount_;
@@ -204,14 +211,16 @@ private:
       entry.terminalOutcome = code;
       return;
     }
-    pushOutcome(entry.message.header.transactionId, code, entry.attemptsUsed);
+    pushOutcome(entry.message.header.transactionId,
+                entry.message.header.messageSequence, code, entry.attemptsUsed);
     entry = Entry();
   }
 
-  Entry* find(TransactionId transactionId) {
+  Entry* find(TransactionId transactionId, uint32_t messageSequence) {
     for (uint16_t i = 0; i < StorageCapacity; ++i)
       if (entries_[i].active &&
-          entries_[i].message.header.transactionId == transactionId)
+          entries_[i].message.header.transactionId == transactionId &&
+          entries_[i].message.header.messageSequence == messageSequence)
         return &entries_[i];
     return 0;
   }
