@@ -6,13 +6,17 @@ StationRequestLifecycle::StationRequestLifecycle(IRequestRepository& repository,
                                                  const DestinationCatalog& destinations,
                                                  const IClock& clock,
                                                  DeviceId stationId,
-                                                 uint32_t requestLifetimeMs)
+                                                 uint32_t requestLifetimeMs,
+                                                 uint32_t terminalRetentionMs)
     : repository_(repository), destinations_(destinations), clock_(clock),
-      stationId_(stationId), requestLifetimeMs_(requestLifetimeMs), configured_(false) {
+      stationId_(stationId), requestLifetimeMs_(requestLifetimeMs),
+      terminalRetentionMs_(terminalRetentionMs), configured_(false) {
 }
 
 Status StationRequestLifecycle::configure() {
-  if (stationId_ == 0 || requestLifetimeMs_ == 0 || requestLifetimeMs_ > 0x7FFFFFFFUL)
+  if (stationId_ == 0 || requestLifetimeMs_ == 0 ||
+      requestLifetimeMs_ > 0x7FFFFFFFUL || terminalRetentionMs_ == 0 ||
+      terminalRetentionMs_ > 0x7FFFFFFFUL)
     return Status(ErrorCode::INVALID_ARGUMENT);
 
   configured_ = true;
@@ -107,7 +111,8 @@ Status StationRequestLifecycle::expireDue(uint32_t stationNowMs,
   }
 
   expired.count = written;
-  return Status();
+  const uint32_t retentionBoundary = stationNowMs - terminalRetentionMs_;
+  return repository_.removeTerminalBefore(retentionBoundary);
 }
 
 Status StationRequestLifecycle::applyJourneyUpdate(const JourneyUpdate& update) {
