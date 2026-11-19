@@ -141,7 +141,9 @@ public:
     return true;
   }
 
-  uint16_t pendingCount() const {
+  uint16_t capacity() const override { return StorageCapacity; }
+
+  uint16_t pendingCount() const override {
     uint16_t count = 0;
     for (uint16_t i = 0; i < StorageCapacity; ++i)
       if (entries_[i].active)
