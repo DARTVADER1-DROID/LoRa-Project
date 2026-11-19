@@ -12,6 +12,7 @@ and separate Arduino Uno / ESP32 station / cart entry points.
 - `shared/include/CampusAssistance.h`: public umbrella include.
 - `shared/src/config.cpp`: portable validation for provisioned device, station, destination and RA-02/SX1278 radio settings.
 - `shared/src/types.cpp`: shared serial-number ordering, wrap-safe elapsed-time checks and request/journey-state predicates.
+- `shared/include/ca/fixed_pending_request_store.hpp`: allocation-free, compile-time-bounded cart-local FIFO implementation.
 - `shared/src/README.md`: implementation boundary and layering rule.
 - `targets/uno/{station,cart}/`: Arduino Uno entry points.
 - `targets/esp32/{station,cart}/`: ESP32 entry points; exact board remains TBD.
@@ -31,7 +32,7 @@ ctest --test-dir build/campus-assistance --output-on-failure
 ```
 
 This compiles the public contracts and shared configuration validator, then runs
-configuration and reference transition tests. The fake repository is not a production implementation. It is not an Arduino IDE or PlatformIO
+configuration, request-identity, pending-FIFO and reference transition tests. The fake repository is not a production implementation. It is not an Arduino IDE or PlatformIO
 build, and does not verify target memory, timing, radio behavior, flash atomicity,
 reboot recovery or hardware adapters.
 
