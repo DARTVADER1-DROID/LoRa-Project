@@ -21,8 +21,8 @@ public:
                         const DeviceConfig& config,
                         const RadioProfile& radioProfile)
       : codec_(codec), validator_(validator), transport_(transport), retries_(retries),
-        config_(config), radioProfile_(radioProfile), cartRegistry_(0),
-        eventHead_(0), eventCount_(0), nowMs_(0), initialized_(false) {}
+        config_(config), radioProfile_(radioProfile), cartRegistry_(0), eventHead_(0),
+        eventCount_(0), nowMs_(0), initialized_(false) {}
 
   FixedProtocolEndpoint(FrameCodec& codec,
                         MessageValidator& validator,
