@@ -34,6 +34,8 @@ private:
   DeviceId stationId_;
   uint32_t requestLifetimeMs_;
   uint32_t terminalRetentionMs_;
+  uint32_t lastRetentionScanMs_;
+  bool retentionScanInitialized_;
   bool configured_;
 
   bool isExpiryEligible(RequestState state) const;
