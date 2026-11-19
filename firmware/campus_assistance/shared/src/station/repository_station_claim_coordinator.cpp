@@ -50,6 +50,7 @@ Status RepositoryStationClaimCoordinator::commitWinner(const ClaimRequest& claim
   assignment.assignedCartId = updated.assignedCartId;
   assignment.epoch = updated.assignmentEpoch;
   assignment.state = RequestState::ASSIGNED;
+  assignment.lastEventSequence = 0;
   return Status();
 }
 
@@ -72,6 +73,7 @@ bool RepositoryStationClaimCoordinator::getAssignment(
   assignment.assignedCartId = record.assignedCartId;
   assignment.epoch = record.assignmentEpoch;
   assignment.state = RequestState::ASSIGNED;
+  assignment.lastEventSequence = record.lastJourneyEventSequence;
   return true;
 }
 
