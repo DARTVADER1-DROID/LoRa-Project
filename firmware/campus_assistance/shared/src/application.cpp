@@ -350,7 +350,9 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
       }
 
       const ClaimState finalState =
-          assigned ? ClaimState::COMMITTED
+          assigned ? (assignment.assignedCartId == claim.cartId
+                          ? ClaimState::COMMITTED
+                          : ClaimState::WITHDRAWN)
                    : (claimStarted ? (withdrawalSucceeded ? ClaimState::WITHDRAWN
                                                           : ClaimState::PENDING)
                                    : ClaimState::IDLE);
@@ -381,7 +383,9 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
                                            notice.code);
       }
       const ClaimState finalState =
-          assigned ? ClaimState::COMMITTED
+          assigned ? (assignment.assignedCartId == withdrawal.cartId
+                          ? ClaimState::COMMITTED
+                          : ClaimState::WITHDRAWN)
                    : (status.ok() ? ClaimState::WITHDRAWN : ClaimState::IDLE);
       ClaimRequest claim = {};
       claim.requestId = withdrawal.requestId;
