@@ -35,8 +35,11 @@ TransactionId transactionFor(const RequestId& id) {
 }
 
 TransactionId derivedTransactionFor(const RequestId& id, uint32_t salt) {
-  const TransactionId value = RequestIdentity::hash(id) ^ salt;
-  return value == 0 ? salt : value;
+  const TransactionId base = RequestIdentity::hash(id);
+  const TransactionId value = base ^ salt;
+  if (value != 0)
+    return value;
+  return base == 0xFFFFFFFFUL ? 1 : base + 1U;
 }
 
 TransactionId assignmentTransactionFor(const RequestId& id) {
