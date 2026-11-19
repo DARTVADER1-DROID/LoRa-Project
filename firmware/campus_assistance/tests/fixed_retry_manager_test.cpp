@@ -63,7 +63,8 @@ int main() {
   retries.service(400);
   assert(retries.pollDue(due, attempt));
   assert(retries.onTransmissionAttempt(88, true, 400).ok());
-  assert(retries.onAcknowledgement(88, 2).ok());
+  assert(retries.onAcknowledgement(88, 2, 8).code == ErrorCode::STALE_EVENT);
+  assert(retries.onAcknowledgement(88, 2, 9).ok());
   assert(retries.pollOutcome(outcome));
   assert(outcome.transactionId == 88);
   assert(outcome.outcome == RetryOutcomeCode::ACKNOWLEDGED);
