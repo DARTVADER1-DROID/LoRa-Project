@@ -12,6 +12,7 @@
 #include "ca/storage/durable_request_repository.hpp"
 #include "ca/storage/fixed_destination_catalog.hpp"
 #include "ca/storage/fixed_cart_registry.hpp"
+#include "ca/storage/fixed_station_registry.hpp"
 #include "ca/station/station_request_lifecycle.hpp"
 #include "ca/station/repository_station_claim_coordinator.hpp"
 #include "ca/cart/basic_driver_availability_controller.hpp"
