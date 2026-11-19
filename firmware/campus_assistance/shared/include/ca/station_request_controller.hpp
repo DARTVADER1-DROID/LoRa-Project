@@ -21,6 +21,7 @@ public:
   Status submit(RequestId& createdRequestId);
   Status cancelCurrentRequest();
   bool hasCurrentRequest() const;
+  void onRequestTerminal(const RequestId& requestId);
 
 private:
   DestinationCatalog& destinations_;
