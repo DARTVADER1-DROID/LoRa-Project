@@ -118,6 +118,7 @@ void StationApplication::service() {
   } else {
     for (uint16_t i = 0; i < dependencies_.expiryBuffer.count; ++i) {
       const RequestId& id = dependencies_.expiryBuffer.items[i];
+      dependencies_.requestController.onRequestTerminal(id);
       ProtocolMessage message = {};
       message.header.protocolVersion = config_.protocolVersion;
       message.header.networkId = config_.networkId;
@@ -228,6 +229,8 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
       break;
     }
     status = dependencies_.requestLifecycle.applyJourneyUpdate(update);
+    if (status.ok() && update.status == JourneyStatus::COMPLETED)
+      dependencies_.requestController.onRequestTerminal(update.requestId);
     break;
   }
   case ProtocolEventType::ACKNOWLEDGEMENT_RECEIVED:
