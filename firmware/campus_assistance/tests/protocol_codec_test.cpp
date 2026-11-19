@@ -51,8 +51,17 @@ int main() {
       codec.decode({trailing, static_cast<uint16_t>(encoded.bytesWritten + 1)}, decoded)
           .status.code == ErrorCode::PROTOCOL_MISMATCH);
 
-  DefaultMessageValidator validator;
+  StationRegistryEntry stationEntries[1] = {{2, true}};
+  StationRegistryView stationView = {1, stationEntries, 1};
+  FixedStationRegistry<2> stations;
+  assert(stations.load(stationView).ok());
+  CartRegistryEntry cartEntries[1] = {{3, true}};
+  CartRegistryView cartView = {1, cartEntries, 1};
+  FixedCartRegistry<2> carts;
+  assert(carts.load(cartView).ok());
+  DefaultMessageValidator validator(stations, carts);
   DeviceConfig local = {};
+  local.role = DeviceRole::CART;
   local.deviceId = 1;
   local.networkId = 7;
   local.protocolVersion = 1;
