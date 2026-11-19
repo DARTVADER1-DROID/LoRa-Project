@@ -48,10 +48,10 @@ public:
   virtual ~IPersistence() {}
   // On success, bytesRead is set to the exact record length. BUFFER_FULL
   // reports the required length in bytesRead without writing past capacity.
-  virtual Status load(RecordKey key, uint8_t* output, uint16_t capacity,
-                      uint16_t& bytesRead) = 0;
-  virtual Status storeAtomically(RecordKey key, const uint8_t* data,
-                                 uint16_t length) = 0;
+  virtual Status
+  load(RecordKey key, uint8_t* output, uint16_t capacity, uint16_t& bytesRead) = 0;
+  virtual Status
+  storeAtomically(RecordKey key, const uint8_t* data, uint16_t length) = 0;
   virtual Status erase(RecordKey key) = 0;
 };
 
@@ -71,22 +71,26 @@ public:
 
   // Every operation below is a conditional atomic transition over the same
   // authoritative record. There is intentionally no generic update().
-  virtual Status beginClaimIfEligible(const RequestId& id, DeviceId cartId,
+  virtual Status beginClaimIfEligible(const RequestId& id,
+                                      DeviceId cartId,
                                       TransactionId transactionId,
                                       uint32_t stationNowMs,
                                       RequestRecord& updated) = 0;
-  virtual Status withdrawClaimIfPending(const RequestId& id, DeviceId cartId,
+  virtual Status withdrawClaimIfPending(const RequestId& id,
+                                        DeviceId cartId,
                                         TransactionId transactionId,
                                         RequestRecord& updated) = 0;
-  virtual Status commitAssignmentIfClaimPending(
-      const RequestId& id, DeviceId cartId, TransactionId transactionId,
-      AssignmentEpoch epoch, uint32_t stationNowMs,
-      RequestRecord& updated) = 0;
+  virtual Status commitAssignmentIfClaimPending(const RequestId& id,
+                                                DeviceId cartId,
+                                                TransactionId transactionId,
+                                                AssignmentEpoch epoch,
+                                                uint32_t stationNowMs,
+                                                RequestRecord& updated) = 0;
   virtual Status cancelIfUnassigned(const RequestId& id,
                                     CancellationSource source,
                                     RequestRecord& updated) = 0;
-  virtual Status expireIfDue(const RequestId& id, uint32_t stationNowMs,
-                             RequestRecord& updated) = 0;
+  virtual Status
+  expireIfDue(const RequestId& id, uint32_t stationNowMs, RequestRecord& updated) = 0;
   virtual Status applyJourneyUpdateIfCurrent(const JourneyUpdate& update,
                                              RequestRecord& updated) = 0;
   virtual Status removeTerminalBefore(uint32_t retentionBoundaryMs) = 0;

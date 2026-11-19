@@ -21,12 +21,7 @@ typedef uint16_t RecordKey;
 
 enum class DeviceRole : uint8_t { STATION, CART };
 enum class AcceptanceMode : uint8_t { NOT_ACCEPTING, ACCEPTING };
-enum class CartServiceState : uint8_t {
-  IDLE,
-  CLAIM_PENDING,
-  SERVING,
-  UNCERTAIN
-};
+enum class CartServiceState : uint8_t { IDLE, CLAIM_PENDING, SERVING, UNCERTAIN };
 enum class ClaimState : uint8_t { IDLE, PENDING, WITHDRAWN, COMMITTED };
 enum class RequestState : uint8_t {
   CREATED,
