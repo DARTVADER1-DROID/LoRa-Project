@@ -49,6 +49,44 @@ public:
   uint32_t millisNow() const override { return millis(); }
 };
 
+class ArduinoSerialDiagnostics final : public IDiagnostics {
+public:
+  explicit ArduinoSerialDiagnostics(bool enabled = true,
+                                    uint32_t baudRate = 115200UL)
+      : enabled_(enabled), baudRate_(baudRate), initialized_(false) {}
+
+  Status begin() {
+    if (baudRate_ == 0)
+      return Status(ErrorCode::INVALID_ARGUMENT);
+    if (enabled_) {
+      Serial.begin(baudRate_);
+      initialized_ = true;
+    }
+    return Status();
+  }
+
+  void record(uint16_t diagnosticCode, ErrorCode error) override {
+    if (!enabled_ || !initialized_ || Serial.availableForWrite() < 24)
+      return;
+    Serial.print("CA:E:");
+    Serial.print(diagnosticCode);
+    Serial.print(':');
+    Serial.println(static_cast<uint16_t>(error));
+  }
+
+  void increment(uint16_t diagnosticCode) override {
+    if (!enabled_ || !initialized_ || Serial.availableForWrite() < 16)
+      return;
+    Serial.print("CA:C:");
+    Serial.println(diagnosticCode);
+  }
+
+private:
+  bool enabled_;
+  uint32_t baudRate_;
+  bool initialized_;
+};
+
 class ArduinoBuzzer final : public IBuzzer {
 public:
   explicit ArduinoBuzzer(int8_t pin)
