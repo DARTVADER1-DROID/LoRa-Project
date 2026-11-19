@@ -146,3 +146,24 @@ Values must be set after airtime calculation and tests. Retries are bounded and 
 ## 12. Security boundary
 
 CRC/integrity detects accidental corruption, not sender authenticity. Raw LoRa is observable and spoofable without additional controls. Define authentication, replay protection and key provisioning before real-student deployment. No personal data in packets; no security certification is implied.
+
+
+## 13. Claim withdrawal and implementation contract
+
+CLAIM withdrawal resolves the driver-disable race while a cart is waiting for station arbitration.
+
+| Message | Direction | Meaning |
+|---|---|---|
+| CLAIM_WITHDRAW | Cart → station | Withdraw this cart's unresolved claim transaction; not request cancellation |
+
+The withdrawal carries the same full RequestId and transaction identity as the original CLAIM. The station must serialize withdrawal and assignment commit against the same authoritative request record:
+
+- If withdrawal commits first, close that claim transaction and reject a later commit from it.
+- If assignment commit wins first, return/broadcast the already committed ASSIGN; never roll it back merely because a delayed withdrawal arrived.
+- Duplicate withdrawal is idempotent.
+- A late withdrawal cannot erase a committed assignment.
+- The cart remains NOT_ACCEPTING after disable, continues receiving and queueing, and reconciles the final station outcome.
+
+The current typed message catalogue includes CLAIM_WITHDRAW. Numeric IDs, exact wire encoding, retry windows and arbitration airtime remain deliberately open.
+
+The byte transport boundary, typed event delivery, atomic repository guard and SOLID ownership rules in document 06 are normative where earlier pseudocode differs.
