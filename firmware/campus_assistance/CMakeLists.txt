@@ -4,6 +4,7 @@ project(campus_assistance_contracts LANGUAGES CXX)
 
 add_library(campus_assistance_contracts STATIC
   shared/src/application.cpp
+  shared/src/input/fixed_button_debouncer.cpp
   shared/src/cart/basic_driver_availability_controller.cpp
   shared/src/cart/cart_event_reconciler.cpp
   shared/src/cart/default_journey_progress_controller.cpp
@@ -81,6 +82,10 @@ target_link_libraries(station_request_controller_test PRIVATE campus_assistance_
 add_executable(board_profile_test tests/board_profile_test.cpp)
 target_link_libraries(board_profile_test PRIVATE campus_assistance_contracts)
 
+add_executable(fixed_button_debouncer_test
+  tests/fixed_button_debouncer_test.cpp)
+target_link_libraries(fixed_button_debouncer_test PRIVATE campus_assistance_contracts)
+
 enable_testing()
 add_test(NAME contract_compile COMMAND contract_compile)
 add_test(NAME repository_transition_test COMMAND repository_transition_test)
@@ -100,3 +105,4 @@ add_test(NAME cart_event_reconciler_test COMMAND cart_event_reconciler_test)
 add_test(NAME fixed_destination_catalog_test COMMAND fixed_destination_catalog_test)
 add_test(NAME station_request_controller_test COMMAND station_request_controller_test)
 add_test(NAME board_profile_test COMMAND board_profile_test)
+add_test(NAME fixed_button_debouncer_test COMMAND fixed_button_debouncer_test)
