@@ -111,9 +111,9 @@ Status enqueueAssignmentNotice(ProtocolEndpoint& protocol,
 }
 
 Status enqueueAuthoritativeSnapshot(ProtocolEndpoint& protocol,
-                                     const DeviceConfig& config,
-                                     const RequestRecord& record,
-                                     EventSequence sequence) {
+                                    const DeviceConfig& config,
+                                    const RequestRecord& record,
+                                    EventSequence sequence) {
   if (record.assignedCartId == 0 || record.assignmentEpoch == 0)
     return Status(ErrorCode::INVALID_STATE);
 
