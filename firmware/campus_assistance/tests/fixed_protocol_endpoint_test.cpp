@@ -244,6 +244,7 @@ int main() {
   FixedProtocolEndpoint<2> faultedEndpoint(
       codec, validator, faultedTransport, faultedRetries, config, radio);
   assert(faultedEndpoint.begin().ok());
+  assert(MessagePayloadCodec::encode(claim, outgoing).ok());
   assert(faultedEndpoint.enqueue(outgoing, DeliveryClass::RETRY_UNTIL_ACK).ok());
   faultedEndpoint.service(0);
   assert(faultedTransport.sentCount == 0);
