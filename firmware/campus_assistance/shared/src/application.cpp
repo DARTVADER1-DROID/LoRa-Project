@@ -688,8 +688,7 @@ void CartApplication::onButtonEvent(const ButtonEvent& event) {
       message.header.messageType = MessageType::CLAIM_WITHDRAW;
       message.header.sourceDeviceId = config_.deviceId;
       message.header.destinationDeviceId = claim.requestId.originStationId;
-      message.header.transactionId =
-          withdrawalDeliveryTransactionFor(claim);
+      message.header.transactionId = withdrawalDeliveryTransactionFor(claim);
       message.header.messageSequence = claim.requestId.sequence;
       message.payloadLength = 14;
       uint16_t offset = 0;

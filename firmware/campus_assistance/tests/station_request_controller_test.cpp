@@ -84,8 +84,7 @@ int main() {
   assert(protocol.lastDelivery_ == DeliveryClass::RETRY_UNTIL_ACK);
   assert(protocol.lastMessage_.header.messageType == MessageType::REQUEST);
   assert(protocol.lastMessage_.payloadLength == 14);
-  const TransactionId requestTransaction =
-      protocol.lastMessage_.header.transactionId;
+  const TransactionId requestTransaction = protocol.lastMessage_.header.transactionId;
   assert(controller.submit(created).code == ErrorCode::BUSY);
   protocol.enqueueStatus_ = Status(ErrorCode::QUEUE_FULL);
   assert(controller.cancelCurrentRequest().code == ErrorCode::QUEUE_FULL);

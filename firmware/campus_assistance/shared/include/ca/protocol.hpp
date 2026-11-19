@@ -113,7 +113,7 @@ public:
   virtual Status
   onTransmissionAttempt(TransactionId transactionId, bool accepted, uint32_t nowMs) = 0;
   virtual Status onAcknowledgement(TransactionId transactionId,
-                                  DeviceId acknowledgingDeviceId) = 0;
+                                   DeviceId acknowledgingDeviceId) = 0;
   virtual Status cancel(TransactionId transactionId) = 0;
   virtual bool pollOutcome(RetryOutcome& outcome) = 0;
 };
