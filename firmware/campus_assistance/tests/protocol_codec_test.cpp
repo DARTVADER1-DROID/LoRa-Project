@@ -52,7 +52,7 @@ int main() {
           .status.code == ErrorCode::PROTOCOL_MISMATCH);
 
   StationRegistryEntry stationEntries[1] = {{2, true}};
-  StationRegistryView stationView = {1, stationEntries, 1};
+  StationRegistry stationView = {1, stationEntries, 1};
   FixedStationRegistry<2> stations;
   assert(stations.load(stationView).ok());
   CartRegistryEntry cartEntries[1] = {{3, true}};
