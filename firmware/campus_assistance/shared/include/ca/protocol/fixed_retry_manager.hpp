@@ -31,9 +31,10 @@ public:
       if (!entries_[i].active ||
           entries_[i].message.header.transactionId != message.header.transactionId)
         continue;
-      return sameMessage(entries_[i].message, message)
-                 ? Status()
-                 : Status(ErrorCode::INVALID_STATE);
+      if (!sameMessage(entries_[i].message, message) ||
+          entries_[i].terminalPending)
+        return Status(ErrorCode::INVALID_STATE);
+      return Status();
     }
 
     for (uint16_t i = 0; i < StorageCapacity; ++i) {
