@@ -163,7 +163,8 @@ Status enqueueAuthoritativeSnapshot(ProtocolEndpoint& protocol,
   message.header.messageType = MessageType::SNAPSHOT;
   message.header.sourceDeviceId = config.deviceId;
   message.header.destinationDeviceId = destinationCartId;
-  message.header.transactionId = journeyTransactionFor(record.id, sequence);
+  message.header.transactionId =
+      journeyTransactionFor(record.id, sequence, destinationCartId);
   message.header.messageSequence = sequence;
   uint16_t offset = 0;
   put16(message.payload, offset, record.id.originStationId);
