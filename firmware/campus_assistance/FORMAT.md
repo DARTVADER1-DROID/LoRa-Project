@@ -20,12 +20,14 @@ Install clang-format, then enable the tracked hook once per clone:
 
 ```sh
 git config core.hooksPath .githooks
+chmod +x .githooks/pre-commit
 ```
 
 The pre-commit hook formats staged firmware C++ headers, sources and Arduino sketches,
 then re-stages the formatted files. GitHub Actions independently rejects unformatted
-changes. The hook is opt-in per clone because Git does not automatically activate
-repository hooks for security reasons.
+changes and compiles the public C++11 contract headers.
 
-Use two-space indentation, one declaration per line and the configured 88-column
-limit. Do not hand-align code with spaces; let clang-format own layout.
+The hook is opt-in per clone because Git does not automatically activate repository
+hooks for security reasons. Use two-space indentation, one declaration per line and
+the configured 88-column limit. Do not hand-align code with spaces; let clang-format
+own layout.
