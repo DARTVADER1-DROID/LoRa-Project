@@ -34,6 +34,19 @@ TransactionId transactionFor(const RequestId& id) {
   return value == 0 ? 1 : value;
 }
 
+TransactionId derivedTransactionFor(const RequestId& id, uint32_t salt) {
+  const TransactionId value = RequestIdentity::hash(id) ^ salt;
+  return value == 0 ? salt : value;
+}
+
+TransactionId assignmentTransactionFor(const RequestId& id) {
+  return derivedTransactionFor(id, 0x20000000UL);
+}
+
+TransactionId expiryTransactionFor(const RequestId& id) {
+  return derivedTransactionFor(id, 0x10000000UL);
+}
+
 TransactionId journeyTransactionFor(const RequestId& id, EventSequence sequence) {
   TransactionId value = transactionFor(id) ^ (sequence * 2654435761UL);
   return value == 0 ? 1 : value;
@@ -108,7 +121,7 @@ Status enqueueAssignmentNotice(ProtocolEndpoint& protocol,
   message.header.messageType = MessageType::ASSIGN;
   message.header.sourceDeviceId = config.deviceId;
   message.header.destinationDeviceId = 0;
-  message.header.transactionId = transactionFor(assignment.requestId);
+  message.header.transactionId = assignmentTransactionFor(assignment.requestId);
   message.header.messageSequence = assignment.requestId.sequence;
   uint16_t offset = 0;
   put16(message.payload, offset, assignment.requestId.originStationId);
@@ -265,7 +278,7 @@ void StationApplication::service() {
     message.header.messageType = MessageType::EXPIRED;
     message.header.sourceDeviceId = config_.deviceId;
     message.header.destinationDeviceId = 0;
-    message.header.transactionId = transactionFor(id);
+    message.header.transactionId = expiryTransactionFor(id);
     message.header.messageSequence = id.sequence;
     uint16_t offset = 0;
     put16(message.payload, offset, id.originStationId);
