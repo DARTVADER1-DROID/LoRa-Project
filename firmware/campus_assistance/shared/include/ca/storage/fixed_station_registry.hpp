@@ -13,8 +13,7 @@ public:
 
   Status load(const StationRegistry& view) {
     if (loaded_ || view.count > view.capacity ||
-        (view.count > 0 && view.entries == 0) ||
-        view.count > StorageCapacity)
+        (view.count > 0 && view.entries == 0) || view.count > StorageCapacity)
       return Status(ErrorCode::INVALID_ARGUMENT);
 
     uint16_t nextCount = 0;

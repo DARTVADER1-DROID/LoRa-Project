@@ -67,7 +67,6 @@ int main() {
   assert(losingAvailability.serviceState() == CartServiceState::IDLE);
   assert(losingAvailability.acceptanceMode() == AcceptanceMode::ACCEPTING);
 
-
   // A station snapshot preserves this cart's exact pending claim transaction.
   const RequestId pendingId = {1, 5, 1};
   FixedPendingRequestStore<2> claimPending;

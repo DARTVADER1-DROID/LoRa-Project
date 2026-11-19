@@ -143,7 +143,7 @@ DecodeResult BinaryFrameCodec::decode(FrameView input, ProtocolMessage& message)
 }
 
 DefaultMessageValidator::DefaultMessageValidator(const IStationRegistry& stations,
-                                                       const ICartRegistry& carts)
+                                                 const ICartRegistry& carts)
     : stations_(stations), carts_(carts) {
 }
 
