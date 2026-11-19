@@ -166,8 +166,8 @@ int main() {
   assert(compact.reserveNextRequestId(1, oldId).ok());
   assert(compact.insertNew(makePending(oldId)).ok());
   RequestRecord compactedRecord = {};
-  assert(compact.cancelIfUnassigned(oldId, CancellationSource::STUDENT,
-                                    compactedRecord).ok());
+  assert(compact.cancelIfUnassigned(oldId, CancellationSource::STUDENT, compactedRecord)
+             .ok());
 
   RequestId newId = {};
   assert(compact.reserveNextRequestId(1, newId).ok());

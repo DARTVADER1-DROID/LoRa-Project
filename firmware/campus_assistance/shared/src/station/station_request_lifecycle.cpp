@@ -8,13 +8,11 @@ StationRequestLifecycle::StationRequestLifecycle(IRequestRepository& repository,
                                                  DeviceId stationId,
                                                  uint32_t requestLifetimeMs)
     : repository_(repository), destinations_(destinations), clock_(clock),
-      stationId_(stationId), requestLifetimeMs_(requestLifetimeMs),
-      configured_(false) {
+      stationId_(stationId), requestLifetimeMs_(requestLifetimeMs), configured_(false) {
 }
 
 Status StationRequestLifecycle::configure() {
-  if (stationId_ == 0 || requestLifetimeMs_ == 0 ||
-      requestLifetimeMs_ > 0x7FFFFFFFUL)
+  if (stationId_ == 0 || requestLifetimeMs_ == 0 || requestLifetimeMs_ > 0x7FFFFFFFUL)
     return Status(ErrorCode::INVALID_ARGUMENT);
   configured_ = true;
   return Status();

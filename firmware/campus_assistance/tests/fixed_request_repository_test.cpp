@@ -122,15 +122,15 @@ int main() {
   assert(capacityCompaction.configure().ok());
   assert(capacityCompaction.insertNew(terminalForEviction).ok());
   assert(capacityCompaction.insertNew(liveForEviction).ok());
-  assert(capacityCompaction.cancelIfUnassigned(
-             terminalForEviction.id, CancellationSource::STUDENT, out)
-             .ok());
+  assert(
+      capacityCompaction
+          .cancelIfUnassigned(terminalForEviction.id, CancellationSource::STUDENT, out)
+          .ok());
   assert(capacityCompaction.insertNew(incoming).ok());
   assert(capacityCompaction.size() == 2);
   assert(!capacityCompaction.find(terminalForEviction.id, out));
   assert(capacityCompaction.find(liveForEviction.id, out));
   assert(capacityCompaction.find(incoming.id, out));
-  assert(capacityCompaction.insertNew(overflow).code ==
-         ErrorCode::CAPACITY_EXCEEDED);
+  assert(capacityCompaction.insertNew(overflow).code == ErrorCode::CAPACITY_EXCEEDED);
   return 0;
 }
