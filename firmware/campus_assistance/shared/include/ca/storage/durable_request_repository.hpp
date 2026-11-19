@@ -20,7 +20,7 @@ class DurableRequestRepository final : public IRequestRepository {
     kHeaderBytes = 17,
     kRecordBytes = 34,
     kChecksumBytes = 4,
-    kMaxEncodedBytes = kHeaderBytes + (StorageCapacity * kRecordBytes) + kChecksumBytes
+    kMaxEncodedBytes = kHeaderBytes + (StorageCapacity * 34UL) + kChecksumBytes
   };
 
 public:
@@ -365,7 +365,9 @@ private:
     const uint8_t exhausted = get8(encoded_, offset);
 
     if (storedStationId != stationId_ || count > StorageCapacity || exhausted > 1 ||
-        length != kHeaderBytes + (count * kRecordBytes) + kChecksumBytes)
+        static_cast<uint32_t>(length) !=
+            static_cast<uint32_t>(kHeaderBytes) +
+                (static_cast<uint32_t>(count) * 34UL) + kChecksumBytes)
       return false;
 
     for (uint16_t i = 0; i < count; ++i) {
