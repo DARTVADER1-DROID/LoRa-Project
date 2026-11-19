@@ -120,6 +120,18 @@ int main() {
   assert(decoded.payload.snapshot.lastEventSequence == 7);
   assert(decoded.payload.snapshot.claimTransactionId == 101);
 
+
+  ProtocolEvent claimSnapshot =
+      baseEvent(ProtocolEventType::SNAPSHOT_RECEIVED, MessageType::SNAPSHOT);
+  claimSnapshot.payload.snapshot.requestId = id;
+  claimSnapshot.payload.snapshot.state = RequestState::CLAIM_PENDING;
+  claimSnapshot.payload.snapshot.claimState = ClaimState::PENDING;
+  claimSnapshot.payload.snapshot.claimCartId = 8;
+  claimSnapshot.payload.snapshot.claimTransactionId = 102;
+  decoded = roundTrip(claimSnapshot);
+  assert(decoded.payload.snapshot.claimCartId == 8);
+  assert(decoded.payload.snapshot.claimTransactionId == 102);
+
   ProtocolEvent acknowledgement = baseEvent(ProtocolEventType::ACKNOWLEDGEMENT_RECEIVED,
                                             MessageType::ACKNOWLEDGEMENT);
   acknowledgement.envelope.transactionId = 123;
