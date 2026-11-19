@@ -39,14 +39,21 @@ int main() {
   assert(active.updateJourneyStatus(JourneyStatus::ARRIVED_AT_PICKUP, 1).code ==
          ErrorCode::INVALID_STATE);
   assert(active.updateJourneyStatus(JourneyStatus::ON_THE_WAY, 1).ok());
+  AssignmentRecord current = {};
+  assert(active.get(current));
+  assert(current.lastEventSequence == 1);
   assert(active.updateJourneyStatus(JourneyStatus::ON_THE_WAY, 1).code ==
          ErrorCode::STALE_EVENT);
   assert(active.updateJourneyStatus(JourneyStatus::ARRIVED_AT_PICKUP, 2).ok());
+  assert(active.get(current));
+  assert(current.lastEventSequence == 2);
 
   DriverAction complete = {DriverActionType::CONFIRM_COMPLETION, 3};
   assert(active.complete(complete).ok());
   // A newer station echo may confirm local completion without regressing state.
   assert(active.updateJourneyStatus(JourneyStatus::COMPLETED, 3).ok());
+  assert(active.get(current));
+  assert(current.lastEventSequence == 3);
   assert(active.updateJourneyStatus(JourneyStatus::COMPLETED, 3).code ==
          ErrorCode::STALE_EVENT);
   assert(active.clearAfterTerminal().ok());
