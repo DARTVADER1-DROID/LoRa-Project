@@ -102,8 +102,9 @@ int main() {
   assert(retention.insertNew(live).ok());
   assert(retention.cancelIfUnassigned(oldTerminal.id, CancellationSource::STUDENT, out)
              .ok());
-  assert(retention.cancelIfUnassigned(recentTerminal.id, CancellationSource::STUDENT, out)
-             .ok());
+  assert(
+      retention.cancelIfUnassigned(recentTerminal.id, CancellationSource::STUDENT, out)
+          .ok());
   assert(retention.removeTerminalBefore(200).ok());
   assert(retention.size() == 2);
   assert(!retention.find(oldTerminal.id, out));

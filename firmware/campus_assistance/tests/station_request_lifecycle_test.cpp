@@ -125,8 +125,8 @@ int main() {
   FixedRequestRepository<2> retentionRepository;
   assert(retentionRepository.configure().ok());
   clock.set(500);
-  StationRequestLifecycle retentionLifecycle(retentionRepository, destinations, clock,
-                                              3, 100, 50);
+  StationRequestLifecycle retentionLifecycle(
+      retentionRepository, destinations, clock, 3, 100, 50);
   assert(retentionLifecycle.configure().ok());
   RequestRecord retained = {};
   assert(retentionLifecycle.create(input, retained).ok());

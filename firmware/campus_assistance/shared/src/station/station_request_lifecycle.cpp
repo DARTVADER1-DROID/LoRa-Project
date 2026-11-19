@@ -15,9 +15,8 @@ StationRequestLifecycle::StationRequestLifecycle(IRequestRepository& repository,
 }
 
 Status StationRequestLifecycle::configure() {
-  if (stationId_ == 0 || requestLifetimeMs_ == 0 ||
-      requestLifetimeMs_ > 0x7FFFFFFFUL || terminalRetentionMs_ == 0 ||
-      terminalRetentionMs_ > 0x7FFFFFFFUL)
+  if (stationId_ == 0 || requestLifetimeMs_ == 0 || requestLifetimeMs_ > 0x7FFFFFFFUL ||
+      terminalRetentionMs_ == 0 || terminalRetentionMs_ > 0x7FFFFFFFUL)
     return Status(ErrorCode::INVALID_ARGUMENT);
 
   lastRetentionScanMs_ = clock_.millisNow();
@@ -80,8 +79,7 @@ Status StationRequestLifecycle::expireDue(uint32_t stationNowMs,
     lastRetentionScanMs_ = stationNowMs;
     retentionScanInitialized_ = true;
     const uint32_t retentionBoundary = stationNowMs - terminalRetentionMs_;
-    const Status retentionStatus =
-        repository_.removeTerminalBefore(retentionBoundary);
+    const Status retentionStatus = repository_.removeTerminalBefore(retentionBoundary);
     if (!retentionStatus.ok())
       return retentionStatus;
   }
@@ -125,7 +123,6 @@ Status StationRequestLifecycle::expireDue(uint32_t stationNowMs,
   }
 
   expired.count = written;
-
 }
 
 Status StationRequestLifecycle::applyJourneyUpdate(const JourneyUpdate& update) {
