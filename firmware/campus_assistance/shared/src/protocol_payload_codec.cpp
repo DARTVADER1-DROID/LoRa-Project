@@ -62,11 +62,10 @@ bool validSnapshot(const RequestSnapshot& snapshot) {
       !validRequestState(snapshot.state) || !validClaimState(snapshot.claimState))
     return false;
 
-  const bool assigned =
-      snapshot.state == RequestState::ASSIGNED ||
-      snapshot.state == RequestState::ON_THE_WAY ||
-      snapshot.state == RequestState::ARRIVED_AT_PICKUP ||
-      snapshot.state == RequestState::COMPLETED;
+  const bool assigned = snapshot.state == RequestState::ASSIGNED ||
+                        snapshot.state == RequestState::ON_THE_WAY ||
+                        snapshot.state == RequestState::ARRIVED_AT_PICKUP ||
+                        snapshot.state == RequestState::COMPLETED;
   if (assigned)
     return snapshot.assignedCartId != 0 && snapshot.assignmentEpoch != 0 &&
            snapshot.claimState == ClaimState::COMMITTED &&
@@ -76,8 +75,8 @@ bool validSnapshot(const RequestSnapshot& snapshot) {
   if (snapshot.assignedCartId != 0 || snapshot.assignmentEpoch != 0)
     return false;
   if (snapshot.state == RequestState::CLAIM_PENDING)
-    return snapshot.claimState == ClaimState::PENDING &&
-           snapshot.claimCartId != 0 && snapshot.claimTransactionId != 0;
+    return snapshot.claimState == ClaimState::PENDING && snapshot.claimCartId != 0 &&
+           snapshot.claimTransactionId != 0;
   if (snapshot.claimState == ClaimState::IDLE)
     return snapshot.claimCartId == 0 && snapshot.claimTransactionId == 0;
   if (snapshot.claimState == ClaimState::WITHDRAWN)
@@ -277,9 +276,8 @@ Status MessagePayloadCodec::decode(const ProtocolMessage& message,
     event.payload.snapshot.claimState = static_cast<ClaimState>(input[offset++]);
     event.payload.snapshot.claimCartId = get16(input, offset);
     event.payload.snapshot.claimTransactionId = get32(input, offset);
-    return validSnapshot(event.payload.snapshot)
-               ? Status()
-               : Status(ErrorCode::INVALID_ARGUMENT);
+    return validSnapshot(event.payload.snapshot) ? Status()
+                                                 : Status(ErrorCode::INVALID_ARGUMENT);
 
   case MessageType::ACKNOWLEDGEMENT:
     if (message.payloadLength != 0)
