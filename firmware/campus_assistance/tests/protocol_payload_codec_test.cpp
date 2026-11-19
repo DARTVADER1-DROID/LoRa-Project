@@ -120,7 +120,6 @@ int main() {
   assert(decoded.payload.snapshot.lastEventSequence == 7);
   assert(decoded.payload.snapshot.claimTransactionId == 101);
 
-
   ProtocolEvent claimSnapshot =
       baseEvent(ProtocolEventType::SNAPSHOT_RECEIVED, MessageType::SNAPSHOT);
   claimSnapshot.payload.snapshot.requestId = id;

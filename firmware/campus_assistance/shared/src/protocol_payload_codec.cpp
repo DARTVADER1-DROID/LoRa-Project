@@ -71,9 +71,8 @@ bool validSnapshot(const RequestSnapshot& snapshot) {
            snapshot.claimState == ClaimState::COMMITTED &&
            snapshot.claimCartId == snapshot.assignedCartId &&
            snapshot.claimTransactionId != 0 &&
-           (snapshot.state == RequestState::ASSIGNED
-                ? snapshot.lastEventSequence == 0
-                : snapshot.lastEventSequence != 0);
+           (snapshot.state == RequestState::ASSIGNED ? snapshot.lastEventSequence == 0
+                                                     : snapshot.lastEventSequence != 0);
 
   if (snapshot.assignedCartId != 0 || snapshot.assignmentEpoch != 0 ||
       snapshot.lastEventSequence != 0)

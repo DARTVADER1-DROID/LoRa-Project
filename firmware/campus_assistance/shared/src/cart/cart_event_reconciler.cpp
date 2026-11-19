@@ -70,8 +70,8 @@ Status CartEventReconciler::applySnapshot(const RequestSnapshot& snapshot) {
       return Status(ErrorCode::INVALID_ARGUMENT);
 
     if (snapshot.state == RequestState::CLAIM_PENDING) {
-      if (snapshot.claimState != ClaimState::PENDING ||
-          snapshot.claimCartId == 0 || snapshot.claimTransactionId == 0)
+      if (snapshot.claimState != ClaimState::PENDING || snapshot.claimCartId == 0 ||
+          snapshot.claimTransactionId == 0)
         return Status(ErrorCode::INVALID_ARGUMENT);
       ClaimRequest outstanding = {};
       if (claimClient_.getOutstandingClaim(outstanding) &&
@@ -111,9 +111,8 @@ Status CartEventReconciler::applySnapshot(const RequestSnapshot& snapshot) {
       snapshot.claimState != ClaimState::COMMITTED ||
       snapshot.claimCartId != snapshot.assignedCartId ||
       snapshot.claimTransactionId == 0 ||
-      (snapshot.state == RequestState::ASSIGNED
-           ? snapshot.lastEventSequence != 0
-           : snapshot.lastEventSequence == 0))
+      (snapshot.state == RequestState::ASSIGNED ? snapshot.lastEventSequence != 0
+                                                : snapshot.lastEventSequence == 0))
     return Status(ErrorCode::INVALID_ARGUMENT);
   pendingRequests_.removeAssigned(snapshot.requestId);
   if (snapshot.assignedCartId != cartId_) {
