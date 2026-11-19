@@ -110,9 +110,9 @@ enum class ErrorCode : uint8_t {
   COMMUNICATION_UNCERTAIN,
   STALE_EVENT,
   CAPACITY_EXCEEDED,
+  NOT_IMPLEMENTED,
   HARDWARE_UNAVAILABLE,
-  CORRUPT_DATA,
-  NOT_IMPLEMENTED
+  CORRUPT_DATA
 };
 
 // Shared value semantics. Sequence comparison follows the 32-bit serial-number
