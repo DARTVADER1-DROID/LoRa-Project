@@ -75,7 +75,7 @@ ctest --test-dir build/campus-assistance --output-on-failure
 This compiles the public contracts, shared configuration validator and concrete
 cart-state components, then runs configuration, request-identity, pending-FIFO,
 repository, durable reboot-recovery, station lifecycle, protocol framing,
-claim arbitration, cart reconciliation, destination-catalogue, retry-scheduler and protocol-endpoint tests. The host fake
+claim arbitration, cart reconciliation, destination-catalogue, retry-scheduler, protocol-endpoint, button-interpreter and LCD UI tests. The host fake
 persistence adapter models the atomic old-or-new contract; it does not prove a
 real flash/EEPROM adapter's power-loss behavior. It is not an Arduino IDE or PlatformIO
 build, and does not verify target memory, timing, radio behavior, flash atomicity,
