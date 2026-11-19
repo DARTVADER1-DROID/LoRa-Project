@@ -63,9 +63,10 @@ public:
       if (retries_.pollDue(message, attemptNumber)) {
         (void)attemptNumber;
         const Status status = sendMessage(message);
-        retries_.onTransmissionAttempt(
-            message.header.transactionId, message.header.messageSequence,
-            status.ok(), nowMs_);
+        retries_.onTransmissionAttempt(message.header.transactionId,
+                                       message.header.messageSequence,
+                                       status.ok(),
+                                       nowMs_);
       }
     }
 

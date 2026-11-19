@@ -130,8 +130,7 @@ public:
   virtual Status onAcknowledgement(TransactionId transactionId,
                                    DeviceId acknowledgingDeviceId,
                                    uint32_t acknowledgedMessageSequence) = 0;
-  virtual Status cancel(TransactionId transactionId,
-                        uint32_t messageSequence) = 0;
+  virtual Status cancel(TransactionId transactionId, uint32_t messageSequence) = 0;
   virtual bool pollOutcome(RetryOutcome& outcome) = 0;
   virtual uint16_t capacity() const = 0;
   virtual uint16_t pendingCount() const = 0;

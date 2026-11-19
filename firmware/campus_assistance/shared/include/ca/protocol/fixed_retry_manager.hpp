@@ -31,8 +31,7 @@ public:
     for (uint16_t i = 0; i < StorageCapacity; ++i) {
       if (!entries_[i].active ||
           entries_[i].message.header.transactionId != message.header.transactionId ||
-          entries_[i].message.header.messageSequence !=
-              message.header.messageSequence)
+          entries_[i].message.header.messageSequence != message.header.messageSequence)
         continue;
       if (!sameMessage(entries_[i].message, message) || entries_[i].terminalPending)
         return Status(ErrorCode::INVALID_STATE);
@@ -133,8 +132,7 @@ public:
     return Status();
   }
 
-  Status cancel(TransactionId transactionId,
-                uint32_t messageSequence) override {
+  Status cancel(TransactionId transactionId, uint32_t messageSequence) override {
     Entry* entry = find(transactionId, messageSequence);
     if (entry == 0)
       return Status(ErrorCode::NOT_FOUND);
@@ -212,7 +210,9 @@ private:
       return;
     }
     pushOutcome(entry.message.header.transactionId,
-                entry.message.header.messageSequence, code, entry.attemptsUsed);
+                entry.message.header.messageSequence,
+                code,
+                entry.attemptsUsed);
     entry = Entry();
   }
 
