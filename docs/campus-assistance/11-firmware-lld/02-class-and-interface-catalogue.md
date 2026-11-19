@@ -301,7 +301,7 @@ The following C++ headers are authoritative for the current interface scaffold. 
 - `RequestIdentity::hash` returns a 32-bit hash; equality and validity always use the full three-field RequestId.
 - `PendingRequestStore::insertIfAbsent` returns `Status`; storage remains bounded and duplicate insertion does not reorder.
 - `RequestLifecycle` exposes create, cancel, expiry, sequenced journey update and find. It does **not** commit assignments.
-- `RequestLedger` implements `IRequestRepository` and stores full RequestRecord values, not only RequestId values.
+- `IRequestRepository` is the only repository abstraction; concrete storage implementations implement it directly.
 - `IRequestRepository::assignIfUnassigned` is the atomic persistence guard used by the sole assignment writer, `StationClaimCoordinator`.
 - `StationClaimCoordinator::evaluate` returns explicit `Status`; `commitWinner` is the only operation allowed to commit a winner.
 - `CartClaimClient::onClaimResult` consumes ClaimResult; `onAssignmentNotice` returns Status and only a matching station assignment can activate the cart.
