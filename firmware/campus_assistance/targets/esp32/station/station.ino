@@ -1,4 +1,6 @@
 #include <Arduino.h>
+
+#include "CampusAssistance.h"
 #include <SPI.h>
 #include <Wire.h>
 #include <Preferences.h>
