@@ -17,8 +17,11 @@ These are externally observable contracts, not method bodies. Implementations ma
 | RequestLifecycle::cancel(id,source) | Apply authoritative cancellation idempotently |
 | RequestLifecycle::expireDue(now,out) | Expire due unaccepted requests; never expire a committed active ride using this timer |
 | RequestLifecycle::applyJourneyUpdate(update) | Accept only the assigned cart and valid sequenced status |
+| StationRequestLifecycle::configure() | Validate station identity and bounded request lifetime; repository must already be recovered |
+| IRequestRepository::reserveNextRequestId(stationId,out) | Durably reserve the next complete identity before it can be used; gaps after power loss are acceptable |
+| IRequestRepository::recordAt(index,out) | Read a bounded ledger record for expiry/recovery iteration; no mutable reference escapes |
 
-Creation postconditions: full identity tuple; destination is valid; station records the expiry basis; default lifetime is 600,000 ms; outbound announcement is queued but remote receipt is not claimed without evidence.
+Creation postconditions: full identity tuple; destination is enabled; station records the expiry basis; default lifetime is 600,000 ms; outbound announcement is queued but remote receipt is not claimed without evidence. Request identity allocation is persisted before insertion; a power loss between those operations may leave a harmless sequence gap, never a reused identity.
 
 ## 3. Cart functions
 
@@ -196,3 +199,16 @@ There is no generic repository update. Cancellation, expiry, claim start, withdr
 ### 10.1 Commit-time expiry check
 
 StationClaimCoordinator::commitWinner(claim, stationNowMs, assignment) must pass the current station clock value to commitAssignmentIfClaimPending. evaluate() is advisory only; the repository rechecks expiry and transaction state atomically at commit time.
+
+
+## 13. Durable repository recovery policy
+
+The portable clock currently exposes uptime milliseconds only. It cannot determine how long power was off, so a reboot cannot safely continue the original ten-minute wall-clock expiry window. Until a battery-backed RTC or persistent monotonic-time source is selected, durable repository recovery applies a fail-closed rule:
+
+- Pending unassigned and claim-pending requests are changed to EXPIRED and claim-pending transactions become WITHDRAWN.
+- Already committed assignments and journey state are retained; the unassigned-request expiry timer never expires an active ride.
+- Request sequence/generation allocation is restored from the same durable snapshot, preventing identity reuse.
+- A corrupt, unsupported-version, wrong-station or torn snapshot fails closed as STORAGE_FAILURE. It is never silently replaced with an empty ledger.
+- Expired records remain in the ledger for application-level notice/reconciliation; retention/compaction is not implemented.
+
+A real IPersistence adapter must make storeAtomically() old-or-new across power loss (for example, dual slots with generation and CRC), and must be verified with hardware power-cut and endurance tests. The host fake proves only that the repository honors the adapter contract.
