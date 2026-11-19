@@ -23,7 +23,7 @@ Status StationRequestLifecycle::create(const NewRequest& input,
                                        RequestRecord& created) {
   if (!configured_)
     return Status(ErrorCode::INVALID_STATE);
-  if (input.destinationId == 0 || !destinations_.isEnabled(input.destinationId))
+  if (input.destinationId == 0)
     return Status(ErrorCode::INVALID_ARGUMENT);
 
   Destination destination = {};
