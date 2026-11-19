@@ -231,3 +231,19 @@ length/range validation, acknowledgement correlation, duplicate replay handling 
 snapshot request/response support. Transaction IDs currently derived from RequestId
 hashes are also provisional; a durable collision-safe transaction allocator is
 required before field deployment.
+
+
+## 16. Journey update confirmation and cart release
+
+A cart must not release its active-assignment slot merely because it queued a
+COMPLETED journey update. The station remains authoritative for the lifecycle and
+may not have received that update yet. On receiving a valid journey update, the
+station applies it to the request lifecycle, reads back the resulting record, and
+sends a station-originated SNAPSHOT to the assigned cart. The snapshot carries the
+authoritative request state, assignment epoch and last journey event sequence.
+
+The cart reconciles this snapshot through EventReconciler. A COMPLETED snapshot
+allows the cart to clear its local terminal assignment and remain NOT_ACCEPTING;
+the driver must explicitly re-enable acceptance. A duplicate journey update may
+cause the station to resend the current snapshot. A transport ACK alone is not
+sufficient evidence that the station committed the lifecycle transition.
