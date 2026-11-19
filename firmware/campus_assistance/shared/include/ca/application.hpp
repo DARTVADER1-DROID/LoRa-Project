@@ -88,7 +88,15 @@ public:
 private:
   CartDependencies dependencies_;
   DeviceConfig config_;
+  RequestId pendingJourneySyncRequestId_;
+  EventSequence pendingJourneySyncSequence_;
+  uint32_t lastSnapshotQueryAtMs_;
+  uint32_t snapshotQueryCounter_;
+  bool journeySyncPending_;
   bool initialized_;
+
+  void serviceJourneySync(uint32_t nowMs);
+  void clearJourneySync();
 };
 
 } // namespace ca
