@@ -216,11 +216,15 @@ hardware power-cut testing remain production gates.
 
 ### 12.2 Terminal request retention
 
-The station lifecycle now compacts terminal records using a configurable retention
-window (default seven days). The current record schema has no terminal timestamp,
-so this initial policy measures age from request creation, not from the moment of
-completion/cancellation/expiry. The cleanup runs with the station expiry service,
-uses wrap-safe 32-bit time ordering, and never removes non-terminal or ambiguous-age
-records. A future schema revision may add terminalAtMs if testing shows creation-
-based retention is insufficient. The durable repository persists compaction only
-when the candidate state actually changes.
+The station has no persistent wall clock, so millis()-based terminal retention
+cannot safely run across reboot. The repository therefore uses capacity-driven
+compaction: when a new request arrives and the ledger is full, it evicts the
+oldest terminal record only. It never evicts a pending, claim-pending, assigned,
+or communication-uncertain record. If no terminal record is available, insertion
+fails with CAPACITY_EXCEEDED.
+
+The explicit removeTerminalBefore API remains available for a caller that has a
+trusted, reboot-safe time boundary. The normal station lifecycle does not invoke
+it automatically. DurableRequestRepository persists an eviction and the new
+request in one candidate snapshot, so a failed snapshot write leaves the old
+ledger intact.
