@@ -114,9 +114,8 @@ int main() {
   decoded = roundTrip(snapshot);
   assert(decoded.payload.snapshot.lastEventSequence == 7);
 
-  ProtocolEvent acknowledgement =
-      baseEvent(ProtocolEventType::ACKNOWLEDGEMENT_RECEIVED,
-                MessageType::ACKNOWLEDGEMENT);
+  ProtocolEvent acknowledgement = baseEvent(ProtocolEventType::ACKNOWLEDGEMENT_RECEIVED,
+                                            MessageType::ACKNOWLEDGEMENT);
   acknowledgement.envelope.transactionId = 123;
   decoded = roundTrip(acknowledgement);
   assert(decoded.payload.acknowledgedTransaction == 123);

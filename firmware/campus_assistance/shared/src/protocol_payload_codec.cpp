@@ -49,8 +49,7 @@ bool validError(ErrorCode value) {
 }
 
 bool validClaimState(ClaimState value) {
-  return static_cast<uint8_t>(value) <=
-         static_cast<uint8_t>(ClaimState::COMMITTED);
+  return static_cast<uint8_t>(value) <= static_cast<uint8_t>(ClaimState::COMMITTED);
 }
 
 bool validRequestState(RequestState value) {
@@ -59,8 +58,7 @@ bool validRequestState(RequestState value) {
 }
 
 bool validJourneyStatus(JourneyStatus value) {
-  return static_cast<uint8_t>(value) <=
-         static_cast<uint8_t>(JourneyStatus::COMPLETED);
+  return static_cast<uint8_t>(value) <= static_cast<uint8_t>(JourneyStatus::COMPLETED);
 }
 
 bool validCancellationSource(CancellationSource value) {
@@ -165,8 +163,7 @@ Status MessagePayloadCodec::decode(const ProtocolMessage& message,
     event.payload.claimWithdraw.cartId = get16(input, offset);
     event.payload.claimWithdraw.transactionId = message.header.transactionId;
     if (!RequestIdentity::isValid(event.payload.claimWithdraw.requestId) ||
-        event.payload.claimWithdraw.cartId == 0 ||
-        message.header.transactionId == 0)
+        event.payload.claimWithdraw.cartId == 0 || message.header.transactionId == 0)
       return Status(ErrorCode::INVALID_ARGUMENT);
     return Status();
 
@@ -204,7 +201,8 @@ Status MessagePayloadCodec::decode(const ProtocolMessage& message,
     if (message.payloadLength != 9)
       return Status(ErrorCode::PROTOCOL_MISMATCH);
     event.payload.cancellation.requestId = getRequestId(input, offset);
-    event.payload.cancellation.source = static_cast<CancellationSource>(input[offset++]);
+    event.payload.cancellation.source =
+        static_cast<CancellationSource>(input[offset++]);
     if (!RequestIdentity::isValid(event.payload.cancellation.requestId) ||
         !validCancellationSource(event.payload.cancellation.source))
       return Status(ErrorCode::INVALID_ARGUMENT);
@@ -280,8 +278,7 @@ Status MessagePayloadCodec::encode(const ProtocolEvent& event,
 
   case ProtocolEventType::CLAIM_RECEIVED:
     if (!RequestIdentity::isValid(event.payload.claim.requestId) ||
-        event.payload.claim.cartId == 0 ||
-        event.payload.claim.transactionId == 0)
+        event.payload.claim.cartId == 0 || event.payload.claim.transactionId == 0)
       return Status(ErrorCode::INVALID_ARGUMENT);
     message.header.transactionId = event.payload.claim.transactionId;
     putRequestId(message.payload, offset, event.payload.claim.requestId);
@@ -329,8 +326,7 @@ Status MessagePayloadCodec::encode(const ProtocolEvent& event,
         !validCancellationSource(event.payload.cancellation.source))
       return Status(ErrorCode::INVALID_ARGUMENT);
     putRequestId(message.payload, offset, event.payload.cancellation.requestId);
-    message.payload[offset++] =
-        static_cast<uint8_t>(event.payload.cancellation.source);
+    message.payload[offset++] = static_cast<uint8_t>(event.payload.cancellation.source);
     break;
 
   case ProtocolEventType::EXPIRY_RECEIVED:
