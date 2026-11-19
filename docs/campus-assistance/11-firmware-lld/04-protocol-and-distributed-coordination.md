@@ -299,3 +299,14 @@ periodically sends a uniquely correlated SNAPSHOT_QUERY. Query attempts use
 distinct delivery transaction IDs so bounded duplicate suppression does not hide
 later application-level queries. The cart clears this synchronization obligation
 only after reconciling a sufficiently new station snapshot.
+
+
+## 21. Withdrawal-before-claim tombstone
+
+CLAIM_WITHDRAW can arrive before the corresponding CLAIM if radio submission,
+retransmission or receive timing reorders the two frames. When a withdrawal names
+an existing unassigned RequestId but no claim is pending, the station repository
+persists a WITHDRAWN tombstone containing the cart ID and original claim transaction
+ID. A later CLAIM with that exact tuple is rejected as stale; another cart with a
+different transaction may still claim the request. Repeated identical withdrawals
+are idempotent. This tombstone is part of the durable RequestRecord snapshot.
