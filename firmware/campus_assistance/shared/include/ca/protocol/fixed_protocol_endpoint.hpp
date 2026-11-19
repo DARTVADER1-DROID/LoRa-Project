@@ -57,7 +57,7 @@ public:
     scheduleBroadcasts();
 
     const RadioHealth radioHealth = transport_.health();
-    if (radioHealth.receiving || radioHealth.faulted) {
+    if (radioHealth.initialized && !radioHealth.faulted) {
       ProtocolMessage message = {};
       uint8_t attemptNumber = 0;
       if (retries_.pollDue(message, attemptNumber)) {
