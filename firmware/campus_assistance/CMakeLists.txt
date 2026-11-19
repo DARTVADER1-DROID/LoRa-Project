@@ -10,6 +10,7 @@ add_library(campus_assistance_contracts STATIC
   shared/src/protocol.cpp
   shared/src/request_identity.cpp
   shared/src/station/station_request_lifecycle.cpp
+  shared/src/station/repository_station_claim_coordinator.cpp
   shared/src/types.cpp)
 target_include_directories(
   campus_assistance_contracts
@@ -53,6 +54,10 @@ target_link_libraries(station_request_lifecycle_test PRIVATE campus_assistance_c
 add_executable(protocol_codec_test tests/protocol_codec_test.cpp)
 target_link_libraries(protocol_codec_test PRIVATE campus_assistance_contracts)
 
+add_executable(station_claim_coordinator_test
+  tests/station_claim_coordinator_test.cpp)
+target_link_libraries(station_claim_coordinator_test PRIVATE campus_assistance_contracts)
+
 enable_testing()
 add_test(NAME contract_compile COMMAND contract_compile)
 add_test(NAME repository_transition_test COMMAND repository_transition_test)
@@ -66,3 +71,4 @@ add_test(NAME durable_request_repository_test
   COMMAND durable_request_repository_test)
 add_test(NAME station_request_lifecycle_test COMMAND station_request_lifecycle_test)
 add_test(NAME protocol_codec_test COMMAND protocol_codec_test)
+add_test(NAME station_claim_coordinator_test COMMAND station_claim_coordinator_test)
