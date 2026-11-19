@@ -14,6 +14,8 @@ public:
                               uint32_t stationNowMs,
                               AssignmentRecord& assignment) = 0;
   virtual bool isAssigned(const RequestId& id) const = 0;
+  virtual bool getAssignment(const RequestId& id,
+                             AssignmentRecord& assignment) const = 0;
 };
 
 } // namespace ca
