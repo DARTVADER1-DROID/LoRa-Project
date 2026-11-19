@@ -30,6 +30,13 @@ TransactionId transactionFor(const RequestId& id) {
   return value == 0 ? 1 : value;
 }
 
+TransactionId journeyTransactionFor(const RequestId& id,
+                                    EventSequence sequence) {
+  TransactionId value =
+      transactionFor(id) ^ (sequence * 2654435761UL);
+  return value == 0 ? 1 : value;
+}
+
 bool senderIsValidated(SenderValidation validation) {
   return validation == SenderValidation::NETWORK_MEMBER_VALIDATED ||
          validation == SenderValidation::AUTHENTICATED;
@@ -116,7 +123,8 @@ Status enqueueJourneyUpdate(ProtocolEndpoint& protocol,
   message.header.messageType = MessageType::JOURNEY_UPDATE;
   message.header.sourceDeviceId = config.deviceId;
   message.header.destinationDeviceId = assignment.requestId.originStationId;
-  message.header.transactionId = transactionFor(assignment.requestId);
+  message.header.transactionId =
+      journeyTransactionFor(assignment.requestId, sequence);
   message.header.messageSequence = sequence;
   uint16_t offset = 0;
   put16(message.payload, offset, assignment.requestId.originStationId);
@@ -393,7 +401,8 @@ bool StationApplication::isHealthy() const {
 }
 
 CartApplication::CartApplication(CartDependencies dependencies)
-    : dependencies_(dependencies), config_(), initialized_(false) {
+    : dependencies_(dependencies), config_(), completionTransactionId_(0),
+      completionAwaitingAcknowledgement_(false), initialized_(false) {
 }
 
 Status CartApplication::begin(const DeviceConfig& config) {
