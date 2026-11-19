@@ -9,6 +9,7 @@
 #include "ca/storage/fixed_pending_request_store.hpp"
 #include "ca/storage/fixed_request_repository.hpp"
 #include "ca/storage/durable_request_repository.hpp"
+#include "ca/storage/fixed_destination_catalog.hpp"
 #include "ca/station/station_request_lifecycle.hpp"
 #include "ca/station/repository_station_claim_coordinator.hpp"
 #include "ca/cart/basic_driver_availability_controller.hpp"
