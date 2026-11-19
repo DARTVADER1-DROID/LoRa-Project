@@ -289,6 +289,8 @@ private:
     if (message.header.transactionId == 0)
       return;
     if (message.header.messageType == MessageType::ACKNOWLEDGEMENT) {
+      if (message.payloadLength != 0)
+        return;
       retries_.onAcknowledgement(message.header.transactionId,
                                  message.header.sourceDeviceId,
                                  message.header.messageSequence);
