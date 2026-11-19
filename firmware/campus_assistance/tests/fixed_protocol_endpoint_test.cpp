@@ -157,9 +157,13 @@ int main() {
 
   FakeRadioTransport broadcastTransport;
   FixedRetryManager<4> broadcastRetries(policy);
-  FixedProtocolEndpoint<4> broadcastEndpoint(
-      codec, validator, broadcastTransport, broadcastRetries, stationConfig,
-      radio, cartRegistry);
+  FixedProtocolEndpoint<4> broadcastEndpoint(codec,
+                                             validator,
+                                             broadcastTransport,
+                                             broadcastRetries,
+                                             stationConfig,
+                                             radio,
+                                             cartRegistry);
   assert(broadcastEndpoint.begin().ok());
 
   ProtocolEvent assignment = {};
