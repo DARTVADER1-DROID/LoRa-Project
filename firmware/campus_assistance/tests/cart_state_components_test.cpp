@@ -45,6 +45,7 @@ int main() {
 
   DriverAction complete = {DriverActionType::CONFIRM_COMPLETION, 3};
   assert(active.complete(complete).ok());
+  // A newer station echo may confirm local completion without regressing state.
   assert(active.updateJourneyStatus(JourneyStatus::COMPLETED, 3).ok());
   assert(active.updateJourneyStatus(JourneyStatus::COMPLETED, 3).code ==
          ErrorCode::STALE_EVENT);
