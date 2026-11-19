@@ -82,9 +82,10 @@ authorized for Indian operation.
 
 ## Arduino compile matrix
 
-`platformio.ini` defines four compile-smoke environments: Uno R3 station/cart and
-ESP32 DevKit V1 station/cart. The GitHub Actions workflow
-`.github/workflows/arduino-target-build.yml` compiles all four against their
-respective Arduino cores. The current role sketches include the adapters but still
-contain placeholder composition roots; a successful PlatformIO build proves
-toolchain/header compatibility only, not that a complete application is flashed.
+`platformio.ini` defines four target environments: Uno R3 station/cart and ESP32
+DevKit V1 station/cart. Each environment compiles its actual role `.ino` entry point
+and the shared portable sources against its respective Arduino core. The sketches
+instantiate the selected board profile and hardware adapters, but the role
+application composition roots are still placeholders. A successful PlatformIO
+build therefore proves target/toolchain and adapter compatibility only; it does
+not mean a complete application is ready to flash.
