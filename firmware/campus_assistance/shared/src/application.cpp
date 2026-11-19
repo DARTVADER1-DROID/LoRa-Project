@@ -166,7 +166,7 @@ Status StationApplication::begin(const DeviceConfig& config) {
     return status;
   if (!isValidButtonProfile(dependencies_.buttonConfig) ||
       dependencies_.expiryBuffer.items == 0 ||
-      dependencies_.expiryBuffer.capacity < config.pendingCapacity)
+      dependencies_.expiryBuffer.capacity == 0)
     return Status(ErrorCode::CONFIGURATION_INVALID);
   status = dependencies_.requestLifecycle.configure();
   if (!status.ok())
