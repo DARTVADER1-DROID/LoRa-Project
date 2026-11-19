@@ -16,8 +16,7 @@ public:
                           const DestinationCatalog& destinations,
                           const IClock& clock,
                           DeviceId stationId,
-                          uint32_t requestLifetimeMs,
-                          uint32_t terminalRetentionMs = kDefaultTerminalRetentionMs);
+                          uint32_t requestLifetimeMs);
 
   Status configure() override;
   Status create(const NewRequest& input, RequestRecord& created) override;
