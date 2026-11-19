@@ -19,7 +19,8 @@ add_library(campus_assistance_contracts STATIC
   shared/src/station_request_controller.cpp
   shared/src/station/station_request_lifecycle.cpp
   shared/src/station/repository_station_claim_coordinator.cpp
-  shared/src/types.cpp)
+  shared/src/types.cpp
+  shared/src/ui/basic_user_interfaces.cpp)
 target_include_directories(
   campus_assistance_contracts
   PUBLIC
@@ -109,6 +110,10 @@ add_executable(two_button_event_interpreter_test
   tests/two_button_event_interpreter_test.cpp)
 target_link_libraries(two_button_event_interpreter_test PRIVATE campus_assistance_contracts)
 
+add_executable(basic_user_interfaces_test
+  tests/basic_user_interfaces_test.cpp)
+target_link_libraries(basic_user_interfaces_test PRIVATE campus_assistance_contracts)
+
 enable_testing()
 add_test(NAME contract_compile COMMAND contract_compile)
 add_test(NAME repository_transition_test COMMAND repository_transition_test)
@@ -134,3 +139,4 @@ add_test(NAME board_profile_test COMMAND board_profile_test)
 add_test(NAME fixed_button_debouncer_test COMMAND fixed_button_debouncer_test)
 add_test(NAME debounced_button_input_test COMMAND debounced_button_input_test)
 add_test(NAME two_button_event_interpreter_test COMMAND two_button_event_interpreter_test)
+add_test(NAME basic_user_interfaces_test COMMAND basic_user_interfaces_test)
