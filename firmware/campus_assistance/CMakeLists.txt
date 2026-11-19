@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 project(campus_assistance_contracts LANGUAGES CXX)
 
 add_library(campus_assistance_contracts STATIC shared/src/config.cpp
+  shared/src/request_identity.cpp
   shared/src/types.cpp)
 target_include_directories(
   campus_assistance_contracts
@@ -23,8 +24,12 @@ target_link_libraries(config_validator_test PRIVATE campus_assistance_contracts)
 add_executable(types_test tests/types_test.cpp)
 target_link_libraries(types_test PRIVATE campus_assistance_contracts)
 
+add_executable(request_identity_test tests/request_identity_test.cpp)
+target_link_libraries(request_identity_test PRIVATE campus_assistance_contracts)
+
 enable_testing()
 add_test(NAME contract_compile COMMAND contract_compile)
 add_test(NAME repository_transition_test COMMAND repository_transition_test)
 add_test(NAME config_validator_test COMMAND config_validator_test)
 add_test(NAME types_test COMMAND types_test)
+add_test(NAME request_identity_test COMMAND request_identity_test)
