@@ -145,6 +145,20 @@ int main() {
   assert(transport.sentCount == 2); // ACK emitted for the received request.
   assert(!endpoint.pollEvent(decoded));
 
+  // An identical retransmission is ACKed again but not delivered twice.
+  assert(transport.inject(incoming, codec));
+  endpoint.service(3);
+  assert(!endpoint.pollEvent(decoded));
+  assert(transport.sentCount == 3);
+
+  // Reusing the same message identity with different content is rejected.
+  request.payload.request.destinationId = 5;
+  assert(MessagePayloadCodec::encode(request, incoming).ok());
+  assert(transport.inject(incoming, codec));
+  endpoint.service(4);
+  assert(!endpoint.pollEvent(decoded));
+  assert(transport.sentCount == 3);
+
   // Reliable station broadcasts are expanded to one transaction per cart;
   // an ACK from one cart cannot satisfy another cart's delivery.
   DeviceConfig stationConfig = config;
