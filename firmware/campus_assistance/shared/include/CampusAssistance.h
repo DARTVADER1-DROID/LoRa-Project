@@ -14,6 +14,7 @@
 #include "ca/cart/basic_driver_availability_controller.hpp"
 #include "ca/cart/fixed_active_assignment.hpp"
 #include "ca/cart/fixed_cart_claim_client.hpp"
+#include "ca/cart/cart_event_reconciler.hpp"
 #include "ca/cart/default_journey_progress_controller.hpp"
 #include "ca/protocol.hpp"
 #include "ca/config.hpp"
