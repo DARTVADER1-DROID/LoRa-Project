@@ -29,8 +29,8 @@ bool RequestIdentity::isValid(const RequestId& id) {
 }
 
 bool RequestIdentity::equals(const RequestId& lhs, const RequestId& rhs) {
-  return lhs.originStationId == rhs.originStationId &&
-         lhs.sequence == rhs.sequence && lhs.generation == rhs.generation;
+  return lhs.originStationId == rhs.originStationId && lhs.sequence == rhs.sequence &&
+         lhs.generation == rhs.generation;
 }
 
 uint32_t RequestIdentity::hash(const RequestId& id) {
