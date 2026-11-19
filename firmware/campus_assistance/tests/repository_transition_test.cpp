@@ -14,7 +14,18 @@ bool sameId(const RequestId& a, const RequestId& b) {
 
 class FakeRequestRepository : public IRequestRepository {
 public:
-  FakeRequestRepository() : count_(0) { memset(records_, 0, sizeof(records_)); }
+  FakeRequestRepository() : count_(0), nextSequence_(1) {
+    memset(records_, 0, sizeof(records_));
+  }
+
+  Status reserveNextRequestId(DeviceId stationId, RequestId& id) override {
+    if (stationId == 0)
+      return Status(ErrorCode::INVALID_ARGUMENT);
+    id.originStationId = stationId;
+    id.sequence = nextSequence_++;
+    id.generation = 1;
+    return Status();
+  }
 
   Status insertNew(const RequestRecord& record) override {
     if (count_ >= kCapacity)
@@ -203,10 +214,18 @@ public:
   Status removeTerminalBefore(uint32_t) override { return Status(); }
   uint16_t size() const override { return count_; }
 
+  bool recordAt(uint16_t index, RequestRecord& record) const override {
+    if (index >= count_)
+      return false;
+    record = records_[index];
+    return true;
+  }
+
 private:
   static const uint8_t kCapacity = 4;
   RequestRecord records_[kCapacity];
   uint8_t count_;
+  RequestSequence nextSequence_;
 
   static bool isDue(const RequestRecord& r, uint32_t now) {
     return static_cast<int32_t>(now - r.expiresAtMs) >= 0;
