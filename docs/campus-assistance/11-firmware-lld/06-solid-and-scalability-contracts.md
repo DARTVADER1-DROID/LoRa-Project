@@ -236,6 +236,10 @@ recovery or atomic flash persistence.
 
 ## 12. Port interface segregation
 
+Domain interfaces have also been split into one contract per responsibility under
+`domain/`; `domain.hpp` remains an aggregate for role/application composition.
+Concrete components include only the domain contract they implement.
+
 The former mixed `ports.hpp` has been split into focused interfaces:
 `ports/hardware.hpp`, `ports/runtime.hpp`, `ports/persistence.hpp` and
 `ports/request_repository.hpp`. `ports.hpp` remains only as a convenience
