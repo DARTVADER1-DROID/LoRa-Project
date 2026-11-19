@@ -89,3 +89,15 @@ instantiate the selected board profile and hardware adapters, but the role
 application composition roots are still placeholders. A successful PlatformIO
 build therefore proves target/toolchain and adapter compatibility only; it does
 not mean a complete application is ready to flash.
+
+
+### Bounded persistent storage
+
+arduino_byte_storage.hpp provides an AVR EEPROM byte store and an ESP32
+Preferences/NVS byte store. The shared FixedDualSlotPersistence<SlotBytes>
+alternates CRC-protected records and writes a commit marker last. The initial
+reference allocation is 352 bytes of Uno EEPROM (two 176-byte slots) and a
+768-byte ESP32 NVS blob (two 384-byte slots). These allocations are sized for
+repository snapshots of four and ten records respectively; the complete Uno
+SRAM/stack budget and hardware power-cut/endurance behavior still require
+measurement and validation.
