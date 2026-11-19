@@ -20,6 +20,7 @@ public:
   Status selectDestination(DeviceId destinationId);
   Status submit(RequestId& createdRequestId);
   Status cancelCurrentRequest();
+  bool hasCurrentRequest() const;
 
 private:
   DestinationCatalog& destinations_;
