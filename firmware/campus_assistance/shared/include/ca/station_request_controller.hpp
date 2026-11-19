@@ -2,6 +2,7 @@
 
 #include "domain.hpp"
 #include "protocol.hpp"
+#include "ca/ports/runtime.hpp"
 
 namespace ca {
 
