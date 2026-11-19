@@ -88,12 +88,28 @@ int main() {
   for (uint8_t i = 0; i < sizeof(newValue); ++i)
     assert(output[i] == newValue[i]);
 
-  // A corrupt newest slot falls back to the previous committed generation.
-  storage.bytes()[128 + 12] ^= 0x01;
+  const uint8_t thirdValue[] = {3, 1, 4, 1, 5, 9, 2};
+  storage.failAfterWrites(20); // Tear the older slot while the latest stays intact.
+  assert(persistence.storeAtomically(key, thirdValue, sizeof(thirdValue)).code ==
+         ErrorCode::STORAGE_FAILURE);
+  storage.failAfterWrites(-1);
   assert(persistence.load(key, output, sizeof(output), bytesRead).ok());
-  assert(bytesRead == sizeof(oldValue));
-  for (uint8_t i = 0; i < sizeof(oldValue); ++i)
-    assert(output[i] == oldValue[i]);
+  assert(bytesRead == sizeof(newValue));
+  for (uint8_t i = 0; i < sizeof(newValue); ++i)
+    assert(output[i] == newValue[i]);
+
+  assert(persistence.storeAtomically(key, thirdValue, sizeof(thirdValue)).ok());
+  assert(persistence.load(key, output, sizeof(output), bytesRead).ok());
+  assert(bytesRead == sizeof(thirdValue));
+  for (uint8_t i = 0; i < sizeof(thirdValue); ++i)
+    assert(output[i] == thirdValue[i]);
+
+  // A corrupt newest slot falls back to the previous committed generation.
+  storage.bytes()[12] ^= 0x01;
+  assert(persistence.load(key, output, sizeof(output), bytesRead).ok());
+  assert(bytesRead == sizeof(newValue));
+  for (uint8_t i = 0; i < sizeof(newValue); ++i)
+    assert(output[i] == newValue[i]);
 
   assert(persistence.erase(key).ok());
   assert(persistence.load(key, output, sizeof(output), bytesRead).code ==
