@@ -1,6 +1,7 @@
 #pragma once
 
-#include "domain.hpp"
+#include "ca/domain/destination_catalog.hpp"
+#include "ca/domain/request_lifecycle.hpp"
 #include "protocol.hpp"
 #include "ca/ports/runtime.hpp"
 
