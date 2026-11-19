@@ -602,8 +602,12 @@ void CartApplication::onButtonEvent(const ButtonEvent& event) {
   context.serviceState = dependencies_.driverAvailability.serviceState();
   context.activeAssignment = dependencies_.activeAssignment.isOccupied();
 
-  const UiIntent intent = dependencies_.buttonInterpreter.interpret(
+  UiIntent intent = dependencies_.buttonInterpreter.interpret(
       event, UiContext{context.screenId, context.activeAssignment});
+  if (intent.type == UiIntentType::TOGGLE_ACCEPTANCE)
+    intent.type = context.acceptanceMode == AcceptanceMode::ACCEPTING
+                      ? UiIntentType::DISABLE_ACCEPTANCE
+                      : UiIntentType::ENABLE_ACCEPTANCE;
   if (intent.type == UiIntentType::ADVANCE_JOURNEY ||
       intent.type == UiIntentType::CONFIRM_COMPLETION) {
     AssignmentRecord assignment = {};
@@ -615,7 +619,9 @@ void CartApplication::onButtonEvent(const ButtonEvent& event) {
       return;
     }
 
-    const bool completing = intent.type == UiIntentType::CONFIRM_COMPLETION;
+    const bool completing = intent.type == UiIntentType::CONFIRM_COMPLETION ||
+                            (intent.type == UiIntentType::ADVANCE_JOURNEY &&
+                             current == JourneyStatus::ARRIVED_AT_PICKUP);
     const JourneyStatus next = completing ? JourneyStatus::COMPLETED
                                           : (current == JourneyStatus::RECEIVED
                                                  ? JourneyStatus::ON_THE_WAY
