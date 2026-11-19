@@ -11,6 +11,7 @@ and separate Arduino Uno / ESP32 station / cart entry points.
   configuration, station use case, UI and role application contracts.
 - `shared/include/CampusAssistance.h`: public umbrella include.
 - `shared/src/config.cpp`: portable validation for provisioned device, station, destination and RA-02/SX1278 radio settings.
+- `shared/src/types.cpp`: shared serial-number ordering, wrap-safe elapsed-time checks and request/journey-state predicates.
 - `shared/src/README.md`: implementation boundary and layering rule.
 - `targets/uno/{station,cart}/`: Arduino Uno entry points.
 - `targets/esp32/{station,cart}/`: ESP32 entry points; exact board remains TBD.
