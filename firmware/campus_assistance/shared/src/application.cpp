@@ -63,8 +63,7 @@ TransactionId withdrawalDeliveryTransactionFor(const ClaimRequest& claim) {
   return value;
 }
 
-void drainRetryOutcomes(ProtocolEndpoint& protocol,
-                         IDiagnostics& diagnostics) {
+void drainRetryOutcomes(ProtocolEndpoint& protocol, IDiagnostics& diagnostics) {
   for (uint8_t processed = 0; processed < 4; ++processed) {
     RetryOutcome outcome = {};
     if (!protocol.pollRetryOutcome(outcome))
