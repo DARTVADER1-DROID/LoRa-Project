@@ -36,7 +36,7 @@ bool isSupportedBandwidth(uint32_t bandwidthHz) {
   }
 }
 
-uint8_t boundedStringLength(const char *value, uint8_t capacity) {
+uint8_t boundedStringLength(const char* value, uint8_t capacity) {
   uint8_t length = 0;
   while (length < capacity && value[length] != '\0')
     ++length;
@@ -45,7 +45,7 @@ uint8_t boundedStringLength(const char *value, uint8_t capacity) {
 
 } // namespace
 
-Status DefaultConfigValidator::validate(const DeviceConfig &config) const {
+Status DefaultConfigValidator::validate(const DeviceConfig& config) const {
   if (!isValidRole(config.role) || config.deviceId == 0 || config.networkId == 0 ||
       config.protocolVersion == 0 || config.radioProfileId == 0 ||
       config.boardProfileId == 0 || config.pendingCapacity == 0 ||
@@ -57,8 +57,8 @@ Status DefaultConfigValidator::validate(const DeviceConfig &config) const {
   return Status();
 }
 
-Status DefaultConfigValidator::validateStationRegistry(
-    const StationRegistry &registry) const {
+Status
+DefaultConfigValidator::validateStationRegistry(const StationRegistry& registry) const {
   if (registry.count > registry.capacity ||
       (registry.count > 0 && registry.entries == 0)) {
     return invalidConfiguration();
@@ -78,14 +78,14 @@ Status DefaultConfigValidator::validateStationRegistry(
 }
 
 Status DefaultConfigValidator::validateDestinationConfig(
-    const DestinationConfig &destinations) const {
+    const DestinationConfig& destinations) const {
   if (destinations.count > destinations.capacity ||
       (destinations.count > 0 && destinations.entries == 0)) {
     return invalidConfiguration();
   }
 
   for (uint16_t i = 0; i < destinations.count; ++i) {
-    const Destination &destination = destinations.entries[i];
+    const Destination& destination = destinations.entries[i];
     const uint8_t labelLength =
         boundedStringLength(destination.label, kMaxDestinationLabelBytes + 1);
 
@@ -103,14 +103,12 @@ Status DefaultConfigValidator::validateDestinationConfig(
   return Status();
 }
 
-Status
-DefaultConfigValidator::validateRadioProfile(const RadioProfile &profile) const {
+Status DefaultConfigValidator::validateRadioProfile(const RadioProfile& profile) const {
   // RA-02/SX1278 module tuning range; this is not a regulatory authorization.
-  if (profile.frequencyHz < 410000000UL ||
-      profile.frequencyHz > 525000000UL || profile.spreadingFactor < 6 ||
-      profile.spreadingFactor > 12 || !isSupportedBandwidth(profile.bandwidthHz) ||
-      profile.codingRate < 1 || profile.codingRate > 4 ||
-      profile.transmitPowerDbm > 20) {
+  if (profile.frequencyHz < 410000000UL || profile.frequencyHz > 525000000UL ||
+      profile.spreadingFactor < 6 || profile.spreadingFactor > 12 ||
+      !isSupportedBandwidth(profile.bandwidthHz) || profile.codingRate < 1 ||
+      profile.codingRate > 4 || profile.transmitPowerDbm > 20) {
     return invalidConfiguration();
   }
 
