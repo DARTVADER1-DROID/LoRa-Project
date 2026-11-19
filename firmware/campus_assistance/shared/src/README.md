@@ -1,8 +1,12 @@
-# Implementation boundary
+# Shared implementation boundary
 
-The firmware LLD currently defines interfaces and ownership contracts only.
-Concrete domain services, platform adapters and role composition are intentionally
-not implemented in this stage.
+Portable implementations belong in focused translation units and must remain
+C++11-compatible without Arduino or ESP-IDF dependencies.
 
-Keep implementation classes in focused translation units when implementation
-begins. Do not add Arduino or ESP-IDF dependencies to this shared interface layer.
+`config.cpp` contains the default provisioned-configuration validator. Domain services,
+protocol processing, persistence and platform adapters remain future implementation
+work.
+
+The default validator checks structural validity and the selected RA-02/SX1278
+parameter limits. It does not establish WPC authorization, board-profile compatibility,
+RF performance or hardware correctness.
