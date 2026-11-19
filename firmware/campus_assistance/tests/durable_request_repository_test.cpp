@@ -158,5 +158,26 @@ int main() {
   persistence.corrupt(5);
   DurableRequestRepository<4> corrupt(persistence, 7, 1);
   assert(corrupt.configure().code == ErrorCode::STORAGE_FAILURE);
+
+  FakeAtomicPersistence compactionPersistence;
+  DurableRequestRepository<1> compact(compactionPersistence, 8, 1);
+  assert(compact.configure().ok());
+  RequestId oldId = {};
+  assert(compact.reserveNextRequestId(1, oldId).ok());
+  assert(compact.insertNew(makePending(oldId)).ok());
+  RequestRecord compactedRecord = {};
+  assert(compact.cancelIfUnassigned(oldId, CancellationSource::STUDENT,
+                                    compactedRecord).ok());
+
+  RequestId newId = {};
+  assert(compact.reserveNextRequestId(1, newId).ok());
+  compactionPersistence.failNextStore();
+  assert(compact.insertNew(makePending(newId)).code == ErrorCode::STORAGE_FAILURE);
+  assert(compact.find(oldId, compactedRecord));
+  assert(!compact.find(newId, compactedRecord));
+
+  assert(compact.insertNew(makePending(newId)).ok());
+  assert(!compact.find(oldId, compactedRecord));
+  assert(compact.find(newId, compactedRecord));
   return 0;
 }
