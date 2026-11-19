@@ -9,6 +9,7 @@ class FakeLifecycle : public RequestLifecycle {
 public:
   FakeLifecycle()
       : next_(1), cancelCount_(0), lastSource_(CancellationSource::SYSTEM) {}
+  Status configure() override { return Status(); }
   Status create(const NewRequest& input, RequestRecord& created) override {
     created = {};
     created.id = {1, next_++, 1};
