@@ -87,6 +87,15 @@ public:
       generation = 1;
 
     const uint16_t base = static_cast<uint16_t>(targetIndex * SlotBytes);
+    const uint8_t invalidMarker = 0;
+    Status status = storage_.write(
+        static_cast<uint16_t>(base + SlotBytes - 1U), &invalidMarker, 1);
+    if (!status.ok())
+      return status;
+    status = storage_.sync();
+    if (!status.ok())
+      return status;
+
     for (uint16_t i = 0; i < SlotBytes; ++i)
       scratch_[i] = 0xFF;
     uint16_t offset = 0;
@@ -98,11 +107,18 @@ public:
       scratch_[offset++] = data[i];
     const uint32_t checksum = crc32(scratch_, offset);
     put32(scratch_, offset, checksum);
-    scratch_[SlotBytes - 1U] = kCommitMarker;
+    scratch_[SlotBytes - 1U] = invalidMarker;
 
-    // The target is always the older/inactive slot. The byte-store contract
-    // preserves write order, so the commit marker is the final byte programmed.
-    const Status status = storage_.write(base, scratch_, SlotBytes);
+    status = storage_.write(base, scratch_, SlotBytes - 1U);
+    if (!status.ok())
+      return status;
+    status = storage_.sync();
+    if (!status.ok())
+      return status;
+
+    const uint8_t commitMarker = kCommitMarker;
+    status = storage_.write(
+        static_cast<uint16_t>(base + SlotBytes - 1U), &commitMarker, 1);
     if (!status.ok())
       return status;
     return storage_.sync();
@@ -161,13 +177,15 @@ private:
       return Status(ErrorCode::STORAGE_FAILURE);
     }
     if (firstStatus.ok()) {
-      if (secondStatus.code == ErrorCode::STORAGE_FAILURE)
+      if (secondStatus.code == ErrorCode::STORAGE_FAILURE ||
+          secondStatus.code == ErrorCode::CORRUPT_DATA)
         return Status(ErrorCode::STORAGE_FAILURE);
       latest = first;
       return Status();
     }
     if (secondStatus.ok()) {
-      if (firstStatus.code == ErrorCode::STORAGE_FAILURE)
+      if (firstStatus.code == ErrorCode::STORAGE_FAILURE ||
+          firstStatus.code == ErrorCode::CORRUPT_DATA)
         return Status(ErrorCode::STORAGE_FAILURE);
       latest = second;
       return Status();
@@ -175,7 +193,9 @@ private:
     if (firstStatus.code == ErrorCode::STORAGE_FAILURE ||
         secondStatus.code == ErrorCode::STORAGE_FAILURE ||
         firstStatus.code == ErrorCode::CORRUPT_DATA ||
-        secondStatus.code == ErrorCode::CORRUPT_DATA)
+        secondStatus.code == ErrorCode::CORRUPT_DATA ||
+        firstStatus.code == ErrorCode::INCOMPLETE_WRITE ||
+        secondStatus.code == ErrorCode::INCOMPLETE_WRITE)
       return Status(ErrorCode::STORAGE_FAILURE);
     return Status(ErrorCode::NOT_FOUND);
   }
