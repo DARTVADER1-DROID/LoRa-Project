@@ -54,6 +54,22 @@ private:
 
 int main() {
   const RecordKey key = 9;
+  FakeByteStorage<256> interruptedFirstWriteStorage;
+  FixedDualSlotPersistence<128> interruptedFirstWrite(
+      interruptedFirstWriteStorage, key);
+  assert(interruptedFirstWrite.begin().ok());
+  const uint8_t initialValue[] = {4, 5, 6};
+  interruptedFirstWriteStorage.failAfterWrites(20);
+  assert(interruptedFirstWrite
+             .storeAtomically(key, initialValue, sizeof(initialValue))
+             .code == ErrorCode::STORAGE_FAILURE);
+  interruptedFirstWriteStorage.failAfterWrites(-1);
+  uint8_t initialOutput[8] = {};
+  uint16_t initialBytesRead = 0;
+  assert(interruptedFirstWrite
+             .load(key, initialOutput, sizeof(initialOutput), initialBytesRead)
+             .code == ErrorCode::STORAGE_FAILURE);
+
   FakeByteStorage<256> storage;
   FixedDualSlotPersistence<128> persistence(storage, key);
   assert(persistence.begin().ok());
