@@ -186,11 +186,10 @@ Status DefaultMessageValidator::authorizeSender(const ProtocolHeader& envelope,
 
   bool registeredPeer = false;
   if (localConfig.role == DeviceRole::CART) {
-    registeredPeer = stations_ != 0 &&
-                     stations_->containsStation(envelope.sourceDeviceId);
+    registeredPeer =
+        stations_ != 0 && stations_->containsStation(envelope.sourceDeviceId);
   } else if (localConfig.role == DeviceRole::STATION) {
-    registeredPeer = carts_ != 0 &&
-                     carts_->containsCart(envelope.sourceDeviceId);
+    registeredPeer = carts_ != 0 && carts_->containsCart(envelope.sourceDeviceId);
   } else {
     return Status(ErrorCode::CONFIGURATION_INVALID);
   }
