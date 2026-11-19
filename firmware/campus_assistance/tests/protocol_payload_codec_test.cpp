@@ -54,8 +54,10 @@ int main() {
   withdraw.payload.claimWithdraw.requestId = id;
   withdraw.payload.claimWithdraw.cartId = 8;
   withdraw.payload.claimWithdraw.transactionId = 100;
+  withdraw.envelope.transactionId = 200;
   decoded = roundTrip(withdraw);
   assert(decoded.payload.claimWithdraw.transactionId == 100);
+  assert(decoded.envelope.transactionId == 200);
 
   ProtocolEvent result =
       baseEvent(ProtocolEventType::CLAIM_RESULT_RECEIVED, MessageType::CLAIM_RESULT);
