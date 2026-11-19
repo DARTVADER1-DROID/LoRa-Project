@@ -133,8 +133,7 @@ private:
 
     command(row == 0 ? 0x80 : 0xC0);
     for (uint8_t column = 0; column < 16; ++column) {
-      if (previous_[row][column] != next[column])
-        send(static_cast<uint8_t>(next[column]), true);
+      send(static_cast<uint8_t>(next[column]), true);
       previous_[row][column] = next[column];
     }
   }
