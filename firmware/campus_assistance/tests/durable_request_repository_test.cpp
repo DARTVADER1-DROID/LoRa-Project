@@ -83,6 +83,14 @@ int main() {
     assert(repository.reserveNextRequestId(1, pendingId).ok());
     assert(repository.insertNew(makePending(pendingId)).ok());
 
+    RequestId claimPendingId = {};
+    assert(repository.reserveNextRequestId(1, claimPendingId).ok());
+    assert(repository.insertNew(makePending(claimPendingId)).ok());
+    RequestRecord pendingClaim = {};
+    assert(repository.beginClaimIfEligible(claimPendingId, 4, 66, 200,
+                                           pendingClaim)
+               .ok());
+
     RequestRecord updated = {};
     assert(repository.beginClaimIfEligible(allocated, 9, 55, 200, updated).ok());
     assert(repository.commitAssignmentIfClaimPending(allocated, 9, 55, 1, 201, updated)
@@ -107,10 +115,19 @@ int main() {
   pendingId.generation = 1;
   assert(recovered.find(pendingId, record));
   assert(record.state == RequestState::EXPIRED);
+  RequestId claimPendingId = {};
+  claimPendingId.originStationId = 1;
+  claimPendingId.sequence = 3;
+  claimPendingId.generation = 1;
+  assert(recovered.find(claimPendingId, record));
+  assert(record.state == RequestState::EXPIRED);
+  assert(record.claimState == ClaimState::WITHDRAWN);
+  assert(record.claimCartId == 4);
+  assert(record.claimTransactionId == 66);
 
   RequestId next = {};
   assert(recovered.reserveNextRequestId(1, next).ok());
-  assert(next.sequence == 3);
+  assert(next.sequence == 4);
 
   JourneyUpdate update = {};
   update.requestId = allocated;
