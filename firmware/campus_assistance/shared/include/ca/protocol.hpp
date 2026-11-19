@@ -38,6 +38,12 @@ struct ProtocolEvent {
   ProtocolEventPayload payload;
 };
 
+struct RetryPolicy {
+  uint8_t maxAttempts;
+  uint32_t initialBackoffMs;
+  uint32_t maxBackoffMs;
+};
+
 struct RetryOutcome {
   TransactionId transactionId;
   RetryOutcomeCode outcome;
