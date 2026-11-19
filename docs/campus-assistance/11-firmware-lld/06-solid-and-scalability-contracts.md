@@ -122,7 +122,7 @@ Applications and use cases receive interfaces/references through composition str
 ## 8. Scalability and constrained-MCU rules
 
 1. Keep the shared contract layer C++11-compatible for Arduino Uno and the selected ESP32 toolchain.
-2. Use fixed-capacity storage in time-critical paths; capacities are validated configuration and bounded by measured RAM.
+2. Use fixed-capacity storage in time-critical paths; capacities are validated configuration and bounded by measured RAM. `FixedPendingRequestStore<StorageCapacity>` reserves its maximum array at compile time, while `configure()` selects a nonzero runtime capacity no greater than that maximum. The target must choose the template bound only after measuring RAM; no universal queue size is assumed.
 3. No unbounded heap allocation, recursion, blocking waits or `delay()` in the service path.
 4. Each `service()` call performs bounded work and returns; process at most a configured number of RX/TX/events/retries per iteration.
 5. Use wrap-safe elapsed-time comparisons for millisecond timers. Station time is authoritative for request expiry.
@@ -147,7 +147,7 @@ Applications and use cases receive interfaces/references through composition str
 
 ## 10. Implementation order
 
-1. Implement fixed-capacity value stores and repository semantics; test RequestId and atomic assignment.
+1. Implement fixed-capacity value stores and repository semantics; test RequestId, FIFO/deduplication and atomic assignment.
 2. Implement station lifecycle and claim coordinator; test cancellation/expiry/withdrawal races.
 3. Implement cart queue, driver state, active assignment and reconciliation.
 4. Implement frame codec/validator with golden vectors shared across targets.
