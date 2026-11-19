@@ -49,12 +49,19 @@ After exact board selection, document available RAM/flash, partitions, driver su
 
 ## 4. Persistence and reboot
 
-Before implementation decide:
-- station ledger persistence;
-- generation/session ID persistence;
-- cart active assignment recovery;
-- interrupted-write detection;
-- storage endurance and write frequency.
+Implemented at the portable host-contract layer:
+- bounded durable station snapshot with request records and next RequestId allocator state;
+- versioned schema, canonical fixed-width encoding and CRC32 corruption detection;
+- interrupted-store rollback under the IPersistence old-or-new contract;
+- station identity binding and fail-closed corrupt/unsupported snapshot handling;
+- reboot recovery retaining committed assignments and expiring unassigned/claim-pending requests.
+
+Still required before hardware deployment:
+- select the physical persistence medium and implement an adapter with dual-slot/journal atomicity;
+- measure flash/EEPROM endurance and write amplification;
+- verify hardware power-cut behavior;
+- decide whether a battery-backed RTC/persistent monotonic clock is justified to preserve remaining request lifetime across power-off;
+- cart active-assignment persistence and reconciliation.
 
 Safe defaults:
 - rebooted cart starts NOT_ACCEPTING;
@@ -139,17 +146,18 @@ Inject interfaces and provide:
 ## 9. Implementation order
 
 1. Freeze public value types, identity and configuration.
-2. Implement/test RequestIdentity and PendingRequestStore on host.
-3. Implement/test DriverAvailabilityController and ActiveAssignment.
-4. Implement station RequestLifecycle/RequestLedger.
-5. Freeze wire schema and golden vectors.
-6. Implement/test FrameCodec and MessageValidator on host.
-7. Simulate claim, assignment and reconciliation with fault injection.
-8. Implement button events and UI view models.
-9. Implement Uno adapters and measure memory.
-10. Resolve ESP32 board; implement its adapters.
-11. Run mixed-MCU interoperability.
-12. Conduct supervised RF, power, accessibility and fault-injection tests.
+2. Implement/test RequestIdentity and PendingRequestStore on host. [Implemented]
+3. Implement/test DriverAvailabilityController and ActiveAssignment. [Implemented as portable components]
+4. Implement durable station repository and StationRequestLifecycle; test reboot, CRC, failed-write and expiry policy. [Portable host layer implemented; hardware persistence adapter pending]
+5. Implement StationClaimCoordinator and test all competing claim/cancel/expiry transitions.
+6. Freeze wire schema and golden vectors.
+7. Implement/test FrameCodec and MessageValidator on host.
+8. Simulate claim, assignment and reconciliation with fault injection.
+9. Implement button events and UI view models.
+10. Implement Uno adapters and measure memory/stack.
+11. Resolve ESP32 board; implement its adapters.
+12. Run mixed-MCU interoperability.
+13. Conduct supervised RF, power, accessibility and hardware power-cut/endurance tests.
 
 ## 10. Module definition of done
 
@@ -160,6 +168,9 @@ A module is integration-ready only when interfaces/invariants and errors are doc
 - ExpiredRequestSet is a caller-owned output buffer. items points to writable storage for capacity RequestId values, count is reset to zero on entry and reports the number written, and capacity exhaustion returns an explicit error without writing out of bounds. No component retains the pointer.
 - DestinationConfig and StationRegistry are non-owning immutable views. count <= capacity is mandatory; a nonzero count requires a non-null entries pointer. The caller keeps backing storage alive for the full call.
 - Persistence load reports bytesRead. On BUFFER_FULL, it reports the required size and does not overrun the caller buffer.
+- Durable station snapshot schema is versioned, canonical big-endian and CRC32 checked. Unsupported/corrupt/wrong-station data fails closed; it is never silently reset.
+- Until a persistent RTC is selected, reboot recovery expires pending and claim-pending requests because uptime millis cannot measure power-off duration. Committed assignments are retained.
+- `storeAtomically` must expose the complete old or complete new record after power loss. The host fake cannot prove a physical adapter meets this contract.
 - RequestGeneration and AssignmentEpoch are finite 16-bit values. They must never wrap into a value that could collide with a live record, retained terminal record, unexpired frame/retry, or reboot-recovery snapshot. Before exhaustion, rotate the relevant persistent identity/session namespace or refuse new allocation and enter an explicit maintenance/error state. A wrap is not silently accepted.
 - RequestSequence and EventSequence are 32-bit monotonic counters within their identity namespace. Comparisons use a documented wrap-safe serial-number rule and never treat an ambiguous half-range difference as newer. A new persistent generation/session namespace is required before reuse.
 - Assignment epoch uniqueness is scoped to the station/request identity and retained assignment history. Reboot must restore the allocator state before committing new assignments.
