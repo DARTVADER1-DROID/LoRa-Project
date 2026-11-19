@@ -103,6 +103,13 @@ public:
       updated = *record;
       return Status(ErrorCode::EXPIRED);
     }
+    if (record->state == RequestState::CLAIM_PENDING &&
+        record->claimState == ClaimState::PENDING &&
+        record->claimCartId == cartId &&
+        record->claimTransactionId == transactionId) {
+      updated = *record;
+      return Status();
+    }
     if (record->state != RequestState::PENDING_UNASSIGNED ||
         (record->claimState != ClaimState::IDLE &&
          record->claimState != ClaimState::WITHDRAWN))
