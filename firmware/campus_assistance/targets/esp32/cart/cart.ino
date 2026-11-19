@@ -3,5 +3,6 @@ void setup() {
   // TODO: after board selection, construct ESP32 adapters and CartApplication.
 }
 void loop() {
-  // TODO: service CartApplication non-blockingly; continue receiving while NOT_ACCEPTING.
+  // TODO: service CartApplication non-blockingly; continue receiving while
+  // NOT_ACCEPTING.
 }
