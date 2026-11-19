@@ -79,6 +79,10 @@ int main() {
     assert(allocated.sequence == 1);
     assert(repository.insertNew(makePending(allocated)).ok());
 
+    RequestId pendingId = {};
+    assert(repository.reserveNextRequestId(1, pendingId).ok());
+    assert(repository.insertNew(makePending(pendingId)).ok());
+
     RequestRecord updated = {};
     assert(repository.beginClaimIfEligible(allocated, 9, 55, 200, updated).ok());
     assert(repository.commitAssignmentIfClaimPending(allocated, 9, 55, 1, 201, updated)
@@ -94,10 +98,16 @@ int main() {
   assert(record.state == RequestState::ASSIGNED);
   assert(record.assignedCartId == 9);
   assert(record.assignmentEpoch == 1);
+  RequestId pendingId = {};
+  pendingId.originStationId = 1;
+  pendingId.sequence = 2;
+  pendingId.generation = 1;
+  assert(recovered.find(pendingId, record));
+  assert(record.state == RequestState::EXPIRED);
 
   RequestId next = {};
   assert(recovered.reserveNextRequestId(1, next).ok());
-  assert(next.sequence == 2);
+  assert(next.sequence == 3);
 
   JourneyUpdate update = {};
   update.requestId = allocated;
@@ -120,13 +130,14 @@ int main() {
   assert(record.state == RequestState::ON_THE_WAY);
   assert(record.lastJourneyEventSequence == 1);
 
+  // The persisted station identity is part of the snapshot's authority.
+  DurableRequestRepository<4> wrongStation(persistence, 7, 2);
+  assert(wrongStation.configure().code == ErrorCode::STORAGE_FAILURE);
+
   // Corrupt snapshots fail closed; they must never silently initialize an
   // empty ledger and risk RequestId reuse.
   persistence.corrupt(5);
   DurableRequestRepository<4> corrupt(persistence, 7, 1);
   assert(corrupt.configure().code == ErrorCode::STORAGE_FAILURE);
-
-  DurableRequestRepository<4> wrongStation(persistence, 7, 2);
-  assert(wrongStation.configure().code == ErrorCode::STORAGE_FAILURE);
   return 0;
 }
