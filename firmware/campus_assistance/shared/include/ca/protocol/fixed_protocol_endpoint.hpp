@@ -33,7 +33,8 @@ public:
                         ICartRegistry& cartRegistry)
       : codec_(codec), validator_(validator), transport_(transport), retries_(retries),
         config_(config), radioProfile_(radioProfile), cartRegistry_(&cartRegistry),
-        eventHead_(0), eventCount_(0), nowMs_(0), initialized_(false) {}
+        eventHead_(0), eventCount_(0), broadcastHead_(0), broadcastCount_(0),
+        nowMs_(0), initialized_(false) {}
 
   Status begin() override {
     if (initialized_ || config_.deviceId == 0 || config_.networkId == 0 ||
@@ -52,6 +53,7 @@ public:
     nowMs_ = nowMs;
     transport_.service();
     retries_.service(nowMs_);
+    scheduleBroadcasts();
 
     for (uint8_t sent = 0; sent < EventCapacity; ++sent) {
       ProtocolMessage message = {};
@@ -91,7 +93,7 @@ public:
       if (message.header.transactionId == 0)
         return Status(ErrorCode::INVALID_ARGUMENT);
       if (message.header.destinationDeviceId == 0)
-        return scheduleReliableBroadcast(message);
+        return queueReliableBroadcast(message);
       return retries_.schedule(message, nowMs_);
     }
     if (deliveryClass != DeliveryClass::BEST_EFFORT &&
@@ -109,7 +111,9 @@ public:
     return true;
   }
 
-  bool pollRetryOutcome(RetryOutcome& outcome) { return retries_.pollOutcome(outcome); }
+  bool pollRetryOutcome(RetryOutcome& outcome) override {
+    return retries_.pollOutcome(outcome);
+  }
 
   uint8_t queuedEventCount() const { return eventCount_; }
 
@@ -124,12 +128,22 @@ private:
   ProtocolEvent events_[EventCapacity];
   uint8_t eventHead_;
   uint8_t eventCount_;
+  struct BroadcastJob {
+    ProtocolMessage message;
+    uint16_t recipientCount;
+    uint16_t nextRecipient;
+  };
+  BroadcastJob broadcasts_[EventCapacity];
+  uint8_t broadcastHead_;
+  uint8_t broadcastCount_;
   uint32_t nowMs_;
   bool initialized_;
 
-  Status scheduleReliableBroadcast(const ProtocolMessage& message) {
+  Status queueReliableBroadcast(const ProtocolMessage& message) {
     if (cartRegistry_ == 0 || cartRegistry_->enabledCount() == 0)
       return Status(ErrorCode::CONFIGURATION_INVALID);
+    if (broadcastCount_ >= EventCapacity)
+      return Status(ErrorCode::QUEUE_FULL);
 
     const uint16_t count = cartRegistry_->enabledCount();
     for (uint16_t i = 0; i < count; ++i) {
@@ -141,19 +155,50 @@ private:
           return Status(ErrorCode::DUPLICATE);
     }
 
-    for (uint16_t i = 0; i < count; ++i) {
-      ProtocolMessage unicast = message;
-      const DeviceId cartId = cartRegistry_->enabledCartAt(i);
+    const uint8_t tail = static_cast<uint8_t>(
+        (static_cast<uint16_t>(broadcastHead_) + broadcastCount_) %
+        EventCapacity);
+    broadcasts_[tail].message = message;
+    broadcasts_[tail].recipientCount = count;
+    broadcasts_[tail].nextRecipient = 0;
+    ++broadcastCount_;
+    return Status();
+  }
+
+  void scheduleBroadcasts() {
+    while (broadcastCount_ > 0 &&
+           retries_.pendingCount() < retries_.capacity()) {
+      BroadcastJob& job = broadcasts_[broadcastHead_];
+      if (job.nextRecipient >= job.recipientCount) {
+        broadcastHead_ =
+            static_cast<uint8_t>((broadcastHead_ + 1U) % EventCapacity);
+        --broadcastCount_;
+        continue;
+      }
+
+      const DeviceId cartId =
+          cartRegistry_->enabledCartAt(job.nextRecipient);
+      if (cartId == 0 || cartId == config_.deviceId)
+        return;
+
+      ProtocolMessage unicast = job.message;
       unicast.header.destinationDeviceId = cartId;
       unicast.header.transactionId =
-          message.header.transactionId + static_cast<uint32_t>(cartId) * 65537UL;
+          job.message.header.transactionId +
+          static_cast<uint32_t>(cartId) * 65537UL;
       if (unicast.header.transactionId == 0)
-        unicast.header.transactionId = message.header.transactionId;
+        unicast.header.transactionId = job.message.header.transactionId;
+
       const Status scheduled = retries_.schedule(unicast, nowMs_);
       if (!scheduled.ok())
-        return scheduled;
+        return;
+      ++job.nextRecipient;
+      if (job.nextRecipient >= job.recipientCount) {
+        broadcastHead_ =
+            static_cast<uint8_t>((broadcastHead_ + 1U) % EventCapacity);
+        --broadcastCount_;
+      }
     }
-    return Status();
   }
 
   Status sendMessage(const ProtocolMessage& message) {
