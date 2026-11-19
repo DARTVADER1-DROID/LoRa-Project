@@ -13,7 +13,8 @@ public:
 class FakeLifecycle : public RequestLifecycle {
 public:
   FakeLifecycle()
-      : next_(1), cancelCount_(0), lastSource_(CancellationSource::SYSTEM) {}
+      : next_(1), cancelCount_(0),
+        lastSource_(CancellationSource::SYSTEM) {}
   Status create(const NewRequest& input, RequestRecord& created) override {
     created = {};
     created.id = {1, next_++, 1};
@@ -76,7 +77,8 @@ int main() {
   config.deviceId = 1;
   config.networkId = 7;
   config.protocolVersion = 1;
-  StationRequestController controller(destinations, lifecycle, clock, protocol, config);
+  StationRequestController controller(destinations, lifecycle, clock, protocol,
+                                       config);
 
   assert(controller.selectDestination(99).code == ErrorCode::NOT_FOUND);
   assert(controller.selectDestination(3).ok());
