@@ -101,8 +101,10 @@ Status StationRequestLifecycle::expireDue(uint32_t stationNowMs,
 
     RequestRecord updated = {};
     const Status result = repository_.expireIfDue(record.id, stationNowMs, updated);
-    if (!result.ok())
+    if (!result.ok()) {
+      expired.count = written;
       return result;
+    }
     expired.items[written++] = record.id;
   }
 
