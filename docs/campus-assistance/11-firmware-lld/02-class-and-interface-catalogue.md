@@ -304,7 +304,7 @@ The following C++ headers are authoritative for the current interface scaffold. 
 - `IRequestRepository` is the only repository abstraction; concrete storage implementations implement it directly.
 - Conditional repository operations serialize claim, withdrawal, assignment, cancellation and expiry; no generic update can bypass them.
 - `StationClaimCoordinator::evaluate` returns explicit `Status`; `commitWinner` is the only operation allowed to commit a winner.
-- `CartClaimClient::onClaimResult` consumes ClaimResult; `onAssignmentNotice` returns Status and only a matching station assignment can activate the cart.
+- CartClaimClient consumes claim outcomes only; EventReconciler routes validated ASSIGN notices to ActiveAssignment.
 - `FrameCodec` accepts byte-oriented FrameView/MutableFrameView. `IRadioTransport` never sends domain ProtocolMessage objects.
 - `ProtocolEndpoint::enqueue` requires DeliveryClass and emits a tagged ProtocolEvent with a bounded typed payload.
 - `RetryManager` schedules a ProtocolMessage with an explicit timestamp; retry capacity and attempt limits are configured and bounded.
