@@ -45,6 +45,11 @@ and separate Arduino Uno / ESP32 station / cart entry points.
 - `tests/types_test.cpp`: wraparound, serial-number ambiguity and state-classification tests.
 - `tests/request_identity_test.cpp`: complete RequestId validity, equality and hash tests.
 - `tests/pending_request_store_test.cpp`: fixed-capacity FIFO, deduplication, ordering, expiry and local-clear tests.
+- `tests/protocol_codec_test.cpp`: binary envelope encoding, CRC, malformed lengths and network validation.
+- `tests/station_claim_coordinator_test.cpp`: duplicate claims, competing claimers and withdrawal/commit races.
+- `tests/cart_claim_client_test.cpp`: transaction identity, withdrawal and authoritative assignment completion.
+- `tests/cart_event_reconciler_test.cpp`: assignment, claim-loss, snapshot and completion reconciliation.
+- `tests/fixed_destination_catalog_test.cpp`: bounded destination loading, validation and lookup.
 - `CMakeLists.txt`: host-side C++11 contract compile target.
 - `scripts/`: formatting and format verification commands.
 
@@ -111,8 +116,7 @@ especially [SOLID and scalability contracts](../../docs/campus-assistance/11-fir
 
 ## Deliberate open items
 
-No radio library, pin map, final ESP32 board, legal RF profile, numeric wire-field
-encoding, queue capacity or persistence layout is frozen. RA-02/SX1278 integration
+No radio library, pin map, final ESP32 board or legal RF profile is frozen. The frame envelope is specified, but payload schemas, arbitration timing and retry policy constants still need a single normative protocol specification. Queue capacities and concrete flash persistence layout must be selected from target memory/endurance measurements. RA-02/SX1278 integration
 must retain 3.3 V logic/power requirements and pass Indian WPC verification before
 transmission. Hardware adapters and runtime behavior remain future work.
 
@@ -143,4 +147,7 @@ system must preserve the exact remaining ten-minute expiry window across power-o
 The default radio validator accepts the RA-02/SX1278 tuning range and supported
 spreading-factor, bandwidth, coding-rate and PA output ranges. This is a module
 capability check only; it does not approve a frequency, transmit power or duty
-cycle under Indian WPC rules. The binary frame envelope is versioned and big-endian with CRC32; payload fields are still assembled by application code and need a single normative message-schema table before interoperability testing. No concrete flash, radio or MCU adapter exists yet.
+cycle under Indian WPC rules. The binary frame envelope is versioned and big-endian
+with CRC32; payload fields are still assembled by application code and need a single
+normative message-schema table before interoperability testing. The cart claim client
+requires a durable transaction-ID seed. No concrete flash, radio or MCU adapter exists yet.
