@@ -9,15 +9,18 @@ using namespace ca;
 
 class FakeRadioTransport : public IRadioTransport {
 public:
-  FakeRadioTransport() : sentCount(0), receivedHead(0), receivedCount(0) {}
+  FakeRadioTransport()
+      : sentCount(0), receivedHead(0), receivedCount(0), initialized_(false),
+        faulted_(false) {}
 
   Status begin(const RadioProfile& profile) override {
     profile_ = profile;
+    initialized_ = true;
     return Status();
   }
 
   RadioHealth health() const override {
-    RadioHealth result = {true, true, false};
+    RadioHealth result = {initialized_, true, faulted_};
     return result;
   }
 
@@ -61,6 +64,7 @@ public:
   }
 
   uint8_t sentCount;
+  void setFaulted(bool faulted) { faulted_ = faulted; }
 
 private:
   RadioProfile profile_;
@@ -68,6 +72,8 @@ private:
   ReceivedFrame received_[2];
   uint8_t receivedHead;
   uint8_t receivedCount;
+  bool initialized_;
+  bool faulted_;
 };
 
 int main() {
@@ -230,5 +236,17 @@ int main() {
   assert(broadcastEndpoint.pollRetryOutcome(outcome));
   assert(outcome.transactionId == 500 + 5UL * 65537UL);
   assert(outcome.outcome == RetryOutcomeCode::ACKNOWLEDGED);
+
+  // A faulted radio must retain retry work without attempting transmission.
+  FakeRadioTransport faultedTransport;
+  faultedTransport.setFaulted(true);
+  FixedRetryManager<2> faultedRetries(policy);
+  FixedProtocolEndpoint<2> faultedEndpoint(
+      codec, validator, faultedTransport, faultedRetries, config, radio);
+  assert(faultedEndpoint.begin().ok());
+  assert(faultedEndpoint.enqueue(outgoing, DeliveryClass::RETRY_UNTIL_ACK).ok());
+  faultedEndpoint.service(0);
+  assert(faultedTransport.sentCount == 0);
+  assert(faultedRetries.pendingCount() == 1);
   return 0;
 }
