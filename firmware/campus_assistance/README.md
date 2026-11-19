@@ -34,11 +34,16 @@ and separate Arduino Uno / ESP32 station / cart entry points.
 - `shared/src/cart/`: separate implementations for driver availability, active
   assignment, claim ownership and authoritative event reconciliation.
 - `shared/src/protocol.cpp`: bounded binary frame codec and structural network validator.
+- `shared/src/application.cpp`: station/cart event-loop orchestration, claim handling, expiry outbox and authoritative journey snapshots.
+- `platform/include/ca/platform/arduino_core_adapters.hpp`: Arduino GPIO sampling, clock and buzzer adapters.
+- `platform/include/ca/platform/arduino_pcf8574_lcd.hpp`: configurable PCF8574-backed 16×2 LCD adapter.
 - `shared/src/station/repository_station_claim_coordinator.cpp`: repository-serialized claim/withdraw/assignment transitions.
 - `shared/src/station_request_controller.cpp`: station request submission/cancellation and retry-class enqueue.
 - `shared/src/README.md`: implementation boundary and layering rule.
 - `targets/uno/{station,cart}/`: Arduino Uno entry points.
-- `targets/esp32/{station,cart}/`: ESP32 entry points; exact board remains TBD.
+- `platform/include/ca/platform/esp32/devkit_v1_profile.hpp`: ESP32-WROOM-32 DevKit V1 reference pin profile.
+- `platform/include/ca/platform/uno/uno_r3_profile.hpp`: Arduino Uno R3 reference pin profile.
+- `targets/esp32/{station,cart}/`: ESP32 entry points; DevKit V1 is the initial reference, not a universal ESP32 target.
 - `tests/contract_compile.cpp`: host C++11 public-header and API-boundary checks.
 - `tests/repository_transition_test.cpp`: fixed-capacity reference tests for atomic transition ordering.
 - `tests/config_validator_test.cpp`: configuration validation boundary and malformed-input tests.
@@ -116,7 +121,7 @@ especially [SOLID and scalability contracts](../../docs/campus-assistance/11-fir
 
 ## Deliberate open items
 
-No radio library, pin map, final ESP32 board or legal RF profile is frozen. A provisional host-reference frame envelope exists, but its magic, field widths, checksum choice, payload schemas, arbitration timing and retry policy constants remain unapproved pending a separate normative protocol review. Queue capacities and concrete flash persistence layout must be selected from target memory/endurance measurements. RA-02/SX1278 integration
+The ESP32-WROOM-32 DevKit V1 and Arduino Uno R3 have reference pin profiles, but no universal pin map is assumed. No radio library or legal RF profile is frozen. A provisional host-reference frame envelope exists, but its magic, field widths, checksum choice, payload schemas, arbitration timing and retry policy constants remain unapproved pending a separate normative protocol review. Queue capacities and concrete flash persistence layout must be selected from target memory/endurance measurements. RA-02/SX1278 integration
 must retain 3.3 V logic/power requirements and pass Indian WPC verification before
 transmission. Hardware adapters and runtime behavior remain future work.
 
@@ -151,4 +156,4 @@ cycle under Indian WPC rules. A provisional binary frame envelope is versioned a
 with CRC32; this is a host-reference implementation, not an approved wire standard.
 Payload fields are still assembled by application code and need a single normative
 message-schema table before interoperability testing. The cart claim client
-requires a durable transaction-ID seed. The current station reference policy commits the first valid claim received; it does not provide an RF fairness window. No concrete flash, radio or MCU adapter exists yet.
+requires a durable transaction-ID seed. The current station reference policy commits the first valid claim received; it does not provide an RF fairness window. The Arduino core adapters and PCF8574 LCD adapter are reference implementations only; no RA-02 radio or physical persistence adapter exists yet.
