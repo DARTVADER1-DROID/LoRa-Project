@@ -68,8 +68,21 @@ public:
       return Status(ErrorCode::INVALID_ARGUMENT);
     if (findIndex(record.id) >= 0)
       return Status(ErrorCode::DUPLICATE);
-    if (count_ >= StorageCapacity)
-      return Status(ErrorCode::CAPACITY_EXCEEDED);
+    if (count_ >= StorageCapacity) {
+      uint16_t oldestTerminalIndex = count_;
+      for (uint16_t i = 0; i < count_; ++i) {
+        if (isTerminalRequestState(records_[i].state)) {
+          oldestTerminalIndex = i;
+          break;
+        }
+      }
+      if (oldestTerminalIndex == count_)
+        return Status(ErrorCode::CAPACITY_EXCEEDED);
+      for (uint16_t i = oldestTerminalIndex; i + 1U < count_; ++i)
+        records_[i] = records_[i + 1U];
+      --count_;
+      records_[count_] = RequestRecord();
+    }
     records_[count_++] = record;
     return Status();
   }
