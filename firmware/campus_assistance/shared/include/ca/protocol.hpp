@@ -34,7 +34,7 @@ struct ProtocolEvent {
 };
 
 class FrameCodec {
- public:
+public:
   virtual ~FrameCodec() {}
   virtual EncodeResult encode(const ProtocolMessage& message,
                               MutableFrameView output) const = 0;
@@ -42,14 +42,14 @@ class FrameCodec {
 };
 
 class MessageValidator {
- public:
+public:
   virtual ~MessageValidator() {}
   virtual Status validate(const ProtocolMessage& message,
                           const DeviceConfig& localConfig) const = 0;
 };
 
 class ProtocolEndpoint {
- public:
+public:
   virtual ~ProtocolEndpoint() {}
   virtual Status begin() = 0;
   virtual void service(uint32_t nowMs) = 0;
@@ -59,7 +59,7 @@ class ProtocolEndpoint {
 };
 
 class RetryManager {
- public:
+public:
   virtual ~RetryManager() {}
   virtual Status schedule(const ProtocolMessage& message, uint32_t nowMs) = 0;
   virtual void service(uint32_t nowMs) = 0;
@@ -67,4 +67,4 @@ class RetryManager {
   virtual void cancel(TransactionId transactionId) = 0;
 };
 
-}  // namespace ca
+} // namespace ca

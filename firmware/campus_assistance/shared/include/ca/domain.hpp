@@ -5,14 +5,14 @@
 namespace ca {
 
 class RequestIdentity {
- public:
+public:
   static bool isValid(const RequestId& id);
   static bool equals(const RequestId& lhs, const RequestId& rhs);
   static uint32_t hash(const RequestId& id);
 };
 
 class PendingRequestStore {
- public:
+public:
   virtual ~PendingRequestStore() {}
   virtual Status configure(uint16_t capacity) = 0;
   virtual Status insertIfAbsent(const RequestSummary& request) = 0;
@@ -27,19 +27,18 @@ class PendingRequestStore {
 };
 
 class ActiveAssignment {
- public:
+public:
   virtual ~ActiveAssignment() {}
   virtual bool isOccupied() const = 0;
   virtual Status activate(const AssignmentRecord& stationConfirmed) = 0;
-  virtual Status updateJourneyStatus(JourneyStatus status,
-                                     EventSequence sequence) = 0;
+  virtual Status updateJourneyStatus(JourneyStatus status, EventSequence sequence) = 0;
   virtual Status complete(const DriverAction& action) = 0;
   virtual Status clearAfterTerminal() = 0;
   virtual bool get(AssignmentRecord& assignment) const = 0;
 };
 
 class DriverAvailabilityController {
- public:
+public:
   virtual ~DriverAvailabilityController() {}
   virtual DriverMode mode() const = 0;
   virtual Status enableAcceptance(const DriverAction& action) = 0;
@@ -50,7 +49,7 @@ class DriverAvailabilityController {
 };
 
 class DestinationCatalog {
- public:
+public:
   virtual ~DestinationCatalog() {}
   virtual Status load(const DestinationConfig& config) = 0;
   virtual uint16_t count() const = 0;
@@ -60,12 +59,12 @@ class DestinationCatalog {
 };
 
 class RequestLedger : public IRequestRepository {
- public:
+public:
   virtual ~RequestLedger() {}
 };
 
 class RequestLifecycle {
- public:
+public:
   virtual ~RequestLifecycle() {}
   virtual Status create(const NewRequest& input, RequestRecord& created) = 0;
   virtual Status cancel(const RequestId& id, CancellationSource source) = 0;
@@ -77,7 +76,7 @@ class RequestLifecycle {
 // The only component permitted to commit a winning cart assignment.
 // It owns arbitration and performs the ledger update as one atomic operation.
 class StationClaimCoordinator {
- public:
+public:
   virtual ~StationClaimCoordinator() {}
   virtual Status evaluate(const ClaimRequest& claim, uint32_t stationNowMs) const = 0;
   virtual Status commitWinner(const ClaimRequest& claim,
@@ -86,7 +85,7 @@ class StationClaimCoordinator {
 };
 
 class CartClaimClient {
- public:
+public:
   virtual ~CartClaimClient() {}
   virtual Status requestClaim(const RequestId& id, DeviceId cartId) = 0;
   virtual void onClaimResult(const ClaimResult& result) = 0;
@@ -95,14 +94,14 @@ class CartClaimClient {
 };
 
 class JourneyProgressController {
- public:
+public:
   virtual ~JourneyProgressController() {}
   virtual Status advance(JourneyStatus next, const DriverAction& action) = 0;
   virtual JourneyStatus current() const = 0;
 };
 
 class EventReconciler {
- public:
+public:
   virtual ~EventReconciler() {}
   virtual Status applyAssignmentNotice(const AssignmentNotice& notice) = 0;
   virtual Status applyCancellationNotice(const CancellationNotice& notice) = 0;
@@ -110,4 +109,4 @@ class EventReconciler {
   virtual Status applySnapshot(const RequestSnapshot& snapshot) = 0;
 };
 
-}  // namespace ca
+} // namespace ca

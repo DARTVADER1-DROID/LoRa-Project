@@ -43,7 +43,7 @@ struct CartDependencies {
 };
 
 class StationApplication {
- public:
+public:
   explicit StationApplication(StationDependencies dependencies);
   Status begin(const DeviceConfig& config);
   void service();
@@ -51,14 +51,14 @@ class StationApplication {
   void onProtocolEvent(const ProtocolEvent& event);
   bool isHealthy() const;
 
- private:
+private:
   StationDependencies dependencies_;
   DeviceConfig config_;
   bool initialized_;
 };
 
 class CartApplication {
- public:
+public:
   explicit CartApplication(CartDependencies dependencies);
   Status begin(const DeviceConfig& config);
   void service();
@@ -67,10 +67,10 @@ class CartApplication {
   DriverMode driverMode() const;
   bool hasActiveAssignment() const;
 
- private:
+private:
   CartDependencies dependencies_;
   DeviceConfig config_;
   bool initialized_;
 };
 
-}  // namespace ca
+} // namespace ca

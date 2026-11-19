@@ -9,7 +9,7 @@ namespace ca {
 // It coordinates abstractions but does not implement request persistence,
 // arbitration, frame encoding or hardware access.
 class StationRequestController {
- public:
+public:
   StationRequestController(DestinationCatalog& destinations,
                            RequestLifecycle& lifecycle,
                            IClock& clock,
@@ -19,7 +19,7 @@ class StationRequestController {
   Status submit(RequestId& createdRequestId);
   Status cancelCurrentRequest();
 
- private:
+private:
   DestinationCatalog& destinations_;
   RequestLifecycle& lifecycle_;
   IClock& clock_;
@@ -30,4 +30,4 @@ class StationRequestController {
   bool hasCurrentRequest_;
 };
 
-}  // namespace ca
+} // namespace ca

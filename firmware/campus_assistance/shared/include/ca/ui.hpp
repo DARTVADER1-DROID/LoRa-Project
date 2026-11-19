@@ -16,8 +16,15 @@ struct CartUiContext {
 };
 
 enum class UiIntentType : uint8_t {
-  NONE, NEXT, PREVIOUS, CONFIRM, CANCEL, ENABLE_ACCEPTANCE,
-  DISABLE_ACCEPTANCE, ADVANCE_JOURNEY, CONFIRM_COMPLETION
+  NONE,
+  NEXT,
+  PREVIOUS,
+  CONFIRM,
+  CANCEL,
+  ENABLE_ACCEPTANCE,
+  DISABLE_ACCEPTANCE,
+  ADVANCE_JOURNEY,
+  CONFIRM_COMPLETION
 };
 
 struct UiIntent {
@@ -26,25 +33,24 @@ struct UiIntent {
 };
 
 class ButtonEventInterpreter {
- public:
+public:
   virtual ~ButtonEventInterpreter() {}
   virtual UiIntent interpret(const ButtonEvent& event,
                              const UiContext& context) const = 0;
 };
 
 class StationUserInterface {
- public:
+public:
   virtual ~StationUserInterface() {}
   virtual void onIntent(const UiIntent& intent) = 0;
   virtual UiViewModel view() const = 0;
 };
 
 class CartUserInterface {
- public:
+public:
   virtual ~CartUserInterface() {}
-  virtual void onIntent(const UiIntent& intent,
-                        const CartUiContext& context) = 0;
+  virtual void onIntent(const UiIntent& intent, const CartUiContext& context) = 0;
   virtual UiViewModel view() const = 0;
 };
 
-}  // namespace ca
+} // namespace ca
