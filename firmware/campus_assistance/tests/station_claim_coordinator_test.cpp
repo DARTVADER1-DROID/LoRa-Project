@@ -43,7 +43,8 @@ int main() {
   withdrawal.transactionId = first.transactionId;
   assert(coordinator.withdrawClaim(withdrawal).ok());
   assert(coordinator.withdrawClaim(withdrawal).ok());
-  assert(coordinator.commitWinner(first, 202, *new AssignmentRecord()).code ==
+  AssignmentRecord rejectedAssignment = {};
+  assert(coordinator.commitWinner(first, 202, rejectedAssignment).code ==
          ErrorCode::STALE_EVENT);
 
   assert(coordinator.evaluate(competing, 203).ok());
