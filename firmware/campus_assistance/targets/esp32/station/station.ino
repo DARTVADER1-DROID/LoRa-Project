@@ -1,12 +1,26 @@
 #include "ca/platform/arduino_core_adapters.hpp"
 #include "ca/platform/arduino_pcf8574_lcd.hpp"
 #include "ca/platform/arduino_sx127x_transport.hpp"
+#include "ca/platform/esp32/devkit_v1_profile.hpp"
 
-// ESP32 station entry point. DevKit V1 is the initial reference; alternate ESP32 boards
-// need their own pin profile.
+using namespace ca;
+using namespace ca::platform;
+
+const BoardPinMap kBoardPins = Esp32DevKitV1Profile::pins();
+ArduinoSx1278Transport radio(kBoardPins, SPI);
+ArduinoButtonPinReader buttonReader(kBoardPins);
+DebouncedButtonInput buttons(buttonReader);
+ArduinoPcf8574Lcd display(kBoardPins, 0x27);
+ArduinoBuzzer buzzer(kBoardPins.buzzerPin);
+
+// Hardware composition is not yet wired to the role application.
 void setup() {
-  // TODO: after board selection, construct ESP32 adapters and StationApplication.
+  (void)radio;
+  (void)buttons;
+  (void)display;
+  (void)buzzer;
 }
+
 void loop() {
-  // TODO: service StationApplication non-blockingly.
+  // The eventual StationApplication service call must remain non-blocking.
 }
