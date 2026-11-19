@@ -156,7 +156,7 @@ int main() {
   assert(cartRegistry.load(cartView).ok());
 
   FakeRadioTransport broadcastTransport;
-  FixedRetryManager<4> broadcastRetries(policy);
+  FixedRetryManager<1> broadcastRetries(policy);
   FixedProtocolEndpoint<4> broadcastEndpoint(codec,
                                              validator,
                                              broadcastTransport,
@@ -180,7 +180,7 @@ int main() {
   assert(MessagePayloadCodec::encode(assignment, outgoing).ok());
   assert(broadcastEndpoint.enqueue(outgoing, DeliveryClass::RETRY_UNTIL_ACK).ok());
   broadcastEndpoint.service(0);
-  assert(broadcastTransport.sentCount == 2);
+  assert(broadcastTransport.sentCount == 1);
 
   ProtocolEvent wrongAck = {};
   wrongAck.type = ProtocolEventType::ACKNOWLEDGEMENT_RECEIVED;
@@ -200,6 +200,17 @@ int main() {
   broadcastEndpoint.service(2);
   assert(broadcastEndpoint.pollRetryOutcome(outcome));
   assert(outcome.transactionId == 500 + 4UL * 65537UL);
+  assert(outcome.outcome == RetryOutcomeCode::ACKNOWLEDGED);
+
+  broadcastEndpoint.service(3);
+  assert(broadcastTransport.sentCount == 2);
+  wrongAck.envelope.sourceDeviceId = 5;
+  wrongAck.envelope.transactionId = 500 + 5UL * 65537UL;
+  assert(MessagePayloadCodec::encode(wrongAck, incoming).ok());
+  assert(broadcastTransport.inject(incoming, codec));
+  broadcastEndpoint.service(4);
+  assert(broadcastEndpoint.pollRetryOutcome(outcome));
+  assert(outcome.transactionId == 500 + 5UL * 65537UL);
   assert(outcome.outcome == RetryOutcomeCode::ACKNOWLEDGED);
   return 0;
 }
