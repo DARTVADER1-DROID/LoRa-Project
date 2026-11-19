@@ -8,6 +8,7 @@ const uint16_t kDiagnosticInitializationFailure = 1;
 const uint16_t kDiagnosticProtocolEventRejected = 2;
 const uint16_t kDiagnosticButtonEventRejected = 3;
 const uint16_t kDiagnosticRetryExhausted = 4;
+const uint32_t kSnapshotQueryIntervalMs = 1000UL;
 
 bool isValidButtonProfile(const ButtonConfig& config) {
   return config.buttonCount > 0 && config.buttonCount <= kMaxPhysicalButtons &&
@@ -520,7 +521,9 @@ bool StationApplication::isHealthy() const {
 }
 
 CartApplication::CartApplication(CartDependencies dependencies)
-    : dependencies_(dependencies), config_(), initialized_(false) {
+    : dependencies_(dependencies), config_(), pendingJourneySyncRequestId_(),
+      pendingJourneySyncSequence_(0), lastSnapshotQueryAtMs_(0),
+      snapshotQueryCounter_(1), journeySyncPending_(false), initialized_(false) {
 }
 
 Status CartApplication::begin(const DeviceConfig& config) {
@@ -565,6 +568,7 @@ void CartApplication::service() {
     return;
 
   const uint32_t nowMs = dependencies_.clock.millisNow();
+  serviceJourneySync(nowMs);
   dependencies_.buttons.service(nowMs);
   dependencies_.buzzer.service(nowMs);
   dependencies_.protocol.service(nowMs);
@@ -631,6 +635,10 @@ void CartApplication::onButtonEvent(const ButtonEvent& event) {
       dependencies_.diagnostics.record(kDiagnosticButtonEventRejected, status.code);
       return;
     }
+    pendingJourneySyncRequestId_ = assignment.requestId;
+    pendingJourneySyncSequence_ = nextSequence;
+    lastSnapshotQueryAtMs_ = event.timestampMs;
+    journeySyncPending_ = true;
 
     if (completing) {
       status = dependencies_.activeAssignment.complete(action);
@@ -812,6 +820,14 @@ void CartApplication::onProtocolEvent(const ProtocolEvent& event) {
       break;
     }
     status = dependencies_.reconciler.applySnapshot(snapshot);
+    if (status.ok() && journeySyncPending_ &&
+        RequestIdentity::equals(snapshot.requestId, pendingJourneySyncRequestId_)) {
+      const SerialNumberOrder order =
+          compareSequence(snapshot.lastEventSequence, pendingJourneySyncSequence_);
+      if (order == SerialNumberOrder::EQUAL ||
+          order == SerialNumberOrder::NEWER)
+        clearJourneySync();
+    }
     break;
   }
   case ProtocolEventType::CLAIM_RESULT_RECEIVED:
@@ -852,6 +868,47 @@ void CartApplication::onProtocolEvent(const ProtocolEvent& event) {
       status.code != ErrorCode::EXPIRED) {
     dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected, status.code);
   }
+}
+
+void CartApplication::serviceJourneySync(uint32_t nowMs) {
+  if (!journeySyncPending_ ||
+      !hasElapsed(nowMs, lastSnapshotQueryAtMs_, kSnapshotQueryIntervalMs))
+    return;
+
+  ProtocolMessage message = {};
+  message.header.protocolVersion = config_.protocolVersion;
+  message.header.networkId = config_.networkId;
+  message.header.messageType = MessageType::SNAPSHOT_QUERY;
+  message.header.sourceDeviceId = config_.deviceId;
+  message.header.destinationDeviceId = pendingJourneySyncRequestId_.originStationId;
+  message.header.transactionId =
+      transactionFor(pendingJourneySyncRequestId_) ^
+      (snapshotQueryCounter_ * 2246822519UL) ^ 0x40000000UL;
+  if (message.header.transactionId == 0)
+    message.header.transactionId = snapshotQueryCounter_;
+  message.header.messageSequence = snapshotQueryCounter_;
+
+  uint16_t offset = 0;
+  put16(message.payload, offset, pendingJourneySyncRequestId_.originStationId);
+  put32(message.payload, offset, pendingJourneySyncRequestId_.sequence);
+  put16(message.payload, offset, pendingJourneySyncRequestId_.generation);
+  message.payloadLength = offset;
+
+  const Status queued =
+      dependencies_.protocol.enqueue(message, DeliveryClass::RETRY_UNTIL_ACK);
+  lastSnapshotQueryAtMs_ = nowMs;
+  ++snapshotQueryCounter_;
+  if (snapshotQueryCounter_ == 0)
+    snapshotQueryCounter_ = 1;
+  if (!queued.ok())
+    dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected, queued.code);
+}
+
+void CartApplication::clearJourneySync() {
+  journeySyncPending_ = false;
+  pendingJourneySyncRequestId_ = RequestId();
+  pendingJourneySyncSequence_ = 0;
+  lastSnapshotQueryAtMs_ = 0;
 }
 
 AcceptanceMode CartApplication::acceptanceMode() const {
