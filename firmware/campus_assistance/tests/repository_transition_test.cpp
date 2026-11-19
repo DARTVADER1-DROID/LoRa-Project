@@ -132,6 +132,8 @@ public:
       updated = *r;
       return Status();
     }
+    if (r->state == RequestState::EXPIRED)
+      return Status(ErrorCode::EXPIRED);
     r->state = RequestState::CANCELLED;
     if (r->claimState == ClaimState::PENDING)
       r->claimState = ClaimState::WITHDRAWN;
