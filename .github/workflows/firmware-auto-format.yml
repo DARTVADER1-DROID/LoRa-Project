@@ -39,5 +39,5 @@ jobs:
         run: cmake -S firmware/campus_assistance -B build/campus-assistance
       - name: Compile public C++11 contracts
         run: cmake --build build/campus-assistance --parallel
-      - name: Run contract smoke test
+      - name: Run host contract tests
         run: ctest --test-dir build/campus-assistance --output-on-failure
