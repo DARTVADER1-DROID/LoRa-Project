@@ -50,7 +50,7 @@ StationApplication / CartApplication
 | `StationClaimCoordinator` | Evaluate claims and commit the single winning assignment | Request creation, driver input |
 | `PendingRequestStore` | Bounded cart-local FIFO and exact identity removal | Global ownership or network cancellation |
 | `ActiveAssignment` | Hold zero or one station-confirmed assignment | Pending FIFO or claim arbitration |
-| `DriverAvailabilityController` | Enforce driver acceptance state transitions | Radio receive or request queueing |
+| `DriverAvailabilityController` | Enforce acceptance/service state transitions and consume claim-start/withdrawal lifecycle notifications | Radio receive, request queueing or claim transaction identity |
 | `CartClaimClient` | Track one bounded outstanding claim transaction | Declaring itself assigned |
 | `EventReconciler` | Apply authoritative notices/snapshots idempotently | Frame parsing or request creation |
 | `FrameCodec` | Encode/decode bounded wire frames and integrity field | Business validation or arbitration |
@@ -213,3 +213,20 @@ Every ProtocolEvent retains the decoded ProtocolHeader and sender-validation lev
 - StationClaimCoordinator::commitWinner receives stationNowMs and passes it to the repository's atomic commit operation. A prior evaluate() cannot authorize a later commit after expiry or cancellation.
 - CTest includes a fixed-capacity fake repository transition suite covering withdrawal-before-commit, commit-before-delayed-withdrawal, cancellation/expiry closing a pending claim, and claim rejection at the expiry boundary.
 - These tests validate the specified transition contract against a reference fake; they do not prove a production repository implementation, flash atomicity, reboot recovery, concurrency primitives or radio behavior. Every concrete repository adapter must run the same contract suite or an equivalent adapter-level suite.
+
+
+## 11. Concrete component file boundaries
+
+Concrete cart policies are implemented in focused translation units under
+`shared/src/cart/`, with matching declarations under `shared/include/ca/cart/`.
+The driver availability controller owns only the acceptance and service-state
+dimensions. `CartClaimClient` remains the sole owner of the outstanding claim
+identity; the availability controller receives `onClaimStarted()` and
+`onClaimWithdrawnByStation()` notifications and does not retain a second copy of
+that transaction.
+
+Fixed-capacity storage templates are grouped under
+`shared/include/ca/storage/`. Their template definitions remain visible in the
+header because the compiler must instantiate them for the target-selected capacity.
+These templates are bounded volatile storage; they do not provide durable station
+recovery or atomic flash persistence.
