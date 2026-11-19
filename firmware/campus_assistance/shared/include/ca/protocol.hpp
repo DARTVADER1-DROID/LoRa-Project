@@ -61,7 +61,8 @@ public:
                                  SenderValidation& validation) const = 0;
 };
 
-// Versioned, bounded wire framing. All multi-byte fields are big-endian.
+// Provisional reference framing for host tests. Numeric layout, magic and CRC
+// choice are not frozen until the protocol schema receives a separate review.
 class BinaryFrameCodec final : public FrameCodec {
 public:
   EncodeResult encode(const ProtocolMessage& message,
