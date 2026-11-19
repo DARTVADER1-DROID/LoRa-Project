@@ -35,7 +35,8 @@ public:
                         ICartRegistry& cartRegistry)
       : codec_(codec), validator_(validator), transport_(transport), retries_(retries),
         config_(config), radioProfile_(radioProfile), cartRegistry_(&cartRegistry),
-        eventHead_(0), eventCount_(0), broadcastHead_(0), broadcastCount_(0), nowMs_(0),
+        eventHead_(0), eventCount_(0), broadcastHead_(0), broadcastCount_(0),
+        recentHead_(0), recentCount_(0), nowMs_(0),
         initialized_(false) {}
 
   Status begin() override {
