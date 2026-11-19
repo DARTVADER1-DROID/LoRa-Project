@@ -30,6 +30,8 @@ struct CartDependencies {
   IDisplay& display;
   IBuzzer& buzzer;
   IDiagnostics& diagnostics;
+  ConfigValidator& configValidator;
+  ButtonEventInterpreter& buttonInterpreter;
   ProtocolEndpoint& protocol;
   PendingRequestStore& pendingRequests;
   ActiveAssignment& activeAssignment;
