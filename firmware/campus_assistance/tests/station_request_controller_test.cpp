@@ -29,11 +29,12 @@ public:
   Status applyJourneyUpdate(const JourneyUpdate&) override { return Status(); }
   bool find(const RequestId&, RequestRecord&) const override { return false; }
 
-  uint16_t cancelCount_;
-  CancellationSource lastSource_;
-
 private:
   uint32_t next_;
+
+public:
+  uint16_t cancelCount_;
+  CancellationSource lastSource_;
 };
 
 class FakeProtocol : public ProtocolEndpoint {
@@ -74,6 +75,8 @@ int main() {
   config.protocolVersion = 1;
   StationRequestController controller(destinations, lifecycle, protocol, config);
 
+  assert(controller.service().ok());
+  assert(!protocol.enqueued_);
   assert(controller.selectDestination(99).code == ErrorCode::NOT_FOUND);
   assert(controller.selectDestination(3).ok());
   assert(!controller.hasCurrentRequest());

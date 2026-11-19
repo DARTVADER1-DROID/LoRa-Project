@@ -133,5 +133,33 @@ int main() {
   assert(persistence.erase(key).ok());
   assert(persistence.load(key, output, sizeof(output), bytesRead).code ==
          ErrorCode::NOT_FOUND);
+
+  // Exhaustively interrupt the second-slot update at each byte-write boundary.
+  // After a simulated reboot, storage must expose exactly the old or new value.
+  for (int32_t cut = 0; cut <= 180; ++cut) {
+    FakeByteStorage<256> cutStorage;
+    FixedDualSlotPersistence<128> writer(cutStorage, key);
+    assert(writer.begin().ok());
+    assert(writer.storeAtomically(key, oldValue, sizeof(oldValue)).ok());
+    cutStorage.failAfterWrites(cut);
+    const Status updateStatus =
+        writer.storeAtomically(key, newValue, sizeof(newValue));
+    cutStorage.failAfterWrites(-1);
+
+    FixedDualSlotPersistence<128> afterReset(cutStorage, key);
+    assert(afterReset.begin().ok());
+    uint8_t recovered[32] = {};
+    uint16_t recoveredLength = 0;
+    assert(afterReset.load(key, recovered, sizeof(recovered), recoveredLength).ok());
+    if (updateStatus.ok()) {
+      assert(recoveredLength == sizeof(newValue));
+      for (uint8_t i = 0; i < sizeof(newValue); ++i)
+        assert(recovered[i] == newValue[i]);
+    } else {
+      assert(recoveredLength == sizeof(oldValue));
+      for (uint8_t i = 0; i < sizeof(oldValue); ++i)
+        assert(recovered[i] == oldValue[i]);
+    }
+  }
   return 0;
 }

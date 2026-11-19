@@ -36,7 +36,8 @@ inline bool isValidPinMap(const BoardPinMap& pins) {
                                  pins.displaySda,
                                  pins.displayScl,
                                  pins.buttonPins[0],
-                                 pins.buttonCount > 1 ? pins.buttonPins[1] : -1,
+                                 pins.buttonCount > 1 ? pins.buttonPins[1]
+                                                      : static_cast<int8_t>(-1),
                                  pins.buzzerPin};
   for (uint8_t i = 0; i < 11; ++i) {
     if (activePins[i] < 0)

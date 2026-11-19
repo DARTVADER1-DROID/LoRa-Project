@@ -33,7 +33,7 @@ StationRequestController::StationRequestController(DestinationCatalog& destinati
                                                    const DeviceConfig& config)
     : destinations_(destinations), lifecycle_(lifecycle), protocol_(protocol),
       config_(config), selectedDestinationId_(0), currentRequestId_(),
-      hasSelection_(false), hasCurrentRequest_(false) {
+      hasSelection_(false), hasCurrentRequest_(false), cancellationPending_(false) {
 }
 
 Status StationRequestController::selectDestination(DeviceId destinationId) {

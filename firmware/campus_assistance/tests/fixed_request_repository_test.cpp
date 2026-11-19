@@ -132,5 +132,61 @@ int main() {
   assert(capacityCompaction.find(liveForEviction.id, out));
   assert(capacityCompaction.find(incoming.id, out));
   assert(capacityCompaction.insertNew(overflow).code == ErrorCode::CAPACITY_EXCEEDED);
+
+  // Request identity advances generation when the 32-bit sequence wraps.
+  FixedRequestRepository<1> allocatorWrap;
+  assert(allocatorWrap.configure().ok());
+  assert(allocatorWrap.restoreAllocatorState(0xFFFFFFFFUL, 10, false).ok());
+  RequestId finalSequence = {};
+  RequestId nextGeneration = {};
+  assert(allocatorWrap.reserveNextRequestId(1, finalSequence).ok());
+  assert(finalSequence.sequence == 0xFFFFFFFFUL);
+  assert(finalSequence.generation == 10);
+  assert(allocatorWrap.reserveNextRequestId(1, nextGeneration).ok());
+  assert(nextGeneration.sequence == 0);
+  assert(nextGeneration.generation == 11);
+
+  // The allocator emits its final representable identity once, then fails
+  // closed instead of wrapping into a previously used identity.
+  FixedRequestRepository<1> allocatorExhaustion;
+  assert(allocatorExhaustion.configure().ok());
+  assert(allocatorExhaustion.restoreAllocatorState(0xFFFFFFFFUL, 0xFFFFU, false).ok());
+  RequestId finalIdentity = {};
+  assert(allocatorExhaustion.reserveNextRequestId(1, finalIdentity).ok());
+  assert(finalIdentity.sequence == 0xFFFFFFFFUL);
+  assert(finalIdentity.generation == 0xFFFFU);
+  assert(allocatorExhaustion.identifiersExhausted());
+  assert(allocatorExhaustion.reserveNextRequestId(1, finalIdentity).code ==
+         ErrorCode::CAPACITY_EXCEEDED);
+
+  // Cancellation wins if it commits while a claim is pending; the later
+  // assignment commit must not resurrect a cancelled student request.
+  FixedRequestRepository<1> cancelWins;
+  RequestRecord cancelRace = makeRecord();
+  assert(cancelWins.configure().ok());
+  assert(cancelWins.insertNew(cancelRace).ok());
+  assert(cancelWins.beginClaimIfEligible(cancelRace.id, 21, 210, 101, out).ok());
+  assert(cancelWins.cancelIfUnassigned(
+             cancelRace.id, CancellationSource::STUDENT, out).ok());
+  assert(out.state == RequestState::CANCELLED);
+  assert(cancelWins.commitAssignmentIfClaimPending(
+             cancelRace.id, 21, 210, 1, 102, out).code == ErrorCode::CANCELLED);
+  assert(cancelWins.find(cancelRace.id, out));
+  assert(out.state == RequestState::CANCELLED);
+
+  // Assignment wins if its conditional commit occurs first; a later cancel
+  // is rejected and cannot undo the station-authoritative assignment.
+  FixedRequestRepository<1> assignmentWins;
+  RequestRecord assignmentRace = makeRecord();
+  assert(assignmentWins.configure().ok());
+  assert(assignmentWins.insertNew(assignmentRace).ok());
+  assert(assignmentWins.beginClaimIfEligible(assignmentRace.id, 22, 220, 101, out).ok());
+  assert(assignmentWins.commitAssignmentIfClaimPending(
+             assignmentRace.id, 22, 220, 1, 102, out).ok());
+  assert(assignmentWins.cancelIfUnassigned(
+             assignmentRace.id, CancellationSource::STUDENT, out).code ==
+         ErrorCode::ALREADY_ASSIGNED);
+  assert(assignmentWins.find(assignmentRace.id, out));
+  assert(out.state == RequestState::ASSIGNED);
   return 0;
 }

@@ -122,8 +122,14 @@ public:
                            DeviceId acknowledgingDeviceId,
                            uint32_t acknowledgedMessageSequence) override {
     Entry* entry = find(transactionId, acknowledgedMessageSequence);
-    if (entry == 0)
+    if (entry == 0) {
+      for (uint16_t i = 0; i < StorageCapacity; ++i) {
+        if (entries_[i].active &&
+            entries_[i].message.header.transactionId == transactionId)
+          return Status(ErrorCode::STALE_EVENT);
+      }
       return Status(ErrorCode::NOT_FOUND);
+    }
     if (entry->message.header.destinationDeviceId == 0 ||
         entry->message.header.destinationDeviceId != acknowledgingDeviceId ||
         entry->attemptsUsed == 0)

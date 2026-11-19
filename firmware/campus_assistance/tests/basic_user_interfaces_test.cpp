@@ -25,10 +25,11 @@ public:
   Status applyJourneyUpdate(const JourneyUpdate&) override { return Status(); }
   bool find(const RequestId&, RequestRecord&) const override { return false; }
 
-  uint16_t cancelCount_;
-
 private:
   uint32_t nextSequence_;
+
+public:
+  uint16_t cancelCount_;
 };
 
 class FakeProtocol : public ProtocolEndpoint {

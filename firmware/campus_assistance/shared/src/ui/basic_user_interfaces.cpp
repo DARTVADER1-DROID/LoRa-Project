@@ -49,6 +49,8 @@ UiViewModel BasicStationUserInterface::view() const {
   if (selectedDestinationId_ != 0 &&
       destinations_.findById(selectedDestinationId_, destination)) {
     copyLine(destinationLine, destination.label);
+    for (int8_t index = 13; index >= 0; --index)
+      destinationLine[index + 2] = destinationLine[index];
     destinationLine[0] = '>';
     destinationLine[1] = ' ';
   }
