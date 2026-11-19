@@ -359,8 +359,7 @@ void CartApplication::onButtonEvent(const ButtonEvent& event) {
     Status status =
         dependencies_.claimClient.requestClaim(pending.id, config_.deviceId);
     if (!status.ok()) {
-      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
-                                       status.code);
+      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected, status.code);
       return;
     }
 
@@ -379,8 +378,7 @@ void CartApplication::onButtonEvent(const ButtonEvent& event) {
       rejected.result = status.code;
       rejected.finalState = ClaimState::IDLE;
       dependencies_.claimClient.onClaimResult(rejected);
-      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
-                                       status.code);
+      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected, status.code);
       return;
     }
 
@@ -393,8 +391,7 @@ void CartApplication::onButtonEvent(const ButtonEvent& event) {
       rejected.finalState = ClaimState::IDLE;
       dependencies_.claimClient.onClaimResult(rejected);
       dependencies_.driverAvailability.onClaimWithdrawnByStation();
-      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
-                                       status.code);
+      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected, status.code);
     }
     return;
   }
