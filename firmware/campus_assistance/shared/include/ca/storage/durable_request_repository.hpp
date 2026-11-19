@@ -367,8 +367,7 @@ private:
 
     for (uint16_t i = 0; i < count; ++i) {
       const RequestRecord record = decodeRecord(encoded_, offset);
-      if (record.id.originStationId != stationId_ ||
-          !state_.restoreRecord(record).ok())
+      if (record.id.originStationId != stationId_ || !state_.restoreRecord(record).ok())
         return false;
     }
     if (offset != length - kChecksumBytes)
