@@ -111,7 +111,7 @@ Status CartEventReconciler::applySnapshot(const RequestSnapshot& snapshot) {
                    ? JourneyStatus::ARRIVED_AT_PICKUP
                    : JourneyStatus::COMPLETED);
     const Status update =
-        activeAssignment_.updateJourneyStatus(journey, snapshot.lastEventSequence);
+        activeAssignment_.reconcileSnapshot(journey, snapshot.lastEventSequence);
     if (!update.ok() && update.code != ErrorCode::STALE_EVENT)
       return update;
 
