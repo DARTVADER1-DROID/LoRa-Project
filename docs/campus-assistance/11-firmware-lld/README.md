@@ -15,10 +15,11 @@ This folder is the implementation blueprint. It defines layers, responsibilities
 3. [Function contracts and state machines](03-function-contracts-and-state-machines.md)
 4. [Protocol and distributed coordination](04-protocol-and-distributed-coordination.md)
 5. [Memory, portability and verification](05-memory-portability-and-verification.md)
+6. [SOLID boundaries and scalability contracts](06-solid-and-scalability-contracts.md)
 
 ## Code skeleton
 
-The LLD contracts have been laid out as an organized C++/Arduino skeleton in [firmware/campus_assistance](../../../firmware/campus_assistance/README.md). The skeleton separates shared domain/protocol/application contracts, platform ports and four role/MCU sketch entry points. Methods remain stubs and non-void methods return NOT_IMPLEMENTED until implemented. The sketches are inert. No claim of build readiness or hardware functionality is made.
+The LLD contracts have been laid out as an organized C++/Arduino skeleton in [firmware/campus_assistance](../../../firmware/campus_assistance/README.md). The scaffold separates portable contracts, hardware ports, role use cases and four role/MCU sketch entry points. Runtime implementations and target adapters remain intentionally pending. The host CMake target checks that public headers compile as C++11 contracts; it does not claim operational firmware or target hardware build readiness.
 
 ## Normative constraints
 
@@ -36,6 +37,10 @@ The LLD contracts have been laid out as an organized C++/Arduino skeleton in [fi
 - Maximum two physical buttons per node; 16×2 LCD and buzzer.
 - Firmware provisioning initially; no runtime enrollment/password UI.
 - No vehicle actuation or safety-critical vehicle control.
+
+## Architecture conformance
+
+The normative SOLID and scalability rules are in [06 — SOLID Boundaries, Ownership and Scalability Contracts](06-solid-and-scalability-contracts.md). In particular, the station claim coordinator is the only assignment-commit authority, the request repository stores complete records and provides an atomic assign-if-unassigned guard, and both role applications use explicit dependency injection.
 
 ## Conventions
 
