@@ -63,4 +63,16 @@ bool RepositoryStationClaimCoordinator::isAssigned(const RequestId& id) const {
          record.state == RequestState::COMPLETED;
 }
 
+bool RepositoryStationClaimCoordinator::getAssignment(
+    const RequestId& id, AssignmentRecord& assignment) const {
+  RequestRecord record = {};
+  if (!repository_.find(id, record) || !isAssigned(id))
+    return false;
+  assignment.requestId = record.id;
+  assignment.assignedCartId = record.assignedCartId;
+  assignment.epoch = record.assignmentEpoch;
+  assignment.state = RequestState::ASSIGNED;
+  return true;
+}
+
 } // namespace ca
