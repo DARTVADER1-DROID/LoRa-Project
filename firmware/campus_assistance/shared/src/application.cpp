@@ -503,13 +503,19 @@ void CartApplication::service() {
   dependencies_.buzzer.service(nowMs);
   dependencies_.protocol.service(nowMs);
 
-  ButtonEvent buttonEvent = {};
-  if (dependencies_.buttons.pollEvent(buttonEvent))
+  for (uint8_t processed = 0; processed < 4; ++processed) {
+    ButtonEvent buttonEvent = {};
+    if (!dependencies_.buttons.pollEvent(buttonEvent))
+      break;
     onButtonEvent(buttonEvent);
+  }
 
-  ProtocolEvent protocolEvent = {};
-  if (dependencies_.protocol.pollEvent(protocolEvent))
+  for (uint8_t processed = 0; processed < 4; ++processed) {
+    ProtocolEvent protocolEvent = {};
+    if (!dependencies_.protocol.pollEvent(protocolEvent))
+      break;
     onProtocolEvent(protocolEvent);
+  }
 
   dependencies_.display.render(dependencies_.ui.view());
 }
