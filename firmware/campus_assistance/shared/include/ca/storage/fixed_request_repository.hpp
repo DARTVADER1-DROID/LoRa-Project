@@ -15,6 +15,8 @@ public:
   FixedRequestRepository() : count_(0), configured_(false) {}
 
   Status configure() {
+    if (configured_)
+      return count_ == 0 ? Status() : Status(ErrorCode::INVALID_STATE);
     count_ = 0;
     configured_ = true;
     return Status();
@@ -110,6 +112,8 @@ public:
       return Status(ErrorCode::NOT_FOUND);
     if (record->claimState == ClaimState::COMMITTED && record->claimCartId == cartId &&
         record->claimTransactionId == transactionId) {
+      if (record->assignmentEpoch != epoch)
+        return Status(ErrorCode::STALE_EVENT);
       updated = *record;
       return Status();
     }
@@ -137,8 +141,17 @@ public:
   }
 
   Status cancelIfUnassigned(const RequestId& id,
-                            CancellationSource,
+                            CancellationSource source,
                             RequestRecord& updated) override {
+    switch (source) {
+    case CancellationSource::STUDENT:
+    case CancellationSource::STATION_OPERATOR:
+    case CancellationSource::SYSTEM:
+      break;
+    default:
+      return Status(ErrorCode::INVALID_ARGUMENT);
+    }
+
     RequestRecord* record = mutableFind(id);
     if (!record)
       return Status(ErrorCode::NOT_FOUND);
