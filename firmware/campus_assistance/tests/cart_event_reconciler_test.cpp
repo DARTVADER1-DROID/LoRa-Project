@@ -67,6 +67,37 @@ int main() {
   assert(losingAvailability.serviceState() == CartServiceState::IDLE);
   assert(losingAvailability.acceptanceMode() == AcceptanceMode::ACCEPTING);
 
+
+  // A station snapshot preserves this cart's exact pending claim transaction.
+  const RequestId pendingId = {1, 5, 1};
+  FixedPendingRequestStore<2> claimPending;
+  assert(claimPending.configure(2).ok());
+  FixedActiveAssignment claimActive;
+  BasicDriverAvailabilityController claimAvailability;
+  FixedCartClaimClient ownClaim(7, 400);
+  CartEventReconciler claimReconciler(
+      7, claimPending, claimActive, claimAvailability, ownClaim);
+  assert(ownClaim.requestClaim(pendingId, 7).ok());
+  assert(claimAvailability.enableAcceptance(enable).ok());
+  assert(claimAvailability.onClaimStarted().ok());
+
+  RequestSnapshot claimPendingSnapshot = {};
+  claimPendingSnapshot.requestId = pendingId;
+  claimPendingSnapshot.state = RequestState::CLAIM_PENDING;
+  claimPendingSnapshot.claimState = ClaimState::PENDING;
+  claimPendingSnapshot.claimCartId = 7;
+  claimPendingSnapshot.claimTransactionId = 400;
+  assert(claimReconciler.applySnapshot(claimPendingSnapshot).ok());
+  assert(ownClaim.hasClaimInFlight());
+  assert(claimAvailability.serviceState() == CartServiceState::CLAIM_PENDING);
+
+  // If the station says another cart owns the pending claim, resolve our claim.
+  claimPendingSnapshot.claimCartId = 8;
+  claimPendingSnapshot.claimTransactionId = 500;
+  assert(claimReconciler.applySnapshot(claimPendingSnapshot).ok());
+  assert(!ownClaim.hasClaimInFlight());
+  assert(claimAvailability.serviceState() == CartServiceState::IDLE);
+
   const RequestId third = {1, 3, 1};
   RequestSnapshot snapshot = {};
   snapshot.requestId = third;
