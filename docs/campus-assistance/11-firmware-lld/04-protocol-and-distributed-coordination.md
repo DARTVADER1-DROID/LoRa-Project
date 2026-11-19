@@ -247,3 +247,17 @@ allows the cart to clear its local terminal assignment and remain NOT_ACCEPTING;
 the driver must explicitly re-enable acceptance. A duplicate journey update may
 cause the station to resend the current snapshot. A transport ACK alone is not
 sufficient evidence that the station committed the lifecycle transition.
+
+
+## 17. Delivery transaction versus claim transaction
+
+A CLAIM_WITHDRAW has two distinct identities. Its frame-envelope transaction ID
+correlates delivery/retry/ACK for the withdrawal message. Its payload carries the
+original claim transaction ID, which is the station repository key used to match
+and withdraw the pending claim. These IDs must not be conflated: a withdrawal may
+be queued while the original CLAIM is still awaiting a transport ACK.
+
+Station request, cancellation, assignment and expiry deliveries also use distinct
+transaction IDs derived from the complete RequestId and a message-phase discriminator.
+A transport ACK therefore cannot accidentally acknowledge a different phase of the
+same request. These encodings remain provisional until the wire schema is frozen.
