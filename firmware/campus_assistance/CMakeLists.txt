@@ -72,6 +72,10 @@ add_executable(fixed_destination_catalog_test
   tests/fixed_destination_catalog_test.cpp)
 target_link_libraries(fixed_destination_catalog_test PRIVATE campus_assistance_contracts)
 
+add_executable(station_request_controller_test
+  tests/station_request_controller_test.cpp)
+target_link_libraries(station_request_controller_test PRIVATE campus_assistance_contracts)
+
 enable_testing()
 add_test(NAME contract_compile COMMAND contract_compile)
 add_test(NAME repository_transition_test COMMAND repository_transition_test)
@@ -89,3 +93,4 @@ add_test(NAME station_claim_coordinator_test COMMAND station_claim_coordinator_t
 add_test(NAME cart_claim_client_test COMMAND cart_claim_client_test)
 add_test(NAME cart_event_reconciler_test COMMAND cart_event_reconciler_test)
 add_test(NAME fixed_destination_catalog_test COMMAND fixed_destination_catalog_test)
+add_test(NAME station_request_controller_test COMMAND station_request_controller_test)
