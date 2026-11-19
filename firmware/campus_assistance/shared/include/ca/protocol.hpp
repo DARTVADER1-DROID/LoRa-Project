@@ -102,6 +102,7 @@ public:
   virtual Status enqueue(const ProtocolMessage& message,
                          DeliveryClass deliveryClass) = 0;
   virtual bool pollEvent(ProtocolEvent& event) = 0;
+  virtual bool pollRetryOutcome(RetryOutcome& outcome) = 0;
 };
 
 class RetryManager {
@@ -116,6 +117,8 @@ public:
                                    DeviceId acknowledgingDeviceId) = 0;
   virtual Status cancel(TransactionId transactionId) = 0;
   virtual bool pollOutcome(RetryOutcome& outcome) = 0;
+  virtual uint16_t capacity() const = 0;
+  virtual uint16_t pendingCount() const = 0;
 };
 
 } // namespace ca
