@@ -153,3 +153,54 @@ Applications and use cases receive interfaces/references through composition str
 5. Implement protocol endpoint/retry using byte-oriented radio port.
 6. Implement role application orchestration and UI intents.
 7. Add target-specific adapters and only then select/build exact hardware profiles.
+
+## 11. Review corrections — enforceable distributed invariants
+
+This section supersedes conflicting wording above and is normative.
+
+### 11.1 Repository is a transition boundary, not a mutable record bag
+
+IRequestRepository deliberately has no generic update. Its state-changing methods are conditional atomic operations:
+
+- insertNew
+- beginClaimIfEligible
+- withdrawClaimIfPending
+- commitAssignmentIfClaimPending
+- cancelIfUnassigned
+- expireIfDue
+- applyJourneyUpdateIfCurrent
+
+Each operation must be linearizable for a full RequestId. Assignment commit checks exact cart and claim transaction identity, current claim state PENDING, non-terminal/unassigned request state and station-authoritative expiry in one atomic operation. Cancellation and expiry cannot overwrite an assignment; assignment cannot overwrite cancellation or expiry. The concrete repository is the final invariant guard even when a coordinator performs policy checks first.
+
+### 11.2 Claim withdrawal is a durable transaction
+
+The claim transaction key is (RequestId, cartId, transactionId). Its lifecycle is IDLE -> PENDING -> WITHDRAWN | COMMITTED.
+
+- CartClaimClient exposes request and withdrawal operations and retains the outstanding identity until a final station outcome is known.
+- StationClaimCoordinator exposes withdrawal and commit operations and is the only assignment writer.
+- withdrawClaimIfPending and commitAssignmentIfClaimPending race on the same persisted record/transaction. Exactly one wins.
+- A withdrawal that wins closes that transaction; a later commit from it is rejected.
+- A commit that wins is immutable with respect to a delayed withdrawal; the station returns/retransmits the committed ASSIGN outcome.
+- Duplicate withdrawal and duplicate commit requests are idempotent and return the existing transaction outcome.
+- On reboot, station storage must preserve enough state to reject stale commits and resolve duplicates. If durable recovery cannot prove the transaction state, the station fails closed for that request until reconciliation.
+
+### 11.3 Protocol metadata and trust
+
+Every ProtocolEvent retains the decoded ProtocolHeader and sender-validation level. Applications must not infer sender identity from payload fields when the validated envelope is available. A station-originated ASSIGN is accepted only when envelope source role/ID, network, destination, transaction and message type pass validation and agree with the assignment payload. Network membership validation is not authentication; raw LoRa remains spoofable until cryptographic authentication and key provisioning are implemented.
+
+### 11.4 Cart state ownership
+
+- ActiveAssignment alone owns the cart's active assignment and journey state.
+- JourneyProgressController is a stateless policy validator; it receives current and proposed journey status plus the driver action.
+- CartClaimClient owns only one outstanding claim transaction and never activates an assignment.
+- EventReconciler is stateless orchestration that delegates to ActiveAssignment, DriverAvailabilityController and PendingRequestStore.
+- AcceptanceMode and CartServiceState are separate dimensions. Disabling acceptance does not erase a committed assignment and does not stop receiving.
+
+### 11.5 Remaining interface contracts
+
+- RetryManager::pollOutcome reports ACKNOWLEDGED, EXHAUSTED, CANCELLED or STORAGE_FAILURE with transaction ID and attempts used. Retry exhaustion is an explicit event, not an implicit timeout.
+- IPersistence::load returns exact/required byte length through an output parameter; BUFFER_FULL never overruns the supplied capacity.
+- DestinationConfig and StationRegistry are bounded non-owning views with count <= capacity; caller owns backing storage for the duration of the call.
+- ExpiredRequestSet is caller-owned output storage; no component retains its pointer.
+- Protocol endpoint composition explicitly injects codec, validator, radio transport and retry manager.
+- 16-bit request generations and assignment epochs must not silently wrap/reuse while any record, replay window, retry or recovery snapshot can still refer to the old value. Exhaustion requires persistent namespace rotation or a fail-closed maintenance state.
