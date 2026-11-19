@@ -13,6 +13,10 @@ bool isValidButtonProfile(const ButtonConfig& config) {
          config.debounceMs > 0 && config.longPressMs > config.debounceMs;
 }
 
+bool isValidBuzzerProfile(const BuzzerConfig& config) {
+  return config.defaultToneHz > 0 && config.defaultDurationMs > 0;
+}
+
 void put16(uint8_t* output, uint16_t& offset, uint16_t value) {
   output[offset++] = static_cast<uint8_t>(value >> 8);
   output[offset++] = static_cast<uint8_t>(value);
@@ -197,7 +201,9 @@ Status StationApplication::begin(const DeviceConfig& config) {
   if (!status.ok())
     return status;
   if (!isValidButtonProfile(dependencies_.buttonConfig) ||
-      dependencies_.expiryBuffer.items == 0 || dependencies_.expiryBuffer.capacity == 0)
+      !isValidBuzzerProfile(dependencies_.buzzerConfig) ||
+      dependencies_.expiryBuffer.items == 0 ||
+      dependencies_.expiryBuffer.capacity == 0)
     return Status(ErrorCode::CONFIGURATION_INVALID);
   status = dependencies_.requestLifecycle.configure();
   if (!status.ok())
@@ -283,13 +289,19 @@ void StationApplication::service() {
   dependencies_.buzzer.service(nowMs);
   dependencies_.protocol.service(nowMs);
 
-  ButtonEvent buttonEvent = {};
-  if (dependencies_.buttons.pollEvent(buttonEvent))
+  for (uint8_t processed = 0; processed < 4; ++processed) {
+    ButtonEvent buttonEvent = {};
+    if (!dependencies_.buttons.pollEvent(buttonEvent))
+      break;
     onButtonEvent(buttonEvent);
+  }
 
-  ProtocolEvent protocolEvent = {};
-  if (dependencies_.protocol.pollEvent(protocolEvent))
+  for (uint8_t processed = 0; processed < 4; ++processed) {
+    ProtocolEvent protocolEvent = {};
+    if (!dependencies_.protocol.pollEvent(protocolEvent))
+      break;
     onProtocolEvent(protocolEvent);
+  }
 
   dependencies_.display.render(dependencies_.ui.view());
 }
@@ -454,7 +466,8 @@ Status CartApplication::begin(const DeviceConfig& config) {
   Status status = dependencies_.configValidator.validate(config);
   if (!status.ok())
     return status;
-  if (!isValidButtonProfile(dependencies_.buttonConfig))
+  if (!isValidButtonProfile(dependencies_.buttonConfig) ||
+      !isValidBuzzerProfile(dependencies_.buzzerConfig))
     return Status(ErrorCode::CONFIGURATION_INVALID);
 
   status = dependencies_.pendingRequests.configure(config.pendingCapacity);
