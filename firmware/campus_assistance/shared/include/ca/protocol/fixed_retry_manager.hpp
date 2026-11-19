@@ -130,8 +130,8 @@ public:
     if (outcomeCount_ == 0)
       return false;
     outcome = outcomes_[outcomeHead_];
-    outcomeHead_ = static_cast<uint16_t>(
-        (static_cast<uint32_t>(outcomeHead_) + 1U) % kOutcomeCapacity);
+    outcomeHead_ = static_cast<uint16_t>((static_cast<uint32_t>(outcomeHead_) + 1U) %
+                                         kOutcomeCapacity);
     --outcomeCount_;
     return true;
   }
@@ -174,10 +174,8 @@ private:
 
   void
   pushOutcome(TransactionId transactionId, RetryOutcomeCode code, uint8_t attempts) {
-    const uint16_t tail =
-        static_cast<uint16_t>((static_cast<uint32_t>(outcomeHead_) +
-                             outcomeCount_) %
-                            kOutcomeCapacity);
+    const uint16_t tail = static_cast<uint16_t>(
+        (static_cast<uint32_t>(outcomeHead_) + outcomeCount_) % kOutcomeCapacity);
     outcomes_[tail].transactionId = transactionId;
     outcomes_[tail].outcome = code;
     outcomes_[tail].attemptsUsed = attempts;
