@@ -3,7 +3,9 @@
 Portable implementations belong in focused translation units and must remain
 C++11-compatible without Arduino or ESP-IDF dependencies.
 
-`config.cpp` contains the default provisioned-configuration validator. Domain services,
+`config.cpp` contains the default provisioned-configuration validator. `types.cpp`
+contains shared wrap-safe time/sequence helpers and request/journey-state predicates.
+Domain services,
 protocol processing, persistence and platform adapters remain future implementation
 work.
 
