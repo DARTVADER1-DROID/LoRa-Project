@@ -85,7 +85,7 @@ int main() {
 
   BinaryFrameCodec codec;
   StationRegistryEntry stationEntries[1] = {{2, true}};
-  StationRegistryView stationView = {1, stationEntries, 1};
+  StationRegistry stationView = {1, stationEntries, 1};
   FixedStationRegistry<2> stationRegistry;
   assert(stationRegistry.load(stationView).ok());
   CartRegistryEntry cartEntries[2] = {{4, true}, {5, true}};
