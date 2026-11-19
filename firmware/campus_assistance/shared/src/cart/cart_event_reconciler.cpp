@@ -139,7 +139,9 @@ void CartEventReconciler::resolveLostClaim(const RequestId& id, ErrorCode reason
   result.result = reason;
   result.finalState = reason == ErrorCode::ALREADY_ASSIGNED ? ClaimState::COMMITTED
                                                             : ClaimState::WITHDRAWN;
-  claimClient_.onClaimResult(result);
+  const Status resolved = claimClient_.onClaimResult(result);
+  if (resolved.ok())
+    availability_.onClaimWithdrawnByStation();
 }
 
 } // namespace ca
