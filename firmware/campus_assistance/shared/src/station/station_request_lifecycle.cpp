@@ -81,10 +81,8 @@ Status StationRequestLifecycle::expireDue(uint32_t stationNowMs,
       ++dueCount;
   }
 
-  if (dueCount > expired.capacity) {
-    expired.count = dueCount;
+  if (dueCount > expired.capacity)
     return Status(ErrorCode::BUFFER_FULL);
-  }
 
   uint16_t written = 0;
   for (uint16_t i = 0; i < repository_.size(); ++i) {
