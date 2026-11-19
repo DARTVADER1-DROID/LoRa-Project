@@ -147,6 +147,10 @@ void testRadioProfile() {
   assert(validator.validateRadioProfile(profile).code ==
          ErrorCode::CONFIGURATION_INVALID);
   profile = validRadioProfile();
+  profile.spreadingFactor = 6;
+  assert(validator.validateRadioProfile(profile).code ==
+         ErrorCode::CONFIGURATION_INVALID);
+  profile = validRadioProfile();
   profile.spreadingFactor = 12;
   assert(validator.validateRadioProfile(profile).ok());
   profile = validRadioProfile();
