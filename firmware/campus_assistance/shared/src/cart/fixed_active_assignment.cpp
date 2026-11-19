@@ -57,6 +57,28 @@ Status FixedActiveAssignment::updateJourneyStatus(JourneyStatus status,
   return Status();
 }
 
+Status FixedActiveAssignment::reconcileSnapshot(JourneyStatus status,
+                                                           EventSequence sequence) {
+  if (!occupied_ || !isValidJourneyStatus(status))
+    return Status(ErrorCode::INVALID_STATE);
+  if (compareSequence(sequence, lastSequence_) != SerialNumberOrder::NEWER)
+    return Status(ErrorCode::STALE_EVENT);
+  if (static_cast<uint8_t>(status) < static_cast<uint8_t>(journey_))
+    return Status(ErrorCode::INVALID_STATE);
+
+  journey_ = status;
+  lastSequence_ = sequence;
+  current_.lastEventSequence = sequence;
+  current_.state =
+      status == JourneyStatus::ON_THE_WAY
+          ? RequestState::ON_THE_WAY
+          : (status == JourneyStatus::ARRIVED_AT_PICKUP
+                 ? RequestState::ARRIVED_AT_PICKUP
+                 : (status == JourneyStatus::COMPLETED ? RequestState::COMPLETED
+                                                       : RequestState::ASSIGNED));
+  return Status();
+}
+
 Status FixedActiveAssignment::complete(const DriverAction& action) {
   if (action.type != DriverActionType::CONFIRM_COMPLETION)
     return Status(ErrorCode::INVALID_ARGUMENT);
