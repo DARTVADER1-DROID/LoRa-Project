@@ -84,7 +84,15 @@ int main() {
   radio.transmitPowerDbm = 10;
 
   BinaryFrameCodec codec;
-  DefaultMessageValidator validator;
+  StationRegistryEntry stationEntries[1] = {{2, true}};
+  StationRegistryView stationView = {1, stationEntries, 1};
+  FixedStationRegistry<2> stationRegistry;
+  assert(stationRegistry.load(stationView).ok());
+  CartRegistryEntry cartEntries[2] = {{4, true}, {5, true}};
+  FixedCartRegistry<2> cartRegistry;
+  CartRegistryView cartView = {2, cartEntries, 2};
+  assert(cartRegistry.load(cartView).ok());
+  DefaultMessageValidator validator(stationRegistry, cartRegistry);
   FakeRadioTransport transport;
   const RetryPolicy policy = {3, 100, 400};
   FixedRetryManager<4> retries(policy);
@@ -164,11 +172,6 @@ int main() {
   DeviceConfig stationConfig = config;
   stationConfig.role = DeviceRole::STATION;
   stationConfig.deviceId = 1;
-  CartRegistryEntry cartEntries[2] = {{4, true}, {5, true}};
-  FixedCartRegistry<2> cartRegistry;
-  CartRegistryView cartView = {2, cartEntries, 2};
-  assert(cartRegistry.load(cartView).ok());
-
   FakeRadioTransport broadcastTransport;
   FixedRetryManager<1> broadcastRetries(policy);
   FixedProtocolEndpoint<4> broadcastEndpoint(codec,
