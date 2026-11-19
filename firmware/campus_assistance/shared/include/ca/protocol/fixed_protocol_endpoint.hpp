@@ -135,7 +135,8 @@ private:
       return;
 
     if (message.header.messageType == MessageType::ACKNOWLEDGEMENT) {
-      retries_.onAcknowledgement(message.header.transactionId);
+      retries_.onAcknowledgement(message.header.transactionId,
+                                message.header.sourceDeviceId);
       return;
     }
 
