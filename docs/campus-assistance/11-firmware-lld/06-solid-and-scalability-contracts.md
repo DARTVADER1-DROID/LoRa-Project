@@ -206,3 +206,9 @@ Every ProtocolEvent retains the decoded ProtocolHeader and sender-validation lev
 - ExpiredRequestSet is caller-owned output storage; no component retains its pointer.
 - Protocol endpoint composition explicitly injects codec, validator, radio transport and retry manager.
 - 16-bit request generations and assignment epochs must not silently wrap/reuse while any record, replay window, retry or recovery snapshot can still refer to the old value. Exhaustion requires persistent namespace rotation or a fail-closed maintenance state.
+
+### 11.6 Commit-time clock and executable contract checks
+
+- StationClaimCoordinator::commitWinner receives stationNowMs and passes it to the repository's atomic commit operation. A prior evaluate() cannot authorize a later commit after expiry or cancellation.
+- CTest includes a fixed-capacity fake repository transition suite covering withdrawal-before-commit, commit-before-delayed-withdrawal, cancellation/expiry closing a pending claim, and claim rejection at the expiry boundary.
+- These tests validate the specified transition contract against a reference fake; they do not prove a production repository implementation, flash atomicity, reboot recovery, concurrency primitives or radio behavior. Every concrete repository adapter must run the same contract suite or an equivalent adapter-level suite.
