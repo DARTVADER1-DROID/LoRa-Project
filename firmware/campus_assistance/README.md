@@ -1,6 +1,6 @@
 # Campus Assistance Firmware Contracts
 
-**Interface-only architecture scaffold — no operational firmware is implemented.**
+**Early implementation stage — not operational firmware.**
 
 This directory translates the Firmware LLD into C++11-compatible public contracts
 and separate Arduino Uno / ESP32 station / cart entry points.
@@ -20,6 +20,8 @@ and separate Arduino Uno / ESP32 station / cart entry points.
 - `tests/repository_transition_test.cpp`: fixed-capacity reference tests for atomic transition ordering.
 - `tests/config_validator_test.cpp`: configuration validation boundary and malformed-input tests.
 - `tests/types_test.cpp`: wraparound, serial-number ambiguity and state-classification tests.
+- `tests/request_identity_test.cpp`: complete RequestId validity, equality and hash tests.
+- `tests/pending_request_store_test.cpp`: fixed-capacity FIFO, deduplication, ordering, expiry and local-clear tests.
 - `CMakeLists.txt`: host-side C++11 contract compile target.
 - `scripts/`: formatting and format verification commands.
 
@@ -91,6 +93,7 @@ transmission. Hardware adapters and runtime behavior remain future work.
 
 The CMake/CTest suite includes:
 - public-header C++11 compile checks and compile-time ownership/API assertions;
+- RequestId and fixed pending FIFO tests for full-identity behavior, bounded capacity, stable FIFO order, expiry removal and local clearing;
 - default configuration validation for nonzero identifiers/capacities, wrap-safe request lifetime, bounded registry views, unique station/destination IDs, bounded destination labels and supported SX1278 radio parameter ranges;
 - a fixed-capacity reference repository suite for claim-withdraw/commit ordering,
   delayed withdrawal, cancellation/expiry races and expiry-boundary claim rejection.
