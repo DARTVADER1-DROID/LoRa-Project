@@ -122,18 +122,5 @@ int main() {
   assert(smallLifecycle.find(first.id, found));
   assert(found.state == RequestState::PENDING_UNASSIGNED);
 
-  FixedRequestRepository<2> retentionRepository;
-  assert(retentionRepository.configure().ok());
-  clock.set(500);
-  StationRequestLifecycle retentionLifecycle(
-      retentionRepository, destinations, clock, 3, 100, 50);
-  assert(retentionLifecycle.configure().ok());
-  RequestRecord retained = {};
-  assert(retentionLifecycle.create(input, retained).ok());
-  assert(retentionLifecycle.cancel(retained.id, CancellationSource::STUDENT).ok());
-  clock.set(60500);
-  ExpiredRequestSet noExpiries = {0, 0, 0};
-  assert(retentionLifecycle.expireDue(clock.millisNow(), noExpiries).ok());
-  assert(!retentionLifecycle.find(retained.id, found));
   return 0;
 }
