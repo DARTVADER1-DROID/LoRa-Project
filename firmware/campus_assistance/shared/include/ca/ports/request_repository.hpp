@@ -6,7 +6,9 @@ namespace ca {
 
 // Port for authoritative station-side request storage. Implementations must
 // serialize each conditional transition against all competing transitions for
-// the same complete RequestId.
+// the same complete RequestId. Persistent implementations must durably reserve
+// RequestIds before returning them and commit each mutation before reporting
+// success. recordAt() is a bounded read-only snapshot read for one event loop.
 class IRequestRepository {
 public:
   virtual ~IRequestRepository() {}
