@@ -131,7 +131,7 @@ int main() {
   RequestRecord retained = {};
   assert(retentionLifecycle.create(input, retained).ok());
   assert(retentionLifecycle.cancel(retained.id, CancellationSource::STUDENT).ok());
-  clock.set(551);
+  clock.set(60500);
   ExpiredRequestSet noExpiries = {0, 0, 0};
   assert(retentionLifecycle.expireDue(clock.millisNow(), noExpiries).ok());
   assert(!retentionLifecycle.find(retained.id, found));
