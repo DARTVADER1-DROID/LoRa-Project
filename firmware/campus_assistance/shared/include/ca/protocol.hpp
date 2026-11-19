@@ -61,6 +61,24 @@ public:
                                  SenderValidation& validation) const = 0;
 };
 
+// Versioned, bounded wire framing. All multi-byte fields are big-endian.
+class BinaryFrameCodec final : public FrameCodec {
+public:
+  EncodeResult encode(const ProtocolMessage& message,
+                      MutableFrameView output) const override;
+  DecodeResult decode(FrameView input, ProtocolMessage& message) const override;
+};
+
+// Structural network membership checks only; this is not cryptographic identity.
+class DefaultMessageValidator final : public MessageValidator {
+public:
+  Status validate(const ProtocolMessage& message,
+                  const DeviceConfig& localConfig) const override;
+  Status authorizeSender(const ProtocolHeader& envelope,
+                         const DeviceConfig& localConfig,
+                         SenderValidation& validation) const override;
+};
+
 class ProtocolEndpoint {
 public:
   virtual ~ProtocolEndpoint() {}
