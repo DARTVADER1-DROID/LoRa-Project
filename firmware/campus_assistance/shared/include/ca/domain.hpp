@@ -31,7 +31,8 @@ public:
   virtual ~ActiveAssignment() {}
   virtual bool isOccupied() const = 0;
   virtual Status activate(const AssignmentRecord& stationConfirmed) = 0;
-  virtual Status updateJourneyStatus(JourneyStatus status, EventSequence sequence) = 0;
+  virtual Status updateJourneyStatus(JourneyStatus status,
+                                     EventSequence sequence) = 0;
   virtual Status complete(const DriverAction& action) = 0;
   virtual Status clearAfterTerminal() = 0;
   virtual bool get(AssignmentRecord& assignment) const = 0;
@@ -40,7 +41,8 @@ public:
 class DriverAvailabilityController {
 public:
   virtual ~DriverAvailabilityController() {}
-  virtual DriverMode mode() const = 0;
+  virtual AcceptanceMode acceptanceMode() const = 0;
+  virtual CartServiceState serviceState() const = 0;
   virtual Status enableAcceptance(const DriverAction& action) = 0;
   virtual Status disableAcceptance(const DriverAction& action) = 0;
   virtual Status onAssignmentConfirmed(const AssignmentRecord& assignment) = 0;
@@ -58,11 +60,6 @@ public:
   virtual bool isEnabled(DeviceId id) const = 0;
 };
 
-class RequestLedger : public IRequestRepository {
-public:
-  virtual ~RequestLedger() {}
-};
-
 class RequestLifecycle {
 public:
   virtual ~RequestLifecycle() {}
@@ -73,33 +70,41 @@ public:
   virtual bool find(const RequestId& id, RequestRecord& record) const = 0;
 };
 
-// The only component permitted to commit a winning cart assignment.
-// It owns arbitration and performs the ledger update as one atomic operation.
+// Sole station-side claim transaction and assignment-commit authority.
 class StationClaimCoordinator {
 public:
   virtual ~StationClaimCoordinator() {}
-  virtual Status evaluate(const ClaimRequest& claim, uint32_t stationNowMs) const = 0;
+  virtual Status evaluate(const ClaimRequest& claim,
+                          uint32_t stationNowMs) const = 0;
+  virtual Status withdrawClaim(const ClaimWithdraw& withdrawal) = 0;
   virtual Status commitWinner(const ClaimRequest& claim,
                               AssignmentRecord& assignment) = 0;
   virtual bool isAssigned(const RequestId& id) const = 0;
 };
 
+// Cart-side claim transaction only. It never activates an assignment.
 class CartClaimClient {
 public:
   virtual ~CartClaimClient() {}
   virtual Status requestClaim(const RequestId& id, DeviceId cartId) = 0;
-  virtual void onClaimResult(const ClaimResult& result) = 0;
-  virtual Status onAssignmentNotice(const AssignmentNotice& notice) = 0;
+  virtual Status withdrawClaim(const ClaimWithdraw& withdrawal) = 0;
+  virtual Status onClaimResult(const ClaimResult& result) = 0;
   virtual bool hasClaimInFlight() const = 0;
+  virtual bool getOutstandingClaim(ClaimRequest& claim) const = 0;
 };
 
+// Stateless transition policy. ActiveAssignment remains the sole owner of
+// current assignment/journey state.
 class JourneyProgressController {
 public:
   virtual ~JourneyProgressController() {}
-  virtual Status advance(JourneyStatus next, const DriverAction& action) = 0;
-  virtual JourneyStatus current() const = 0;
+  virtual Status validateTransition(JourneyStatus current,
+                                    JourneyStatus next,
+                                    const DriverAction& action) const = 0;
 };
 
+// Orchestrates authoritative events into the domain owners; stores no
+// duplicate assignment or journey state of its own.
 class EventReconciler {
 public:
   virtual ~EventReconciler() {}
