@@ -83,8 +83,10 @@ authorized for Indian operation.
 ## Arduino compile matrix
 
 `platformio.ini` defines four target environments: Uno R3 station/cart and ESP32
-DevKit V1 station/cart. Each environment compiles its actual role `.ino` entry point
-and the shared portable sources against its respective Arduino core. The sketches
+DevKit V1 station/cart. Each environment compiles a small C++ wrapper that includes its actual role `.ino`
+entry point, plus the shared portable sources, against its respective Arduino core.
+This keeps the same sketch usable from Arduino IDE while ensuring PlatformIO links
+its setup()/loop() entry points. The sketches
 instantiate the selected board profile and hardware adapters, but the role
 application composition roots are still placeholders. A successful PlatformIO
 build therefore proves target/toolchain and adapter compatibility only; it does
