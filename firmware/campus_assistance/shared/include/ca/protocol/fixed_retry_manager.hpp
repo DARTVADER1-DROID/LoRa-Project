@@ -77,8 +77,8 @@ public:
       entry.awaitingAttempt = true;
       message = entry.message;
       attemptNumber = static_cast<uint8_t>(entry.attemptsUsed + 1U);
-      nextDueIndex_ = static_cast<uint16_t>(
-          (static_cast<uint32_t>(index) + 1U) % StorageCapacity);
+      nextDueIndex_ =
+          static_cast<uint16_t>((static_cast<uint32_t>(index) + 1U) % StorageCapacity);
       return true;
     }
     return false;
