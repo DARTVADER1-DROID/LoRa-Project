@@ -82,6 +82,14 @@ int main() {
   assert(repository
              .commitAssignmentIfClaimPending(assignedRequest.id, 8, 80, 1, 102, updated)
              .ok());
+  JourneyUpdate journey = {};
+  journey.requestId = assignedRequest.id;
+  journey.assignedCartId = 8;
+  journey.status = JourneyStatus::ON_THE_WAY;
+  journey.eventSequence = 1;
+  assert(lifecycle.applyJourneyUpdate(journey).ok());
+  assert(lifecycle.cancel(assignedRequest.id, CancellationSource::STUDENT).code ==
+         ErrorCode::ALREADY_ASSIGNED);
 
   clock.set(200);
   RequestId expiredIds[2] = {};
