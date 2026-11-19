@@ -9,6 +9,7 @@ add_library(campus_assistance_contracts STATIC
   shared/src/config.cpp
   shared/src/protocol.cpp
   shared/src/request_identity.cpp
+  shared/src/station_request_controller.cpp
   shared/src/station/station_request_lifecycle.cpp
   shared/src/station/repository_station_claim_coordinator.cpp
   shared/src/types.cpp)
