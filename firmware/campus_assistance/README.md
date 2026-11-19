@@ -11,6 +11,8 @@ and separate Arduino Uno / ESP32 station / cart entry points.
   configuration, station use case, UI and role application contracts.
 - `shared/include/ca/ports/`: narrow hardware, runtime, persistence and request
   repository abstractions. The root `ports.hpp` is only a convenience aggregate.
+- `shared/include/ca/domain/`: one domain contract per responsibility. The root
+  `domain.hpp` is only a convenience aggregate.
 - `shared/include/ca/cart/`: focused declarations for concrete cart-side policies
   and assignment state.
 - `shared/include/ca/storage/`: fixed-capacity storage templates; template bodies
