@@ -36,6 +36,7 @@ struct CartDependencies {
   PendingRequestStore& pendingRequests;
   ActiveAssignment& activeAssignment;
   DriverAvailabilityController& driverAvailability;
+  JourneyProgressController& journeyProgress;
   CartClaimClient& claimClient;
   EventReconciler& reconciler;
   CartUserInterface& ui;
