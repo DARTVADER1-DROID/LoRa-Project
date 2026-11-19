@@ -30,6 +30,8 @@ void testConfigurationAndCapacity() {
   assert(store.insertIfAbsent(makeSummary(2)).ok());
   assert(store.insertIfAbsent(makeSummary(3)).ok());
   assert(store.insertIfAbsent(makeSummary(4)).code == ErrorCode::QUEUE_FULL);
+  assert(store.configure(3).code == ErrorCode::INVALID_STATE);
+  assert(store.size() == 3);
 }
 
 void testDeduplicationUsesCompleteIdentityAndPreservesFifo() {
@@ -79,6 +81,8 @@ void testClearIsLocalAndQueueCanRefill() {
   assert(store.insertIfAbsent(makeSummary(11)).ok());
   store.clearLocal();
   assert(store.size() == 0);
+  assert(store.configure(2).ok());
+  assert(store.configure(1).code == ErrorCode::INVALID_STATE);
   assert(!store.contains(makeSummary(11).id));
   assert(store.insertIfAbsent(makeSummary(12)).ok());
   assert(store.peekOldest(oldest));
