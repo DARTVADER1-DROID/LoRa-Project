@@ -1,6 +1,7 @@
 #pragma once
 
-#include "ca/domain.hpp"
+#include "ca/domain/pending_request_store.hpp"
+#include "ca/domain/request_identity.hpp"
 
 namespace ca {
 
