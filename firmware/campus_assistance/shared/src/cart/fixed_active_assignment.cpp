@@ -38,9 +38,11 @@ Status FixedActiveAssignment::updateJourneyStatus(JourneyStatus status,
     return Status(ErrorCode::INVALID_STATE);
   if (compareSequence(sequence, lastSequence_) != SerialNumberOrder::NEWER)
     return Status(ErrorCode::STALE_EVENT);
-  if (!validStep(journey_, status))
+  if (status != journey_ && !validStep(journey_, status))
     return Status(ErrorCode::INVALID_STATE);
 
+  // A newer authoritative echo of a locally completed/advanced state is
+  // idempotent; it may advance the event cursor but never regress the journey.
   journey_ = status;
   lastSequence_ = sequence;
   current_.state =
