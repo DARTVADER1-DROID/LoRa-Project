@@ -71,13 +71,13 @@ There is exactly one assignment-commit authority: `StationClaimCoordinator::comm
 
 - `RequestLifecycle` does not expose `commitAssignment`.
 - `IRequestRepository` stores complete records: full RequestId, destination, creation/expiry basis, lifecycle state, assigned cart, assignment epoch, claim transaction identity and last accepted journey event sequence. The volatile `FixedRequestRepository<StorageCapacity>` is a bounded single-event-loop implementation for host/reference use; it is not a durable production ledger and does not provide reboot recovery or flash atomicity.
-- The repository exposes only conditional atomic state transitions, including exact-transaction assignment commit and station-time expiry checks.
+- The repository exposes only conditional atomic state transitions, including exact-transaction assignment commit and station-time expiry checks. It also reserves complete RequestIds durably and exposes bounded indexed reads for lifecycle scans.
 - The claim coordinator serializes competing claims and invokes this atomic guard. A failed or duplicate claim cannot overwrite the winner.
 - The station emits ASSIGN only after the atomic commit succeeds.
 - CLAIM, CLAIM_RESULT, transport ACK and retry completion are never proof of ownership.
 - Cart activation requires a matching station-originated ASSIGN naming that cart and the exact RequestId/assignment epoch.
 
-The atomic repository guard is mandatory even if the first implementation is single-threaded: retries, duplicate frames, reboot recovery and future concurrency must not create a second winner. The current volatile implementation serializes calls only through its owning event loop. `removeTerminalBefore()` intentionally returns `NOT_IMPLEMENTED` until a persisted retention policy is defined.
+The atomic repository guard is mandatory even if the first implementation is single-threaded: retries, duplicate frames, reboot recovery and future concurrency must not create a second winner. The current volatile implementation serializes calls only through its owning event loop. `DurableRequestRepository<StorageCapacity>` writes a versioned, big-endian, CRC32-protected snapshot through `IPersistence::storeAtomically()`; it is single-writer/event-loop code and does not add an internal mutex. On reboot, pending/claim-pending records are expired fail-closed because uptime millis cannot account for power-off time; committed assignments are preserved. `removeTerminalBefore()` intentionally returns `NOT_IMPLEMENTED` until a persisted retention policy is defined.
 
 ## 5. Claim-disable race policy
 
@@ -247,3 +247,10 @@ aggregate for external consumers. Domain and protocol headers must not include
 that aggregate; they include portable value types directly. This prevents domain
 contracts from acquiring hardware or persistence dependencies merely to access
 shared types.
+
+
+## 13. Durable storage conformance
+
+The durable repository is a concrete bounded implementation, but flash/EEPROM hardware integration is not complete. Its memory requirement includes the fixed record array, a candidate copy used to stage transitions, and an encoded snapshot buffer. The compile-time capacity must be selected only after target RAM and stack measurements.
+
+`IPersistence::storeAtomically()` has a strict old-or-new power-loss contract. A production adapter must implement dual-slot/journal or an equivalent atomic page strategy, validate erase/program constraints, document write endurance and survive hardware power-cut tests. The host fake exercises rollback on a failed atomic operation; it is not evidence of physical flash atomicity. Every durable state transition writes a complete snapshot, so write amplification/endurance must be measured before selecting the medium and request capacity.
