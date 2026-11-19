@@ -5,11 +5,6 @@
 
 using namespace ca;
 
-class FakeClock : public IClock {
-public:
-  uint32_t millisNow() const override { return 500; }
-};
-
 class FakeLifecycle : public RequestLifecycle {
 public:
   FakeLifecycle()
@@ -68,7 +63,6 @@ int main() {
   FixedDestinationCatalog<2> destinations;
   assert(destinations.load({1, entries, 1}).ok());
 
-  FakeClock clock;
   FakeLifecycle lifecycle;
   FakeProtocol protocol;
   DeviceConfig config = {};
