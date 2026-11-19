@@ -267,10 +267,28 @@ public:
     return Status();
   }
 
-  Status removeTerminalBefore(uint32_t) override {
-    // Time-based retention requires a persisted monotonic-age policy. Until
-    // that policy exists, never discard terminal history implicitly.
-    return Status(ErrorCode::NOT_IMPLEMENTED);
+  Status removeTerminalBefore(uint32_t retentionBoundaryMs) override {
+    if (!configured_)
+      return Status(ErrorCode::INVALID_STATE);
+
+    uint16_t index = 0;
+    while (index < count_) {
+      const RequestRecord& record = records_[index];
+      const bool oldTerminal =
+          isTerminalRequestState(record.state) &&
+          compareSequence(record.createdAtMs, retentionBoundaryMs) ==
+              SerialNumberOrder::OLDER;
+      if (!oldTerminal) {
+        ++index;
+        continue;
+      }
+
+      for (uint16_t move = index; move + 1U < count_; ++move)
+        records_[move] = records_[move + 1U];
+      --count_;
+      records_[count_] = RequestRecord();
+    }
+    return Status();
   }
 
   uint16_t size() const override { return count_; }
