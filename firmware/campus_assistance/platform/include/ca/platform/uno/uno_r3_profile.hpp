@@ -9,8 +9,7 @@ namespace platform {
 // RA-02 requires external 5 V-to-3.3 V logic translation on Uno SPI/control lines.
 struct ArduinoUnoR3Profile {
   static const BoardPinMap pins() {
-    const BoardPinMap value = {
-        13, 12, 11, 10, 9, 2, 18, 19, {4, 5}, 2, 6};
+    const BoardPinMap value = {13, 12, 11, 10, 9, 2, 18, 19, {4, 5}, 2, 6};
     return value;
   }
 };
