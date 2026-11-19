@@ -7,7 +7,7 @@ on:
       - ".clang-format"
       - ".github/workflows/firmware-format.yml"
   push:
-    branches: [main]
+    branches: [main, feature/campus-assistance-firmware-skeleton]
     paths:
       - "firmware/campus_assistance/**"
       - ".clang-format"
