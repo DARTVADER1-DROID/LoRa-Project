@@ -249,5 +249,10 @@ int main() {
   faultedEndpoint.service(0);
   assert(faultedTransport.sentCount == 0);
   assert(faultedRetries.pendingCount() == 1);
+  assert(faultedEndpoint.enqueue(outgoing, DeliveryClass::BEST_EFFORT).code ==
+         ErrorCode::RADIO_UNAVAILABLE);
+  faultedTransport.setFaulted(false);
+  faultedEndpoint.service(1);
+  assert(faultedTransport.sentCount == 1);
   return 0;
 }
