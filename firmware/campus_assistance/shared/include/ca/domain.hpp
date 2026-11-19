@@ -47,6 +47,8 @@ public:
   virtual Status onAssignmentConfirmed(const AssignmentRecord& assignment) = 0;
   virtual Status onJourneyCompleted() = 0;
   virtual bool mayClaim() const = 0;
+  virtual Status onClaimStarted() = 0;
+  virtual Status onClaimWithdrawnByStation() = 0;
 };
 
 class DestinationCatalog {
