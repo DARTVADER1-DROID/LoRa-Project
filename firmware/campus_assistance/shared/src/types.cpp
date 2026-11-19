@@ -14,8 +14,7 @@ SerialNumberOrder compareSequence(uint32_t candidate, uint32_t reference) {
   if (difference == halfRange)
     return SerialNumberOrder::AMBIGUOUS;
 
-  return difference < halfRange ? SerialNumberOrder::NEWER
-                                : SerialNumberOrder::OLDER;
+  return difference < halfRange ? SerialNumberOrder::NEWER : SerialNumberOrder::OLDER;
 }
 
 bool hasElapsed(uint32_t nowMs, uint32_t startMs, uint32_t durationMs) {
