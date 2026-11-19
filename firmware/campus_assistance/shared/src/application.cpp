@@ -159,7 +159,7 @@ void StationApplication::onButtonEvent(const ButtonEvent& event) {
 
   UiContext context = {};
   context.screenId = dependencies_.ui.view().screenId;
-  context.requestActive = false;
+  context.requestActive = dependencies_.requestController.hasCurrentRequest();
   const UiIntent intent = dependencies_.buttonInterpreter.interpret(event, context);
   if (intent.type != UiIntentType::NONE)
     dependencies_.ui.onIntent(intent);
