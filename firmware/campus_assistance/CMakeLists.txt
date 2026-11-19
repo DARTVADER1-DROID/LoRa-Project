@@ -33,6 +33,9 @@ target_link_libraries(pending_request_store_test PRIVATE campus_assistance_contr
 add_executable(fixed_request_repository_test tests/fixed_request_repository_test.cpp)
 target_link_libraries(fixed_request_repository_test PRIVATE campus_assistance_contracts)
 
+add_executable(cart_state_components_test tests/cart_state_components_test.cpp)
+target_link_libraries(cart_state_components_test PRIVATE campus_assistance_contracts)
+
 enable_testing()
 add_test(NAME contract_compile COMMAND contract_compile)
 add_test(NAME repository_transition_test COMMAND repository_transition_test)
@@ -41,3 +44,4 @@ add_test(NAME types_test COMMAND types_test)
 add_test(NAME request_identity_test COMMAND request_identity_test)
 add_test(NAME pending_request_store_test COMMAND pending_request_store_test)
 add_test(NAME fixed_request_repository_test COMMAND fixed_request_repository_test)
+add_test(NAME cart_state_components_test COMMAND cart_state_components_test)
