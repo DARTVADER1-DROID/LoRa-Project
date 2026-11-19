@@ -30,6 +30,7 @@ struct StationDependencies {
   ConfigValidator& configValidator;
   ButtonEventInterpreter& buttonInterpreter;
   ProtocolEndpoint& protocol;
+  RequestLifecycle& requestLifecycle;
   StationRequestController& requestController;
   StationClaimCoordinator& claims;
   StationUserInterface& ui;
