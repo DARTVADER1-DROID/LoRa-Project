@@ -4,6 +4,9 @@
 
 namespace ca {
 
+class IStationRegistry;
+class ICartRegistry;
+
 struct EncodeResult {
   Status status;
   uint16_t bytesWritten;
@@ -87,11 +90,18 @@ public:
 // Structural network membership checks only; this is not cryptographic identity.
 class DefaultMessageValidator final : public MessageValidator {
 public:
+  DefaultMessageValidator(const IStationRegistry& stations,
+                          const ICartRegistry& carts);
+
   Status validate(const ProtocolMessage& message,
                   const DeviceConfig& localConfig) const override;
   Status authorizeSender(const ProtocolHeader& envelope,
                          const DeviceConfig& localConfig,
                          SenderValidation& validation) const override;
+
+private:
+  const IStationRegistry& stations_;
+  const ICartRegistry& carts_;
 };
 
 class ProtocolEndpoint {
