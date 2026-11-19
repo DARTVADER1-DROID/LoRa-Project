@@ -19,6 +19,8 @@ int main() {
   assert(repo.insertNew(r).code == ErrorCode::INVALID_STATE);
   assert(repo.configure().ok());
   assert(repo.insertNew(r).ok());
+  assert(repo.configure().code == ErrorCode::INVALID_STATE);
+  assert(repo.find(r.id, out));
   assert(repo.insertNew(r).code == ErrorCode::DUPLICATE);
   assert(repo.beginClaimIfEligible(r.id, 8, 80, 200, out).ok());
   assert(repo.withdrawClaimIfPending(r.id, 8, 80, out).ok());
@@ -29,6 +31,8 @@ int main() {
   assert(repo.withdrawClaimIfPending(r.id, 9, 90, out).code ==
          ErrorCode::ALREADY_ASSIGNED);
   assert(repo.commitAssignmentIfClaimPending(r.id, 9, 90, 1, 999999, out).ok());
+  assert(repo.commitAssignmentIfClaimPending(r.id, 9, 90, 2, 999999, out).code ==
+         ErrorCode::STALE_EVENT);
   assert(out.assignedCartId == 9);
   JourneyUpdate j = {};
   j.requestId = r.id;
@@ -58,6 +62,8 @@ int main() {
   RequestRecord c = makeRecord();
   assert(cancel.configure().ok());
   assert(cancel.insertNew(c).ok());
+  assert(cancel.cancelIfUnassigned(c.id, static_cast<CancellationSource>(0xFF), out)
+             .code == ErrorCode::INVALID_ARGUMENT);
   assert(cancel.cancelIfUnassigned(c.id, CancellationSource::STUDENT, out).ok());
   assert(cancel.beginClaimIfEligible(c.id, 3, 3, 101, out).code ==
          ErrorCode::CANCELLED);
