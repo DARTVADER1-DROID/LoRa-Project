@@ -69,6 +69,8 @@ public:
 private:
   StationDependencies dependencies_;
   DeviceConfig config_;
+  uint16_t expiryOutboxCount_;
+  uint16_t expiryOutboxIndex_;
   bool initialized_;
 };
 
