@@ -182,6 +182,8 @@ The claim transaction key is (RequestId, cartId, transactionId). Its lifecycle i
 - A withdrawal that wins closes that transaction; a later commit from it is rejected.
 - A commit that wins is immutable with respect to a delayed withdrawal; the station returns/retransmits the committed ASSIGN outcome.
 - Duplicate withdrawal and duplicate commit requests are idempotent and return the existing transaction outcome.
+- A new claim may begin only when the prior transaction is IDLE or WITHDRAWN and the request remains live/unassigned. It receives a fresh transaction ID; IDs must not be reused within the replay-retention horizon. Every transition matches the full transaction key, so delayed messages from an old transaction cannot affect a newer one.
+- Cancellation or expiry closes any pending claim as part of the same atomic terminal transition; a later commit from that transaction is rejected.
 - On reboot, station storage must preserve enough state to reject stale commits and resolve duplicates. If durable recovery cannot prove the transaction state, the station fails closed for that request until reconciliation.
 
 ### 11.3 Protocol metadata and trust
