@@ -17,6 +17,11 @@ TransactionId transactionFor(const RequestId& id) {
   const TransactionId value = RequestIdentity::hash(id);
   return value == 0 ? 1 : value;
 }
+
+TransactionId cancellationTransactionFor(const RequestId& id) {
+  const TransactionId value = RequestIdentity::hash(id) ^ 0x40000000UL;
+  return value == 0 ? 0x40000000UL : value;
+}
 } // namespace
 
 StationRequestController::StationRequestController(DestinationCatalog& destinations,
@@ -118,7 +123,7 @@ Status StationRequestController::enqueueCancellation() {
   message.header.messageType = MessageType::CANCEL;
   message.header.sourceDeviceId = config_.deviceId;
   message.header.destinationDeviceId = 0;
-  message.header.transactionId = transactionFor(currentRequestId_);
+  message.header.transactionId = cancellationTransactionFor(currentRequestId_);
   message.header.messageSequence = currentRequestId_.sequence;
   message.payloadLength = 9;
   uint16_t offset = 0;
