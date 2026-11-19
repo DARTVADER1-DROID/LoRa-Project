@@ -43,3 +43,15 @@ The profiles are validated for pin collisions by a host test. They do not prove
 electrical compatibility, connector orientation, module breakout routing or
 regulatory compliance. The actual Arduino/ESP32 radio, LCD, button, buzzer and
 persistence adapters remain to be implemented.
+
+
+## Implemented Arduino-core adapters
+
+`platform/include/ca/platform/arduino_core_adapters.hpp` provides:
+- `ArduinoButtonPinReader`: active-low INPUT_PULLUP GPIO sampling using an injected board pin map; gesture timing remains in the portable debouncer.
+- `ArduinoClock`: rollover-compatible `millis()` clock.
+- `ArduinoBuzzer`: non-blocking default-tone cue using `tone()`/`noTone()`.
+
+These adapters are guarded by `ARDUINO` and remain outside the shared library. They
+have not yet been compiled against a selected Arduino-ESP32 / AVR core version or
+validated on physical boards.
