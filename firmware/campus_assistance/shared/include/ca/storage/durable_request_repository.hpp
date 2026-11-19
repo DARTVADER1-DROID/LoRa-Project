@@ -35,7 +35,8 @@ public:
     if (stationId_ == 0 || key_ == 0)
       return Status(ErrorCode::INVALID_ARGUMENT);
 
-    Status stateStatus = state_.configure();
+    FixedRequestRepository<StorageCapacity> candidate;
+    const Status stateStatus = candidate.configure();
     if (!stateStatus.ok())
       return stateStatus;
 
@@ -44,23 +45,23 @@ public:
         persistence_.load(key_, encoded_, kMaxEncodedBytes, bytesRead);
 
     if (loaded.code == ErrorCode::NOT_FOUND) {
-      if (!persistSnapshot(state_))
+      if (!persistSnapshot(candidate))
         return Status(ErrorCode::STORAGE_FAILURE);
+      state_ = candidate;
       configured_ = true;
       return Status();
     }
-    if (!loaded.ok() || bytesRead > kMaxEncodedBytes || !decodeSnapshot(bytesRead))
+    if (!loaded.ok() || bytesRead > kMaxEncodedBytes ||
+        !decodeSnapshot(bytesRead, candidate))
       return Status(ErrorCode::STORAGE_FAILURE);
 
-    FixedRequestRepository<StorageCapacity> recovered = state_;
+    FixedRequestRepository<StorageCapacity> recovered = candidate;
     if (!recovered.expireUnassignedForRecovery().ok())
       return Status(ErrorCode::STORAGE_FAILURE);
-    if (!sameState(state_, recovered)) {
-      if (!persistSnapshot(recovered))
-        return Status(ErrorCode::STORAGE_FAILURE);
-      state_ = recovered;
-    }
+    if (!sameState(candidate, recovered) && !persistSnapshot(recovered))
+      return Status(ErrorCode::STORAGE_FAILURE);
 
+    state_ = recovered;
     configured_ = true;
     return Status();
   }
@@ -342,7 +343,8 @@ private:
     return persistence_.storeAtomically(key_, encoded_, encodedLength_).ok();
   }
 
-  bool decodeSnapshot(uint16_t length) {
+  bool decodeSnapshot(uint16_t length,
+                      FixedRequestRepository<StorageCapacity>& target) {
     if (length < kHeaderBytes + kChecksumBytes)
       return false;
 
