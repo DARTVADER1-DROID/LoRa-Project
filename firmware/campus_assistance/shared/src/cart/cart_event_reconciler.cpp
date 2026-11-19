@@ -68,6 +68,31 @@ Status CartEventReconciler::applySnapshot(const RequestSnapshot& snapshot) {
   if (!assigned) {
     if (snapshot.assignedCartId != 0 || snapshot.assignmentEpoch != 0)
       return Status(ErrorCode::INVALID_ARGUMENT);
+
+    if (snapshot.state == RequestState::CLAIM_PENDING) {
+      if (snapshot.claimState != ClaimState::PENDING ||
+          snapshot.claimCartId == 0 || snapshot.claimTransactionId == 0)
+        return Status(ErrorCode::INVALID_ARGUMENT);
+      ClaimRequest outstanding = {};
+      if (claimClient_.getOutstandingClaim(outstanding) &&
+          RequestIdentity::equals(outstanding.requestId, snapshot.requestId)) {
+        if (outstanding.cartId == snapshot.claimCartId &&
+            outstanding.transactionId == snapshot.claimTransactionId)
+          return Status();
+        resolveLostClaim(snapshot.requestId, ErrorCode::STALE_EVENT);
+      }
+      return Status();
+    }
+
+    if (snapshot.claimState != ClaimState::IDLE &&
+        snapshot.claimState != ClaimState::WITHDRAWN)
+      return Status(ErrorCode::INVALID_ARGUMENT);
+    if ((snapshot.claimState == ClaimState::IDLE &&
+         (snapshot.claimCartId != 0 || snapshot.claimTransactionId != 0)) ||
+        (snapshot.claimState == ClaimState::WITHDRAWN &&
+         (snapshot.claimCartId == 0 || snapshot.claimTransactionId == 0)))
+      return Status(ErrorCode::INVALID_ARGUMENT);
+
     if (snapshot.state == RequestState::CANCELLED ||
         snapshot.state == RequestState::EXPIRED) {
       pendingRequests_.remove(snapshot.requestId);
@@ -76,6 +101,8 @@ Status CartEventReconciler::applySnapshot(const RequestSnapshot& snapshot) {
                                                                  : ErrorCode::EXPIRED);
     } else if (snapshot.state == RequestState::PENDING_UNASSIGNED) {
       resolveLostClaim(snapshot.requestId, ErrorCode::STALE_EVENT);
+    } else {
+      return Status(ErrorCode::INVALID_ARGUMENT);
     }
     return Status();
   }
