@@ -26,6 +26,7 @@
 #include "ca/config.hpp"
 #include "ca/station_request_controller.hpp"
 #include "ca/ui.hpp"
+#include "ca/ui/basic_user_interfaces.hpp"
 #include "ca/application.hpp"
 #include "ca/input/fixed_button_debouncer.hpp"
 #include "ca/input/debounced_button_input.hpp"
