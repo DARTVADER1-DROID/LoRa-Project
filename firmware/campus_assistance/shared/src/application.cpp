@@ -165,8 +165,7 @@ Status StationApplication::begin(const DeviceConfig& config) {
   if (!status.ok())
     return status;
   if (!isValidButtonProfile(dependencies_.buttonConfig) ||
-      dependencies_.expiryBuffer.items == 0 ||
-      dependencies_.expiryBuffer.capacity == 0)
+      dependencies_.expiryBuffer.items == 0 || dependencies_.expiryBuffer.capacity == 0)
     return Status(ErrorCode::CONFIGURATION_INVALID);
   status = dependencies_.requestLifecycle.configure();
   if (!status.ok())
@@ -215,8 +214,7 @@ void StationApplication::service() {
   }
 
   while (expiryOutboxIndex_ < expiryOutboxCount_) {
-    const RequestId& id =
-        dependencies_.expiryBuffer.items[expiryOutboxIndex_];
+    const RequestId& id = dependencies_.expiryBuffer.items[expiryOutboxIndex_];
     ProtocolMessage message = {};
     message.header.protocolVersion = config_.protocolVersion;
     message.header.networkId = config_.networkId;
@@ -233,8 +231,7 @@ void StationApplication::service() {
     const Status queued =
         dependencies_.protocol.enqueue(message, DeliveryClass::RETRY_UNTIL_ACK);
     if (!queued.ok()) {
-      dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected,
-                                       queued.code);
+      dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected, queued.code);
       break;
     }
     ++expiryOutboxIndex_;
