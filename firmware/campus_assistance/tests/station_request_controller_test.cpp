@@ -71,7 +71,7 @@ int main() {
   config.deviceId = 1;
   config.networkId = 7;
   config.protocolVersion = 1;
-  StationRequestController controller(destinations, lifecycle, clock, protocol, config);
+  StationRequestController controller(destinations, lifecycle, protocol, config);
 
   assert(controller.selectDestination(99).code == ErrorCode::NOT_FOUND);
   assert(controller.selectDestination(3).ok());
@@ -85,12 +85,19 @@ int main() {
   assert(protocol.lastMessage_.header.messageType == MessageType::REQUEST);
   assert(protocol.lastMessage_.payloadLength == 14);
   assert(controller.submit(created).code == ErrorCode::BUSY);
-  assert(controller.cancelCurrentRequest().ok());
+  protocol.enqueueStatus_ = Status(ErrorCode::QUEUE_FULL);
+  assert(controller.cancelCurrentRequest().code == ErrorCode::QUEUE_FULL);
   assert(protocol.lastMessage_.header.messageType == MessageType::CANCEL);
   assert(protocol.lastMessage_.payloadLength == 9);
   assert(lifecycle.cancelCount_ == 1);
-  assert(!controller.hasCurrentRequest());
+  assert(controller.hasCurrentRequest());
   assert(lifecycle.lastSource_ == CancellationSource::STUDENT);
+  assert(controller.submit(created).code == ErrorCode::BUSY);
+
+  protocol.enqueueStatus_ = Status();
+  assert(controller.service().ok());
+  assert(!controller.hasCurrentRequest());
+  assert(lifecycle.cancelCount_ == 1);
 
   protocol.enqueueStatus_ = Status(ErrorCode::QUEUE_FULL);
   assert(controller.submit(created).code == ErrorCode::QUEUE_FULL);
