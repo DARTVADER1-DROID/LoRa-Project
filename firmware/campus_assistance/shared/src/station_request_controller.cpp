@@ -19,12 +19,15 @@ TransactionId transactionFor(const RequestId& id) {
 }
 } // namespace
 
-StationRequestController::StationRequestController(
-    DestinationCatalog& destinations, RequestLifecycle& lifecycle, IClock& clock,
-    ProtocolEndpoint& protocol, const DeviceConfig& config)
+StationRequestController::StationRequestController(DestinationCatalog& destinations,
+                                                   RequestLifecycle& lifecycle,
+                                                   IClock& clock,
+                                                   ProtocolEndpoint& protocol,
+                                                   const DeviceConfig& config)
     : destinations_(destinations), lifecycle_(lifecycle), clock_(clock),
       protocol_(protocol), config_(config), selectedDestinationId_(0),
-      currentRequestId_(), hasSelection_(false), hasCurrentRequest_(false) {}
+      currentRequestId_(), hasSelection_(false), hasCurrentRequest_(false) {
+}
 
 Status StationRequestController::selectDestination(DeviceId destinationId) {
   if (destinationId == 0)
