@@ -60,7 +60,9 @@ public:
       return Status(ErrorCode::INVALID_STATE);
     if (!RequestIdentity::isValid(record.id) || record.destinationId == 0 ||
         record.state != RequestState::PENDING_UNASSIGNED ||
-        record.claimState != ClaimState::IDLE ||
+        record.claimState != ClaimState::IDLE || record.assignedCartId != 0 ||
+        record.assignmentEpoch != 0 || record.claimCartId != 0 ||
+        record.claimTransactionId != 0 || record.lastJourneyEventSequence != 0 ||
         record.expiresAtMs == record.createdAtMs ||
         static_cast<uint32_t>(record.expiresAtMs - record.createdAtMs) > 0x7FFFFFFFUL)
       return Status(ErrorCode::INVALID_ARGUMENT);
@@ -271,7 +273,9 @@ public:
         static_cast<uint8_t>(record.state) >
             static_cast<uint8_t>(RequestState::COMMUNICATION_UNCERTAIN) ||
         static_cast<uint8_t>(record.claimState) >
-            static_cast<uint8_t>(ClaimState::COMMITTED))
+            static_cast<uint8_t>(ClaimState::COMMITTED) ||
+        record.state == RequestState::CREATED ||
+        record.state == RequestState::COMMUNICATION_UNCERTAIN)
       return Status(ErrorCode::INVALID_ARGUMENT);
     const bool assigned = record.state == RequestState::ASSIGNED ||
                           record.state == RequestState::ON_THE_WAY ||
@@ -288,7 +292,8 @@ public:
          record.state == RequestState::CANCELLED ||
          record.state == RequestState::EXPIRED) &&
         (record.assignedCartId != 0 || record.assignmentEpoch != 0 ||
-         record.claimState == ClaimState::PENDING))
+         record.claimState == ClaimState::PENDING ||
+         record.claimState == ClaimState::COMMITTED))
       return Status(ErrorCode::INVALID_ARGUMENT);
     if (findIndex(record.id) >= 0)
       return Status(ErrorCode::DUPLICATE);
