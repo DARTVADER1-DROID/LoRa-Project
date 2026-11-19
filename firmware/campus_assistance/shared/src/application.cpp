@@ -202,8 +202,7 @@ Status StationApplication::begin(const DeviceConfig& config) {
     return status;
   if (!isValidButtonProfile(dependencies_.buttonConfig) ||
       !isValidBuzzerProfile(dependencies_.buzzerConfig) ||
-      dependencies_.expiryBuffer.items == 0 ||
-      dependencies_.expiryBuffer.capacity == 0)
+      dependencies_.expiryBuffer.items == 0 || dependencies_.expiryBuffer.capacity == 0)
     return Status(ErrorCode::CONFIGURATION_INVALID);
   status = dependencies_.requestLifecycle.configure();
   if (!status.ok())
@@ -362,9 +361,8 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
       }
 
       const ClaimState finalState =
-          assigned ? (assignment.assignedCartId == claim.cartId
-                          ? ClaimState::COMMITTED
-                          : ClaimState::WITHDRAWN)
+          assigned ? (assignment.assignedCartId == claim.cartId ? ClaimState::COMMITTED
+                                                                : ClaimState::WITHDRAWN)
                    : (claimStarted ? (withdrawalSucceeded ? ClaimState::WITHDRAWN
                                                           : ClaimState::PENDING)
                                    : ClaimState::IDLE);
@@ -395,10 +393,10 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
                                            notice.code);
       }
       const ClaimState finalState =
-          assigned ? (assignment.assignedCartId == withdrawal.cartId
-                          ? ClaimState::COMMITTED
-                          : ClaimState::WITHDRAWN)
-                   : (status.ok() ? ClaimState::WITHDRAWN : ClaimState::IDLE);
+          assigned
+              ? (assignment.assignedCartId == withdrawal.cartId ? ClaimState::COMMITTED
+                                                                : ClaimState::WITHDRAWN)
+              : (status.ok() ? ClaimState::WITHDRAWN : ClaimState::IDLE);
       ClaimRequest claim = {};
       claim.requestId = withdrawal.requestId;
       claim.cartId = withdrawal.cartId;
