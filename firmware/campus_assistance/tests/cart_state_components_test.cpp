@@ -13,11 +13,10 @@ int main() {
   assert(!driver.mayClaim());
   assert(driver.enableAcceptance(enable).ok());
   assert(driver.mayClaim());
-  assert(driver.setClaimOutstanding(true).ok());
+  assert(driver.onClaimStarted().ok());
   assert(driver.disableAcceptance(disable).code == ErrorCode::COMMUNICATION_UNCERTAIN);
   assert(driver.acceptanceMode() == AcceptanceMode::NOT_ACCEPTING);
-  assert(driver.setClaimOutstanding(false).code == ErrorCode::COMMUNICATION_UNCERTAIN);
-  assert(driver.onClaimWithdrawnByStation().ok());
+  assert(driver.onClaimWithdrawnByStation().code == ErrorCode::INVALID_STATE);
   assert(driver.serviceState() == CartServiceState::IDLE);
 
   AssignmentRecord assignment = {};
