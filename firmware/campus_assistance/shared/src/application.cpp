@@ -51,8 +51,11 @@ TransactionId expiryTransactionFor(const RequestId& id) {
   return derivedTransactionFor(id, 0x10000000UL);
 }
 
-TransactionId journeyTransactionFor(const RequestId& id, EventSequence sequence) {
-  TransactionId value = transactionFor(id) ^ (sequence * 2654435761UL);
+TransactionId journeyTransactionFor(const RequestId& id,
+                                    EventSequence sequence,
+                                    DeviceId destinationDeviceId) {
+  TransactionId value = transactionFor(id) ^ (sequence * 2654435761UL) ^
+                        (static_cast<uint32_t>(destinationDeviceId) * 2246822519UL);
   return value == 0 ? 1 : value;
 }
 
@@ -151,10 +154,12 @@ Status enqueueAssignmentNotice(ProtocolEndpoint& protocol,
 }
 
 Status enqueueAuthoritativeSnapshot(ProtocolEndpoint& protocol,
-                                    const DeviceConfig& config,
-                                    const RequestRecord& record,
-                                    EventSequence sequence) {
-  if (record.assignedCartId == 0 || record.assignmentEpoch == 0)
+                                     const DeviceConfig& config,
+                                     const RequestRecord& record,
+                                     DeviceId destinationCartId,
+                                     EventSequence sequence) {
+  if (destinationCartId == 0 ||
+      ((record.assignedCartId == 0) != (record.assignmentEpoch == 0)))
     return Status(ErrorCode::INVALID_STATE);
 
   ProtocolMessage message = {};
@@ -189,7 +194,9 @@ Status enqueueJourneyUpdate(ProtocolEndpoint& protocol,
   message.header.messageType = MessageType::JOURNEY_UPDATE;
   message.header.sourceDeviceId = config.deviceId;
   message.header.destinationDeviceId = assignment.requestId.originStationId;
-  message.header.transactionId = journeyTransactionFor(assignment.requestId, sequence);
+  message.header.transactionId =
+      journeyTransactionFor(assignment.requestId, sequence,
+                            assignment.requestId.originStationId);
   message.header.messageSequence = sequence;
   uint16_t offset = 0;
   put16(message.payload, offset, assignment.requestId.originStationId);
