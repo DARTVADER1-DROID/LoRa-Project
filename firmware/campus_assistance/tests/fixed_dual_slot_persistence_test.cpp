@@ -111,6 +111,11 @@ int main() {
   for (uint8_t i = 0; i < sizeof(newValue); ++i)
     assert(output[i] == newValue[i]);
 
+  // If both commit markers are damaged, never reinterpret the store as empty.
+  storage.bytes()[255] ^= 0x01;
+  assert(persistence.load(key, output, sizeof(output), bytesRead).code ==
+         ErrorCode::STORAGE_FAILURE);
+
   assert(persistence.erase(key).ok());
   assert(persistence.load(key, output, sizeof(output), bytesRead).code ==
          ErrorCode::NOT_FOUND);
