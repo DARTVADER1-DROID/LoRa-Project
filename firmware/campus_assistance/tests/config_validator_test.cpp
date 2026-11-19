@@ -165,6 +165,10 @@ void testRadioProfile() {
   assert(validator.validateRadioProfile(profile).code ==
          ErrorCode::CONFIGURATION_INVALID);
   profile = validRadioProfile();
+  profile.transmitPowerDbm = 18;
+  assert(validator.validateRadioProfile(profile).code ==
+         ErrorCode::CONFIGURATION_INVALID);
+  profile = validRadioProfile();
   profile.transmitPowerDbm = 21;
   assert(validator.validateRadioProfile(profile).code ==
          ErrorCode::CONFIGURATION_INVALID);
