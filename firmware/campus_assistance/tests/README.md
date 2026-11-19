@@ -21,3 +21,15 @@ Required suites:
 11. RF, power, thermal, accessibility and regulatory validation.
 
 A protocol ACK is not proof of physical completion or human awareness.
+
+
+## Durable station repository and lifecycle
+
+- `durable_request_repository_test.cpp`: snapshot encode/decode, CRC rejection,
+  station identity binding, request-ID continuity, reboot recovery, fail-closed
+  expiry of unassigned work, preservation of committed assignments and simulated
+  interrupted atomic writes.
+- `station_request_lifecycle_test.cpp`: enabled-destination validation,
+  request creation/expiry basis, cancellation boundary and unassigned-only expiry.
+- The fake persistence adapter tests the required old-or-new storage contract;
+  physical flash/EEPROM power-cut testing remains a target integration gate.
