@@ -208,3 +208,26 @@ when the configured UI interpreter emits CONFIRM and the driver is ACCEPTING.
 Journey progression emits sequenced JOURNEY_UPDATE messages. The local cart
 updates its state only after the outbound message is accepted by the protocol
 endpoint; station confirmation/reconciliation remains authoritative for recovery.
+
+
+## 17. Current provisional application payload layouts
+
+The application layer currently assembles the following big-endian payloads. These
+layouts are implementation scaffolding, not a frozen interoperable standard:
+
+| Message | Payload fields | Bytes |
+|---|---|---:|
+| REQUEST | RequestId (station u16, sequence u32, generation u16), destination u16, local age ms u32 | 14 |
+| CLAIM | RequestId, cart ID u16 | 10 |
+| CLAIM_WITHDRAW | RequestId, cart ID u16 | 10 |
+| CLAIM_RESULT | RequestId, ErrorCode u8, ClaimState u8 | 10 |
+| ASSIGN | RequestId, assigned cart u16, assignment epoch u16, RequestState u8 | 13 |
+| CANCEL | RequestId, CancellationSource u8 | 9 |
+| EXPIRED | RequestId | 8 |
+| JOURNEY_UPDATE | RequestId, assigned cart u16, JourneyStatus u8, event sequence u32 | 15 |
+
+The protocol endpoint still needs matching strict decoders/encoders, message-specific
+length/range validation, acknowledgement correlation, duplicate replay handling and
+snapshot request/response support. Transaction IDs currently derived from RequestId
+hashes are also provisional; a durable collision-safe transaction allocator is
+required before field deployment.
