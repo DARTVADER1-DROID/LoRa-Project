@@ -42,8 +42,10 @@ Status BasicDriverAvailabilityController::onAssignmentConfirmed(
       assignment.assignedCartId == 0 || assignment.epoch == 0 ||
       assignment.state != RequestState::ASSIGNED)
     return Status(ErrorCode::INVALID_ARGUMENT);
+  // EventReconciler calls this only after ActiveAssignment has accepted the
+  // station-authoritative notice. Repeated notices are therefore idempotent.
   if (service_ == CartServiceState::SERVING)
-    return Status(ErrorCode::BUSY);
+    return Status();
 
   acceptance_ = AcceptanceMode::NOT_ACCEPTING;
   service_ = CartServiceState::SERVING;
@@ -63,8 +65,10 @@ bool BasicDriverAvailabilityController::mayClaim() const {
 }
 
 Status BasicDriverAvailabilityController::onClaimStarted() {
-  if (!mayClaim())
+  if (acceptance_ != AcceptanceMode::ACCEPTING)
     return Status(ErrorCode::NOT_ACCEPTING);
+  if (service_ != CartServiceState::IDLE)
+    return Status(ErrorCode::BUSY);
   service_ = CartServiceState::CLAIM_PENDING;
   return Status();
 }
