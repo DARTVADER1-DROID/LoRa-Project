@@ -5,8 +5,7 @@
 
 using namespace ca;
 
-template <uint16_t Capacity>
-class FakeByteStorage final : public IByteStorage {
+template <uint16_t Capacity> class FakeByteStorage final : public IByteStorage {
 public:
   FakeByteStorage() : writeBudget_(-1), initialized_(false) {
     for (uint16_t i = 0; i < Capacity; ++i)

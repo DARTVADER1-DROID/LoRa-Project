@@ -26,8 +26,7 @@ class Esp32PreferencesByteStorage final : public IByteStorage {
   static_assert(StorageBytes > 0, "StorageBytes must be nonzero");
 
 public:
-  Esp32PreferencesByteStorage()
-      : initialized_(false), buffer_() {}
+  Esp32PreferencesByteStorage() : initialized_(false), buffer_() {}
 
   Status begin() override {
     if (initialized_)
@@ -93,9 +92,8 @@ public:
       : baseAddress_(baseAddress), initialized_(false) {}
 
   Status begin() override {
-    if (initialized_ ||
-        static_cast<uint32_t>(baseAddress_) + StorageBytes >
-            static_cast<uint16_t>(EEPROM.length()))
+    if (initialized_ || static_cast<uint32_t>(baseAddress_) + StorageBytes >
+                            static_cast<uint16_t>(EEPROM.length()))
       return Status(ErrorCode::CONFIGURATION_INVALID);
     initialized_ = true;
     return Status();
@@ -121,7 +119,9 @@ public:
     return Status();
   }
 
-  Status sync() override { return initialized_ ? Status() : Status(ErrorCode::INVALID_STATE); }
+  Status sync() override {
+    return initialized_ ? Status() : Status(ErrorCode::INVALID_STATE);
+  }
 
 private:
   uint16_t baseAddress_;

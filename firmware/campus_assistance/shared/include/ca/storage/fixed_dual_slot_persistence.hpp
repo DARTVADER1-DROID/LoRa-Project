@@ -69,9 +69,7 @@ public:
     return Status();
   }
 
-  Status storeAtomically(RecordKey key,
-                         const uint8_t* data,
-                         uint16_t length) override {
+  Status storeAtomically(RecordKey key, const uint8_t* data, uint16_t length) override {
     if (!initialized_)
       return Status(ErrorCode::INVALID_STATE);
     if (key != key_ || (length > 0 && data == 0) || length > kMaxPayloadBytes)
@@ -90,8 +88,8 @@ public:
 
     const uint16_t base = static_cast<uint16_t>(targetIndex * SlotBytes);
     const uint8_t invalidMarker = 0;
-    Status status = storage_.write(
-        static_cast<uint16_t>(base + SlotBytes - 1U), &invalidMarker, 1);
+    Status status =
+        storage_.write(static_cast<uint16_t>(base + SlotBytes - 1U), &invalidMarker, 1);
     if (!status.ok())
       return status;
     status = storage_.sync();
@@ -119,8 +117,8 @@ public:
       return status;
 
     const uint8_t commitMarker = kCommitMarker;
-    status = storage_.write(
-        static_cast<uint16_t>(base + SlotBytes - 1U), &commitMarker, 1);
+    status =
+        storage_.write(static_cast<uint16_t>(base + SlotBytes - 1U), &commitMarker, 1);
     if (!status.ok())
       return status;
     return storage_.sync();
@@ -210,8 +208,7 @@ private:
     if (generation == 0 || length > kMaxPayloadBytes)
       return Status(ErrorCode::STORAGE_FAILURE);
 
-    const uint16_t checksumOffset =
-        static_cast<uint16_t>(kHeaderBytes + length);
+    const uint16_t checksumOffset = static_cast<uint16_t>(kHeaderBytes + length);
     const uint32_t supplied =
         (static_cast<uint32_t>(scratch_[checksumOffset]) << 24) |
         (static_cast<uint32_t>(scratch_[checksumOffset + 1U]) << 16) |
