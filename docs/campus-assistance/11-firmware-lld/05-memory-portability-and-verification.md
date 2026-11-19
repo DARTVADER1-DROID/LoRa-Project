@@ -154,3 +154,12 @@ Inject interfaces and provide:
 ## 10. Module definition of done
 
 A module is integration-ready only when interfaces/invariants and errors are documented, tests cover normal/boundary/failure cases, memory/time bounds are measured, dependencies obey layers, both MCU targets retain protocol compatibility, and docs/test vectors identify the code revision.
+
+## 11. Review corrections — fixed-storage and rollover contracts
+
+- ExpiredRequestSet is a caller-owned output buffer. items points to writable storage for capacity RequestId values, count is reset to zero on entry and reports the number written, and capacity exhaustion returns an explicit error without writing out of bounds. No component retains the pointer.
+- DestinationConfig and StationRegistry are non-owning immutable views. count <= capacity is mandatory; a nonzero count requires a non-null entries pointer. The caller keeps backing storage alive for the full call.
+- Persistence load reports bytesRead. On BUFFER_FULL, it reports the required size and does not overrun the caller buffer.
+- RequestGeneration and AssignmentEpoch are finite 16-bit values. They must never wrap into a value that could collide with a live record, retained terminal record, unexpired frame/retry, or reboot-recovery snapshot. Before exhaustion, rotate the relevant persistent identity/session namespace or refuse new allocation and enter an explicit maintenance/error state. A wrap is not silently accepted.
+- RequestSequence and EventSequence are 32-bit monotonic counters within their identity namespace. Comparisons use a documented wrap-safe serial-number rule and never treat an ambiguous half-range difference as newer. A new persistent generation/session namespace is required before reuse.
+- Assignment epoch uniqueness is scoped to the station/request identity and retained assignment history. Reboot must restore the allocator state before committing new assignments.
