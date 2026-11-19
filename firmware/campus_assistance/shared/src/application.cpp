@@ -63,6 +63,26 @@ Status enqueueClaimResult(ProtocolEndpoint& protocol,
   return protocol.enqueue(message, DeliveryClass::RETRY_UNTIL_ACK);
 }
 
+Status enqueueCartClaim(ProtocolEndpoint& protocol,
+                        const DeviceConfig& config,
+                        const ClaimRequest& claim) {
+  ProtocolMessage message = {};
+  message.header.protocolVersion = config.protocolVersion;
+  message.header.networkId = config.networkId;
+  message.header.messageType = MessageType::CLAIM;
+  message.header.sourceDeviceId = config.deviceId;
+  message.header.destinationDeviceId = claim.requestId.originStationId;
+  message.header.transactionId = claim.transactionId;
+  message.header.messageSequence = claim.requestId.sequence;
+  uint16_t offset = 0;
+  put16(message.payload, offset, claim.requestId.originStationId);
+  put32(message.payload, offset, claim.requestId.sequence);
+  put16(message.payload, offset, claim.requestId.generation);
+  put16(message.payload, offset, claim.cartId);
+  message.payloadLength = offset;
+  return protocol.enqueue(message, DeliveryClass::RETRY_UNTIL_ACK);
+}
+
 } // namespace
 
 StationApplication::StationApplication(StationDependencies dependencies)
@@ -322,6 +342,63 @@ void CartApplication::onButtonEvent(const ButtonEvent& event) {
 
   const UiIntent intent = dependencies_.buttonInterpreter.interpret(
       event, UiContext{context.screenId, context.activeAssignment});
+  if (intent.type == UiIntentType::CONFIRM) {
+    if (!dependencies_.driverAvailability.mayClaim()) {
+      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
+                                       ErrorCode::NOT_ACCEPTING);
+      return;
+    }
+
+    RequestSummary pending = {};
+    if (!dependencies_.pendingRequests.peekOldest(pending)) {
+      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
+                                       ErrorCode::NOT_FOUND);
+      return;
+    }
+
+    Status status =
+        dependencies_.claimClient.requestClaim(pending.id, config_.deviceId);
+    if (!status.ok()) {
+      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
+                                       status.code);
+      return;
+    }
+
+    ClaimRequest claim = {};
+    if (!dependencies_.claimClient.getOutstandingClaim(claim)) {
+      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
+                                       ErrorCode::INVALID_STATE);
+      return;
+    }
+
+    status = dependencies_.driverAvailability.onClaimStarted();
+    if (!status.ok()) {
+      ClaimResult rejected = {};
+      rejected.requestId = claim.requestId;
+      rejected.transactionId = claim.transactionId;
+      rejected.result = status.code;
+      rejected.finalState = ClaimState::IDLE;
+      dependencies_.claimClient.onClaimResult(rejected);
+      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
+                                       status.code);
+      return;
+    }
+
+    status = enqueueCartClaim(dependencies_.protocol, config_, claim);
+    if (!status.ok()) {
+      ClaimResult rejected = {};
+      rejected.requestId = claim.requestId;
+      rejected.transactionId = claim.transactionId;
+      rejected.result = status.code;
+      rejected.finalState = ClaimState::IDLE;
+      dependencies_.claimClient.onClaimResult(rejected);
+      dependencies_.driverAvailability.onClaimWithdrawnByStation();
+      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
+                                       status.code);
+    }
+    return;
+  }
+
   if (intent.type == UiIntentType::ENABLE_ACCEPTANCE) {
     DriverAction action = {DriverActionType::ENABLE_ACCEPTANCE, event.timestampMs};
     const Status status = dependencies_.driverAvailability.enableAcceptance(action);
