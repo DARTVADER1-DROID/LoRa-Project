@@ -8,8 +8,15 @@
 
 namespace ca {
 
-// Composition roots receive collaborators explicitly. They own orchestration,
-// not hardware construction, request truth, or protocol encoding.
+// ProtocolEndpoint's concrete composition root must wire these four roles;
+// the endpoint itself owns their bounded RX/TX/event orchestration.
+struct ProtocolEndpointDependencies {
+  FrameCodec& codec;
+  MessageValidator& validator;
+  IRadioTransport& transport;
+  RetryManager& retries;
+};
+
 struct StationDependencies {
   IClock& clock;
   IButtonInput& buttons;
@@ -64,7 +71,8 @@ public:
   void service();
   void onButtonEvent(const ButtonEvent& event);
   void onProtocolEvent(const ProtocolEvent& event);
-  DriverMode driverMode() const;
+  AcceptanceMode acceptanceMode() const;
+  CartServiceState serviceState() const;
   bool hasActiveAssignment() const;
 
 private:
