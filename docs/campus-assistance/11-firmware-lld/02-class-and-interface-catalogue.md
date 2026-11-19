@@ -115,7 +115,7 @@ Contract: receive polling and sends are bounded; elapsed-time comparisons are wr
       bool contains(const RequestId&) const;
     };
 
-Invariants: bounded FIFO; full-identity deduplication; duplicate insert does not reorder; overflow never overwrites a live entry; clearLocal has no network side effect.
+Invariants: bounded FIFO; full-identity deduplication; duplicate insert does not reorder; overflow never overwrites a live entry; clearLocal has no network side effect. The header-only `FixedPendingRequestStore<StorageCapacity>` implements this contract without heap allocation; its compile-time maximum is selected per target after RAM measurement, and `configure()` may choose a smaller runtime capacity.
 
 ## 4. Active assignment and driver availability
 
