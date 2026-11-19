@@ -17,15 +17,13 @@ class DurableRequestRepository final : public IRequestRepository {
     kHeaderBytes = 17,
     kRecordBytes = 34,
     kChecksumBytes = 4,
-    kMaxEncodedBytes =
-        kHeaderBytes + (StorageCapacity * kRecordBytes) + kChecksumBytes
+    kMaxEncodedBytes = kHeaderBytes + (StorageCapacity * kRecordBytes) + kChecksumBytes
   };
 
 public:
-  DurableRequestRepository(IPersistence& persistence, RecordKey key,
-                           DeviceId stationId)
-      : persistence_(persistence), key_(key), stationId_(stationId),
-        configured_(false), encodedLength_(0) {}
+  DurableRequestRepository(IPersistence& persistence, RecordKey key, DeviceId stationId)
+      : persistence_(persistence), key_(key), stationId_(stationId), configured_(false),
+        encodedLength_(0) {}
 
   Status configure() {
     if (configured_)
@@ -48,8 +46,7 @@ public:
       configured_ = true;
       return Status();
     }
-    if (!loaded.ok() || bytesRead > kMaxEncodedBytes ||
-        !decodeSnapshot(bytesRead))
+    if (!loaded.ok() || bytesRead > kMaxEncodedBytes || !decodeSnapshot(bytesRead))
       return Status(ErrorCode::STORAGE_FAILURE);
 
     configured_ = true;
@@ -96,58 +93,57 @@ public:
     return ready() && state_.recordAt(index, record);
   }
 
-  Status beginClaimIfEligible(const RequestId& id, DeviceId cartId,
-                              TransactionId transactionId, uint32_t now,
+  Status beginClaimIfEligible(const RequestId& id,
+                              DeviceId cartId,
+                              TransactionId transactionId,
+                              uint32_t now,
                               RequestRecord& updated) override {
     return applyRecordTransition(
-        [&](FixedRequestRepository<StorageCapacity>& candidate,
-            RequestRecord& result) {
-          return candidate.beginClaimIfEligible(id, cartId, transactionId, now,
-                                                result);
+        [&](FixedRequestRepository<StorageCapacity>& candidate, RequestRecord& result) {
+          return candidate.beginClaimIfEligible(id, cartId, transactionId, now, result);
         },
         updated);
   }
 
-  Status withdrawClaimIfPending(const RequestId& id, DeviceId cartId,
+  Status withdrawClaimIfPending(const RequestId& id,
+                                DeviceId cartId,
                                 TransactionId transactionId,
                                 RequestRecord& updated) override {
     return applyRecordTransition(
-        [&](FixedRequestRepository<StorageCapacity>& candidate,
-            RequestRecord& result) {
-          return candidate.withdrawClaimIfPending(id, cartId, transactionId,
-                                                  result);
+        [&](FixedRequestRepository<StorageCapacity>& candidate, RequestRecord& result) {
+          return candidate.withdrawClaimIfPending(id, cartId, transactionId, result);
         },
         updated);
   }
 
-  Status commitAssignmentIfClaimPending(const RequestId& id, DeviceId cartId,
+  Status commitAssignmentIfClaimPending(const RequestId& id,
+                                        DeviceId cartId,
                                         TransactionId transactionId,
-                                        AssignmentEpoch epoch, uint32_t now,
+                                        AssignmentEpoch epoch,
+                                        uint32_t now,
                                         RequestRecord& updated) override {
     return applyRecordTransition(
-        [&](FixedRequestRepository<StorageCapacity>& candidate,
-            RequestRecord& result) {
+        [&](FixedRequestRepository<StorageCapacity>& candidate, RequestRecord& result) {
           return candidate.commitAssignmentIfClaimPending(
               id, cartId, transactionId, epoch, now, result);
         },
         updated);
   }
 
-  Status cancelIfUnassigned(const RequestId& id, CancellationSource source,
+  Status cancelIfUnassigned(const RequestId& id,
+                            CancellationSource source,
                             RequestRecord& updated) override {
     return applyRecordTransition(
-        [&](FixedRequestRepository<StorageCapacity>& candidate,
-            RequestRecord& result) {
+        [&](FixedRequestRepository<StorageCapacity>& candidate, RequestRecord& result) {
           return candidate.cancelIfUnassigned(id, source, result);
         },
         updated);
   }
 
-  Status expireIfDue(const RequestId& id, uint32_t now,
-                     RequestRecord& updated) override {
+  Status
+  expireIfDue(const RequestId& id, uint32_t now, RequestRecord& updated) override {
     return applyRecordTransition(
-        [&](FixedRequestRepository<StorageCapacity>& candidate,
-            RequestRecord& result) {
+        [&](FixedRequestRepository<StorageCapacity>& candidate, RequestRecord& result) {
           return candidate.expireIfDue(id, now, result);
         },
         updated);
@@ -156,8 +152,7 @@ public:
   Status applyJourneyUpdateIfCurrent(const JourneyUpdate& update,
                                      RequestRecord& updated) override {
     return applyRecordTransition(
-        [&](FixedRequestRepository<StorageCapacity>& candidate,
-            RequestRecord& result) {
+        [&](FixedRequestRepository<StorageCapacity>& candidate, RequestRecord& result) {
           return candidate.applyJourneyUpdateIfCurrent(update, result);
         },
         updated);
@@ -210,8 +205,7 @@ private:
   }
 
   static bool sameRecord(const RequestRecord& a, const RequestRecord& b) {
-    return RequestIdentity::equals(a.id, b.id) &&
-           a.destinationId == b.destinationId &&
+    return RequestIdentity::equals(a.id, b.id) && a.destinationId == b.destinationId &&
            a.createdAtMs == b.createdAtMs && a.expiresAtMs == b.expiresAtMs &&
            a.state == b.state && a.assignedCartId == b.assignedCartId &&
            a.assignmentEpoch == b.assignmentEpoch &&
@@ -229,8 +223,7 @@ private:
     for (uint16_t i = 0; i < a.size(); ++i) {
       RequestRecord lhs = {};
       RequestRecord rhs = {};
-      if (!a.recordAt(i, lhs) || !b.recordAt(i, rhs) ||
-          !sameRecord(lhs, rhs))
+      if (!a.recordAt(i, lhs) || !b.recordAt(i, rhs) || !sameRecord(lhs, rhs))
         return false;
     }
     return true;
@@ -252,9 +245,7 @@ private:
     put8(out, offset, static_cast<uint8_t>(value));
   }
 
-  static uint8_t get8(const uint8_t* in, uint16_t& offset) {
-    return in[offset++];
-  }
+  static uint8_t get8(const uint8_t* in, uint16_t& offset) { return in[offset++]; }
 
   static uint16_t get16(const uint8_t* in, uint16_t& offset) {
     const uint16_t high = get8(in, offset);
@@ -279,8 +270,8 @@ private:
     return crc ^ 0xFFFFFFFFUL;
   }
 
-  static void encodeRecord(const RequestRecord& record, uint8_t* out,
-                           uint16_t& offset) {
+  static void
+  encodeRecord(const RequestRecord& record, uint8_t* out, uint16_t& offset) {
     put16(out, offset, record.id.originStationId);
     put32(out, offset, record.id.sequence);
     put16(out, offset, record.id.generation);
@@ -359,8 +350,7 @@ private:
     const uint16_t nextGeneration = get16(encoded_, offset);
     const uint8_t exhausted = get8(encoded_, offset);
 
-    if (storedStationId != stationId_ || count > StorageCapacity ||
-        exhausted > 1 ||
+    if (storedStationId != stationId_ || count > StorageCapacity || exhausted > 1 ||
         length != kHeaderBytes + (count * kRecordBytes) + kChecksumBytes)
       return false;
 
@@ -372,8 +362,8 @@ private:
     if (offset != length - kChecksumBytes)
       return false;
 
-    return state_.restoreAllocatorState(nextSequence, nextGeneration,
-                                        exhausted != 0).ok();
+    return state_.restoreAllocatorState(nextSequence, nextGeneration, exhausted != 0)
+        .ok();
   }
 };
 

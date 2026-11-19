@@ -14,7 +14,8 @@ class StationRequestLifecycle final : public RequestLifecycle {
 public:
   StationRequestLifecycle(IRequestRepository& repository,
                           const DestinationCatalog& destinations,
-                          const IClock& clock, DeviceId stationId,
+                          const IClock& clock,
+                          DeviceId stationId,
                           uint32_t requestLifetimeMs);
 
   Status configure();

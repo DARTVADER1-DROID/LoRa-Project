@@ -2,16 +2,17 @@
 
 namespace ca {
 
-StationRequestLifecycle::StationRequestLifecycle(
-    IRequestRepository& repository, const DestinationCatalog& destinations,
-    const IClock& clock, DeviceId stationId, uint32_t requestLifetimeMs)
+StationRequestLifecycle::StationRequestLifecycle(IRequestRepository& repository,
+                                                 const DestinationCatalog& destinations,
+                                                 const IClock& clock,
+                                                 DeviceId stationId,
+                                                 uint32_t requestLifetimeMs)
     : repository_(repository), destinations_(destinations), clock_(clock),
-      stationId_(stationId), requestLifetimeMs_(requestLifetimeMs),
-      configured_(false) {}
+      stationId_(stationId), requestLifetimeMs_(requestLifetimeMs), configured_(false) {
+}
 
 Status StationRequestLifecycle::configure() {
-  if (stationId_ == 0 || requestLifetimeMs_ == 0 ||
-      requestLifetimeMs_ > 0x7FFFFFFFUL)
+  if (stationId_ == 0 || requestLifetimeMs_ == 0 || requestLifetimeMs_ > 0x7FFFFFFFUL)
     return Status(ErrorCode::INVALID_ARGUMENT);
 
   configured_ = true;
@@ -19,16 +20,14 @@ Status StationRequestLifecycle::configure() {
 }
 
 Status StationRequestLifecycle::create(const NewRequest& input,
-                                        RequestRecord& created) {
+                                       RequestRecord& created) {
   if (!configured_)
     return Status(ErrorCode::INVALID_STATE);
-  if (input.destinationId == 0 ||
-      !destinations_.isEnabled(input.destinationId))
+  if (input.destinationId == 0 || !destinations_.isEnabled(input.destinationId))
     return Status(ErrorCode::INVALID_ARGUMENT);
 
   Destination destination = {};
-  if (!destinations_.findById(input.destinationId, destination) ||
-      !destination.enabled)
+  if (!destinations_.findById(input.destinationId, destination) || !destination.enabled)
     return Status(ErrorCode::INVALID_ARGUMENT);
 
   RequestId id = {};
@@ -53,8 +52,7 @@ Status StationRequestLifecycle::create(const NewRequest& input,
   return Status();
 }
 
-Status StationRequestLifecycle::cancel(const RequestId& id,
-                                       CancellationSource source) {
+Status StationRequestLifecycle::cancel(const RequestId& id, CancellationSource source) {
   if (!configured_)
     return Status(ErrorCode::INVALID_STATE);
 
@@ -70,8 +68,7 @@ Status StationRequestLifecycle::expireDue(uint32_t stationNowMs,
                                           ExpiredRequestSet& expired) {
   if (!configured_)
     return Status(ErrorCode::INVALID_STATE);
-  if ((expired.capacity > 0 && expired.items == 0) ||
-      expired.count > expired.capacity)
+  if ((expired.capacity > 0 && expired.items == 0) || expired.count > expired.capacity)
     return Status(ErrorCode::INVALID_ARGUMENT);
 
   uint16_t dueCount = 0;
@@ -121,8 +118,7 @@ Status StationRequestLifecycle::applyJourneyUpdate(const JourneyUpdate& update) 
   return repository_.applyJourneyUpdateIfCurrent(update, updated);
 }
 
-bool StationRequestLifecycle::find(const RequestId& id,
-                                   RequestRecord& record) const {
+bool StationRequestLifecycle::find(const RequestId& id, RequestRecord& record) const {
   return configured_ && repository_.find(id, record);
 }
 
