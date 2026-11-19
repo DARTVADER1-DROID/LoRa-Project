@@ -104,9 +104,8 @@ public:
   virtual Status schedule(const ProtocolMessage& message, uint32_t nowMs) = 0;
   virtual void service(uint32_t nowMs) = 0;
   virtual bool pollDue(ProtocolMessage& message, uint8_t& attemptNumber) = 0;
-  virtual Status onTransmissionAttempt(TransactionId transactionId,
-                                       bool accepted,
-                                       uint32_t nowMs) = 0;
+  virtual Status
+  onTransmissionAttempt(TransactionId transactionId, bool accepted, uint32_t nowMs) = 0;
   virtual Status onAcknowledgement(TransactionId transactionId) = 0;
   virtual Status cancel(TransactionId transactionId) = 0;
   virtual bool pollOutcome(RetryOutcome& outcome) = 0;
