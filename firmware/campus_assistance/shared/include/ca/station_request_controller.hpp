@@ -15,7 +15,6 @@ class StationRequestController {
 public:
   StationRequestController(DestinationCatalog& destinations,
                            RequestLifecycle& lifecycle,
-                           IClock& clock,
                            ProtocolEndpoint& protocol,
                            const DeviceConfig& config);
 
@@ -26,7 +25,6 @@ public:
 private:
   DestinationCatalog& destinations_;
   RequestLifecycle& lifecycle_;
-  IClock& clock_;
   ProtocolEndpoint& protocol_;
   DeviceConfig config_;
   DeviceId selectedDestinationId_;
