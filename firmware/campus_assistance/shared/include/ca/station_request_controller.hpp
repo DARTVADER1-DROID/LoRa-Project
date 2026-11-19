@@ -6,8 +6,8 @@
 namespace ca {
 
 // Station request use case: selection, submission and cancellation.
-// It coordinates abstractions but does not implement request persistence,
-// arbitration, frame encoding or hardware access.
+// It coordinates abstractions but does not implement persistence, arbitration,
+// frame encoding or hardware access.
 class StationRequestController {
 public:
   StationRequestController(DestinationCatalog& destinations,
