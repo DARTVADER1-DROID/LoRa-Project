@@ -167,3 +167,12 @@ The withdrawal carries the same full RequestId and transaction identity as the o
 The current typed message catalogue includes CLAIM_WITHDRAW. Numeric IDs, exact wire encoding, retry windows and arbitration airtime remain deliberately open.
 
 The byte transport boundary, typed event delivery, atomic repository guard and SOLID ownership rules in document 06 are normative where earlier pseudocode differs.
+
+## 14. Review corrections — withdrawal transaction and envelope retention
+
+- CLAIM_WITHDRAW has its own payload containing the full RequestId, cart ID and original claim transaction ID. It is not encoded as a generic CLAIM payload.
+- The station persists/serializes the claim lifecycle IDLE -> PENDING -> WITHDRAWN | COMMITTED. Withdrawal and assignment commit must use the same transaction identity and same authoritative record.
+- ASSIGN can be emitted only after commitAssignmentIfClaimPending succeeds. A delayed withdrawal cannot reverse COMMITTED. A duplicate withdrawal is idempotent.
+- A ProtocolEvent carries the complete decoded ProtocolHeader (protocol version, network, message type, source, destination, transaction ID and message sequence) plus sender-validation result. This metadata survives decoding and event dispatch for authorization, replay filtering, deduplication and ACK correlation.
+- The validator must enforce role/address rules before an application event is emitted. NETWORK_MEMBER_VALIDATED means only that configured network/address rules passed; it is not cryptographic sender authentication. Authenticated status is available only after a real authentication mechanism is implemented and verified.
+- Message sequence/replay windows are scoped by sender identity and protocol version; transaction IDs correlate claim/withdraw/assignment and ACK outcomes. Duplicate and stale frames must be idempotent.
