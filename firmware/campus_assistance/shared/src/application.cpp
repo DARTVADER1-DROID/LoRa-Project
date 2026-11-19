@@ -8,6 +8,28 @@ const uint16_t kDiagnosticInitializationFailure = 1;
 const uint16_t kDiagnosticProtocolEventRejected = 2;
 const uint16_t kDiagnosticButtonEventRejected = 3;
 
+bool isValidButtonProfile(const ButtonConfig& config) {
+  return config.buttonCount > 0 && config.buttonCount <= kMaxPhysicalButtons &&
+         config.debounceMs > 0 && config.longPressMs > config.debounceMs;
+}
+
+void put16(uint8_t* output, uint16_t& offset, uint16_t value) {
+  output[offset++] = static_cast<uint8_t>(value >> 8);
+  output[offset++] = static_cast<uint8_t>(value);
+}
+
+void put32(uint8_t* output, uint16_t& offset, uint32_t value) {
+  output[offset++] = static_cast<uint8_t>(value >> 24);
+  output[offset++] = static_cast<uint8_t>(value >> 16);
+  output[offset++] = static_cast<uint8_t>(value >> 8);
+  output[offset++] = static_cast<uint8_t>(value);
+}
+
+TransactionId transactionFor(const RequestId& id) {
+  const TransactionId value = RequestIdentity::hash(id);
+  return value == 0 ? 1 : value;
+}
+
 bool senderIsValidated(SenderValidation validation) {
   return validation == SenderValidation::NETWORK_MEMBER_VALIDATED ||
          validation == SenderValidation::AUTHENTICATED;
@@ -33,6 +55,8 @@ Status StationApplication::begin(const DeviceConfig& config) {
   Status status = dependencies_.configValidator.validate(config);
   if (!status.ok())
     return status;
+  if (!isValidButtonProfile(dependencies_.buttonConfig))
+    return Status(ErrorCode::CONFIGURATION_INVALID);
 
   config_ = config;
   status = dependencies_.buttons.begin(dependencies_.buttonConfig);
@@ -59,6 +83,36 @@ void StationApplication::service() {
     return;
 
   const uint32_t nowMs = dependencies_.clock.millisNow();
+
+  Status expiryStatus = dependencies_.requestLifecycle.expireDue(
+      nowMs, dependencies_.expiryBuffer);
+  if (!expiryStatus.ok() && expiryStatus.code != ErrorCode::BUFFER_FULL) {
+    dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected,
+                                     expiryStatus.code);
+  } else if (expiryStatus.ok()) {
+    for (uint16_t i = 0; i < dependencies_.expiryBuffer.count; ++i) {
+      const RequestId& id = dependencies_.expiryBuffer.items[i];
+      ProtocolMessage message = {};
+      message.header.protocolVersion = config_.protocolVersion;
+      message.header.networkId = config_.networkId;
+      message.header.messageType = MessageType::EXPIRED;
+      message.header.sourceDeviceId = config_.deviceId;
+      message.header.destinationDeviceId = 0;
+      message.header.transactionId = transactionFor(id);
+      message.header.messageSequence = id.sequence;
+      uint16_t offset = 0;
+      put16(message.payload, offset, id.originStationId);
+      put32(message.payload, offset, id.sequence);
+      put16(message.payload, offset, id.generation);
+      message.payloadLength = offset;
+      const Status queued =
+          dependencies_.protocol.enqueue(message, DeliveryClass::RETRY_UNTIL_ACK);
+      if (!queued.ok())
+        dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected,
+                                         queued.code);
+    }
+  }
+
   dependencies_.buttons.service(nowMs);
   dependencies_.buzzer.service(nowMs);
   dependencies_.protocol.service(nowMs);
@@ -154,6 +208,8 @@ Status CartApplication::begin(const DeviceConfig& config) {
   Status status = dependencies_.configValidator.validate(config);
   if (!status.ok())
     return status;
+  if (!isValidButtonProfile(dependencies_.buttonConfig))
+    return Status(ErrorCode::CONFIGURATION_INVALID);
 
   status = dependencies_.pendingRequests.configure(config.pendingCapacity);
   if (!status.ok())
