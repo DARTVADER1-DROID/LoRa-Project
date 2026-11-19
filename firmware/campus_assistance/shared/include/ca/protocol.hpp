@@ -24,6 +24,7 @@ union ProtocolEventPayload {
   ExpiryNotice expiry;
   JourneyUpdate journeyUpdate;
   RequestSnapshot snapshot;
+  RequestId snapshotQuery;
   TransactionId acknowledgedTransaction;
 };
 
@@ -59,6 +60,13 @@ public:
   virtual Status authorizeSender(const ProtocolHeader& envelope,
                                  const DeviceConfig& localConfig,
                                  SenderValidation& validation) const = 0;
+};
+
+// Strict typed payload conversion for the current provisional message layouts.
+class MessagePayloadCodec {
+public:
+  static Status decode(const ProtocolMessage& message, ProtocolEvent& event);
+  static Status encode(const ProtocolEvent& event, ProtocolMessage& message);
 };
 
 // Provisional reference framing for host tests. Numeric layout, magic and CRC
