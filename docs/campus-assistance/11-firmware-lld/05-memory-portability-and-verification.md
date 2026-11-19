@@ -199,11 +199,20 @@ repository and retry capacities or move durable storage to external FRAM.
 
 ### 12.1 Storage adapter caveats
 
-The shared writer programs the inactive slot in ascending address order and
-places the commit marker at the final byte. On AVR, EEPROM byte updates are
-immediate; an interrupted write leaves the previous slot untouched and the
-partially written target fails CRC validation. On ESP32, Preferences stages the
-two-slot image in RAM and submits it as one NVS blob update.
+The shared writer first invalidates the inactive slot marker, syncs, writes
+the body in ascending address order, syncs, then writes and syncs the commit
+marker as the final byte. On AVR, EEPROM byte updates are immediate; an
+interrupted body write leaves the previous slot intact and the target marked
+incomplete. On ESP32, Preferences stages the two-slot image in RAM and each
+sync submits the complete NVS blob. This currently means three blob updates per
+record write; measure latency and wear before deployment.
+
+An incomplete slot may fall back to the other committed slot. A slot with a
+valid commit marker but bad CRC is treated as committed-data corruption and
+fails closed; the firmware must not roll back a possibly newer request-ID
+allocator snapshot and silently reuse identifiers. A torn first-ever write
+also fails closed and requires explicit storage recovery rather than silently
+initializing an empty repository.
 
 Espressif documents NVS sudden-power-loss protection and atomic updates, but
 also warns that NVS is intended for small, relatively infrequent updates and
