@@ -14,7 +14,8 @@ bool FixedActiveAssignment::isOccupied() const {
 Status FixedActiveAssignment::activate(const AssignmentRecord& assignment) {
   if (!RequestIdentity::isValid(assignment.requestId) ||
       assignment.assignedCartId == 0 || assignment.epoch == 0 ||
-      assignment.state != RequestState::ASSIGNED)
+      assignment.state != RequestState::ASSIGNED ||
+      assignment.lastEventSequence != 0)
     return Status(ErrorCode::INVALID_ARGUMENT);
 
   if (occupied_) {
@@ -28,6 +29,7 @@ Status FixedActiveAssignment::activate(const AssignmentRecord& assignment) {
   current_ = assignment;
   journey_ = JourneyStatus::RECEIVED;
   lastSequence_ = 0;
+  current_.lastEventSequence = 0;
   occupied_ = true;
   return Status();
 }
@@ -45,6 +47,7 @@ Status FixedActiveAssignment::updateJourneyStatus(JourneyStatus status,
   // idempotent; it may advance the event cursor but never regress the journey.
   journey_ = status;
   lastSequence_ = sequence;
+  current_.lastEventSequence = sequence;
   current_.state =
       status == JourneyStatus::ON_THE_WAY
           ? RequestState::ON_THE_WAY
