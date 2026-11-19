@@ -9,6 +9,9 @@ DebouncedButtonInput::DebouncedButtonInput(IButtonPinReader& reader)
 Status DebouncedButtonInput::begin(const ButtonConfig& config) {
   if (initialized_)
     return Status(ErrorCode::INVALID_STATE);
+  if (config.buttonCount == 0 || config.buttonCount > kMaxPhysicalButtons ||
+      config.debounceMs == 0 || config.longPressMs <= config.debounceMs)
+    return Status(ErrorCode::INVALID_ARGUMENT);
   const Status readerStatus = reader_.begin(config);
   if (!readerStatus.ok())
     return readerStatus;
