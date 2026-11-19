@@ -65,6 +65,11 @@ class IRequestRepository {
   virtual Status insert(const RequestRecord& record) = 0;
   virtual bool find(const RequestId& id, RequestRecord& record) const = 0;
   virtual Status update(const RequestRecord& record) = 0;
+  // Must atomically assign only while the stored request is still unassigned
+  // and non-terminal; this is the persistence-level single-winner guard.
+  virtual Status assignIfUnassigned(const RequestId& id, DeviceId cartId,
+                                    AssignmentEpoch epoch,
+                                    RequestRecord& updated) = 0;
   virtual Status removeTerminalBefore(uint32_t retentionBoundaryMs) = 0;
   virtual uint16_t size() const = 0;
 };
