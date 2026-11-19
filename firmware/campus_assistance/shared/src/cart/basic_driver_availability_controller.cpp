@@ -29,7 +29,8 @@ BasicDriverAvailabilityController::disableAcceptance(const DriverAction& action)
     return Status(ErrorCode::INVALID_ARGUMENT);
 
   acceptance_ = AcceptanceMode::NOT_ACCEPTING;
-  if (service_ == CartServiceState::CLAIM_PENDING) {
+  if (service_ == CartServiceState::CLAIM_PENDING ||
+      service_ == CartServiceState::UNCERTAIN) {
     service_ = CartServiceState::UNCERTAIN;
     return Status(ErrorCode::COMMUNICATION_UNCERTAIN);
   }
