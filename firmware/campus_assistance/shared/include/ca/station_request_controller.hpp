@@ -20,6 +20,7 @@ public:
   Status selectDestination(DeviceId destinationId);
   Status submit(RequestId& createdRequestId);
   Status cancelCurrentRequest();
+  Status service();
   bool hasCurrentRequest() const;
   void onRequestTerminal(const RequestId& requestId);
 
@@ -32,6 +33,9 @@ private:
   RequestId currentRequestId_;
   bool hasSelection_;
   bool hasCurrentRequest_;
+  bool cancellationPending_;
+
+  Status enqueueCancellation();
 };
 
 } // namespace ca
