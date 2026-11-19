@@ -23,8 +23,10 @@ public:
   }
 
   Status insertNew(const RequestRecord& record) override {
-    if (!configured_ || !RequestIdentity::isValid(record.id) ||
-        record.destinationId == 0 || record.state != RequestState::PENDING_UNASSIGNED ||
+    if (!configured_)
+      return Status(ErrorCode::INVALID_STATE);
+    if (!RequestIdentity::isValid(record.id) || record.destinationId == 0 ||
+        record.state != RequestState::PENDING_UNASSIGNED ||
         record.claimState != ClaimState::IDLE ||
         record.expiresAtMs == record.createdAtMs ||
         static_cast<uint32_t>(record.expiresAtMs - record.createdAtMs) > 0x7FFFFFFFUL)
