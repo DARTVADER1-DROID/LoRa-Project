@@ -315,6 +315,17 @@ struct DestinationConfig {
   uint16_t capacity;
 };
 
+struct CartRegistryEntry {
+  DeviceId cartId;
+  bool enabled;
+};
+
+struct CartRegistryView {
+  uint16_t count;
+  const CartRegistryEntry* entries;
+  uint16_t capacity;
+};
+
 struct StationRegistryEntry {
   DeviceId stationId;
   bool enabled;
