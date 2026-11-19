@@ -84,6 +84,7 @@ Status StationRequestController::submit(RequestId& createdRequestId) {
 
   currentRequestId_ = created.id;
   hasCurrentRequest_ = true;
+  cancellationPending_ = false;
   createdRequestId = created.id;
   return Status();
 }
@@ -92,30 +93,44 @@ Status StationRequestController::cancelCurrentRequest() {
   if (!hasCurrentRequest_)
     return Status(ErrorCode::NOT_FOUND);
 
-  const RequestId id = currentRequestId_;
-  const Status cancelled = lifecycle_.cancel(id, CancellationSource::STUDENT);
-  if (!cancelled.ok())
-    return cancelled;
+  if (!cancellationPending_) {
+    const Status cancelled =
+        lifecycle_.cancel(currentRequestId_, CancellationSource::STUDENT);
+    if (!cancelled.ok())
+      return cancelled;
+    cancellationPending_ = true;
+  }
+  return enqueueCancellation();
+}
 
+Status StationRequestController::service() {
+  return cancellationPending_ ? enqueueCancellation() : Status();
+}
+
+Status StationRequestController::enqueueCancellation() {
   ProtocolMessage message = {};
   message.header.protocolVersion = config_.protocolVersion;
   message.header.networkId = config_.networkId;
   message.header.messageType = MessageType::CANCEL;
   message.header.sourceDeviceId = config_.deviceId;
   message.header.destinationDeviceId = 0;
-  message.header.transactionId = transactionFor(id);
-  message.header.messageSequence = id.sequence;
+  message.header.transactionId = transactionFor(currentRequestId_);
+  message.header.messageSequence = currentRequestId_.sequence;
   message.payloadLength = 9;
   uint16_t offset = 0;
-  put16(message.payload, offset, id.originStationId);
-  put32(message.payload, offset, id.sequence);
-  put16(message.payload, offset, id.generation);
+  put16(message.payload, offset, currentRequestId_.originStationId);
+  put32(message.payload, offset, currentRequestId_.sequence);
+  put16(message.payload, offset, currentRequestId_.generation);
   message.payload[offset++] = static_cast<uint8_t>(CancellationSource::STUDENT);
 
   const Status queued = protocol_.enqueue(message, DeliveryClass::RETRY_UNTIL_ACK);
+  if (!queued.ok())
+    return queued;
+
   hasCurrentRequest_ = false;
+  cancellationPending_ = false;
   currentRequestId_ = RequestId();
-  return queued;
+  return Status();
 }
 
 bool StationRequestController::hasCurrentRequest() const {
@@ -125,6 +140,7 @@ bool StationRequestController::hasCurrentRequest() const {
 void StationRequestController::onRequestTerminal(const RequestId& requestId) {
   if (hasCurrentRequest_ && RequestIdentity::equals(currentRequestId_, requestId)) {
     hasCurrentRequest_ = false;
+    cancellationPending_ = false;
     currentRequestId_ = RequestId();
   }
 }
