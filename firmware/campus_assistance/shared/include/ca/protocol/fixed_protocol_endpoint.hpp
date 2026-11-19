@@ -80,6 +80,7 @@ public:
     if (!initialized_)
       return Status(ErrorCode::INVALID_STATE);
     if (message.header.sourceDeviceId != config_.deviceId ||
+        message.header.transactionId == 0 ||
         message.header.networkId != config_.networkId ||
         message.header.protocolVersion != config_.protocolVersion ||
         message.payloadLength > kMaxProtocolPayloadBytes)
@@ -279,6 +280,8 @@ private:
         senderValidation == SenderValidation::UNVALIDATED)
       return;
 
+    if (message.header.transactionId == 0)
+      return;
     if (message.header.messageType == MessageType::ACKNOWLEDGEMENT) {
       retries_.onAcknowledgement(message.header.transactionId,
                                  message.header.sourceDeviceId);
