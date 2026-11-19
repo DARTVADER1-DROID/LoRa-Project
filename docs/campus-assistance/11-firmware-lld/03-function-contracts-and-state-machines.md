@@ -192,3 +192,7 @@ A claim is a durable transaction, not merely a cart UI mode:
 ### Repository atomicity
 
 There is no generic repository update. Cancellation, expiry, claim start, withdrawal, assignment commit and journey update are conditional atomic transitions. A repository implementation must make each operation linearizable with respect to every other transition for the same full RequestId.
+
+### 10.1 Commit-time expiry check
+
+StationClaimCoordinator::commitWinner(claim, stationNowMs, assignment) must pass the current station clock value to commitAssignmentIfClaimPending. evaluate() is advisory only; the repository rechecks expiry and transaction state atomically at commit time.
