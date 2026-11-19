@@ -3,6 +3,7 @@
 #include "ca/protocol.hpp"
 #include "ca/protocol/fixed_retry_manager.hpp"
 #include "ca/ports/hardware.hpp"
+#include "ca/ports/network.hpp"
 
 namespace ca {
 
@@ -20,8 +21,19 @@ public:
                         const DeviceConfig& config,
                         const RadioProfile& radioProfile)
       : codec_(codec), validator_(validator), transport_(transport), retries_(retries),
-        config_(config), radioProfile_(radioProfile), eventHead_(0), eventCount_(0),
-        nowMs_(0), initialized_(false) {}
+        config_(config), radioProfile_(radioProfile), cartRegistry_(0),
+        eventHead_(0), eventCount_(0), nowMs_(0), initialized_(false) {}
+
+  FixedProtocolEndpoint(FrameCodec& codec,
+                        MessageValidator& validator,
+                        IRadioTransport& transport,
+                        RetryManager& retries,
+                        const DeviceConfig& config,
+                        const RadioProfile& radioProfile,
+                        ICartRegistry& cartRegistry)
+      : codec_(codec), validator_(validator), transport_(transport), retries_(retries),
+        config_(config), radioProfile_(radioProfile), cartRegistry_(&cartRegistry),
+        eventHead_(0), eventCount_(0), nowMs_(0), initialized_(false) {}
 
   Status begin() override {
     if (initialized_ || config_.deviceId == 0 || config_.networkId == 0 ||
@@ -75,8 +87,11 @@ public:
     if (!payloadStatus.ok())
       return payloadStatus;
 
-    if (deliveryClass == DeliveryClass::RETRY_UNTIL_ACK)
+    if (deliveryClass == DeliveryClass::RETRY_UNTIL_ACK) {
+      if (message.header.destinationDeviceId == 0)
+        return scheduleReliableBroadcast(message);
       return retries_.schedule(message, nowMs_);
+    }
     if (deliveryClass != DeliveryClass::BEST_EFFORT &&
         deliveryClass != DeliveryClass::PRIORITY)
       return Status(ErrorCode::INVALID_ARGUMENT);
@@ -103,11 +118,41 @@ private:
   RetryManager& retries_;
   DeviceConfig config_;
   RadioProfile radioProfile_;
+  ICartRegistry* cartRegistry_;
   ProtocolEvent events_[EventCapacity];
   uint8_t eventHead_;
   uint8_t eventCount_;
   uint32_t nowMs_;
   bool initialized_;
+
+  Status scheduleReliableBroadcast(const ProtocolMessage& message) {
+    if (cartRegistry_ == 0 || cartRegistry_->enabledCount() == 0)
+      return Status(ErrorCode::CONFIGURATION_INVALID);
+
+    const uint16_t count = cartRegistry_->enabledCount();
+    for (uint16_t i = 0; i < count; ++i) {
+      const DeviceId cartId = cartRegistry_->enabledCartAt(i);
+      if (cartId == 0 || cartId == config_.deviceId)
+        return Status(ErrorCode::CONFIGURATION_INVALID);
+      for (uint16_t j = 0; j < i; ++j)
+        if (cartRegistry_->enabledCartAt(j) == cartId)
+          return Status(ErrorCode::DUPLICATE);
+    }
+
+    for (uint16_t i = 0; i < count; ++i) {
+      ProtocolMessage unicast = message;
+      const DeviceId cartId = cartRegistry_->enabledCartAt(i);
+      unicast.header.destinationDeviceId = cartId;
+      unicast.header.transactionId =
+          message.header.transactionId + static_cast<uint32_t>(cartId) * 65537UL;
+      if (unicast.header.transactionId == 0)
+        unicast.header.transactionId = message.header.transactionId;
+      const Status scheduled = retries_.schedule(unicast, nowMs_);
+      if (!scheduled.ok())
+        return scheduled;
+    }
+    return Status();
+  }
 
   Status sendMessage(const ProtocolMessage& message) {
     uint8_t bytes[kMaxFrameBytes] = {};
