@@ -226,8 +226,10 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
     }
     status = dependencies_.claims.evaluate(claim, dependencies_.clock.millisNow());
     {
+      const bool claimStarted = status.ok();
+      bool withdrawalSucceeded = false;
       AssignmentRecord assignment = {};
-      if (status.ok()) {
+      if (claimStarted) {
         status = dependencies_.claims.commitWinner(
             claim, dependencies_.clock.millisNow(), assignment);
         if (!status.ok()) {
@@ -235,12 +237,9 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
           withdrawal.requestId = claim.requestId;
           withdrawal.cartId = claim.cartId;
           withdrawal.transactionId = claim.transactionId;
-          dependencies_.claims.withdrawClaim(withdrawal);
+          withdrawalSucceeded =
+              dependencies_.claims.withdrawClaim(withdrawal).ok();
         }
-      }
-      if (!dependencies_.claims.getAssignment(claim.requestId, assignment) &&
-          status.ok()) {
-        status = Status(ErrorCode.STORAGE_FAILURE);
       }
 
       const bool assigned =
@@ -255,7 +254,10 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
 
       const ClaimState finalState =
           assigned ? ClaimState::COMMITTED
-                   : (status.ok() ? ClaimState::PENDING : ClaimState::WITHDRAWN);
+                   : (claimStarted
+                          ? (withdrawalSucceeded ? ClaimState::WITHDRAWN
+                                                 : ClaimState::PENDING)
+                          : ClaimState::IDLE);
       const Status response = enqueueClaimResult(
           dependencies_.protocol, config_, claim, status.code, finalState);
       if (!response.ok())
