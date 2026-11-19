@@ -29,3 +29,4 @@
 #include "ca/application.hpp"
 #include "ca/input/fixed_button_debouncer.hpp"
 #include "ca/input/debounced_button_input.hpp"
+#include "ca/input/two_button_event_interpreter.hpp"
