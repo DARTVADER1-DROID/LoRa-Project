@@ -7,6 +7,7 @@ namespace ca {
 class RequestLifecycle {
 public:
   virtual ~RequestLifecycle() {}
+  virtual Status configure() = 0;
   virtual Status create(const NewRequest& input, RequestRecord& created) = 0;
   virtual Status cancel(const RequestId& id, CancellationSource source) = 0;
   virtual Status expireDue(uint32_t stationNowMs, ExpiredRequestSet& expired) = 0;
