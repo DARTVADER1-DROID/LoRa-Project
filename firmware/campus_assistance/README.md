@@ -34,6 +34,9 @@ and separate Arduino Uno / ESP32 station / cart entry points.
 - `shared/src/cart/`: separate implementations for driver availability, active
   assignment, claim ownership and authoritative event reconciliation.
 - `shared/src/protocol.cpp`: bounded binary frame codec and structural network validator.
+- `shared/include/ca/protocol/fixed_retry_manager.hpp`: allocation-free exponential retry scheduler with per-transaction outcomes.
+- `shared/include/ca/protocol/fixed_protocol_endpoint.hpp`: bounded RX event queue, frame validation, ACK handling and recipient-specific reliable broadcast.
+- `shared/include/ca/storage/fixed_cart_registry.hpp`: validated station-side roster for reliable cart broadcasts.
 - `shared/src/application.cpp`: station/cart event-loop orchestration, claim handling, expiry outbox and authoritative journey snapshots.
 - `platform/include/ca/platform/arduino_core_adapters.hpp`: Arduino GPIO sampling, clock and buzzer adapters.
 - `platform/include/ca/platform/arduino_pcf8574_lcd.hpp`: configurable PCF8574-backed 16×2 LCD adapter.
@@ -69,7 +72,7 @@ ctest --test-dir build/campus-assistance --output-on-failure
 This compiles the public contracts, shared configuration validator and concrete
 cart-state components, then runs configuration, request-identity, pending-FIFO,
 repository, durable reboot-recovery, station lifecycle, protocol framing,
-claim arbitration, cart reconciliation and destination-catalogue tests. The host fake
+claim arbitration, cart reconciliation, destination-catalogue, retry-scheduler and protocol-endpoint tests. The host fake
 persistence adapter models the atomic old-or-new contract; it does not prove a
 real flash/EEPROM adapter's power-loss behavior. It is not an Arduino IDE or PlatformIO
 build, and does not verify target memory, timing, radio behavior, flash atomicity,
@@ -108,6 +111,7 @@ staged file with unstaged edits, preventing accidental inclusion of unrelated hu
 - Protocol events retain their validated envelope metadata and sender-validation
   level for authorization, replay filtering and transaction correlation.
 - Retry exhaustion is an explicit outcome, and persistence reads report output length.
+- Reliable broadcasts require a provisioned cart roster and are expanded into per-cart unicast transactions; ACKs are accepted only from the intended recipient.
 - Radio transport operates on encoded bytes; applications receive typed events.
 - All queues, frame buffers and retry tables must be bounded.
 - Cart receive and queue behavior is independent of driver acceptance.
@@ -156,4 +160,4 @@ cycle under Indian WPC rules. A provisional binary frame envelope is versioned a
 with CRC32; this is a host-reference implementation, not an approved wire standard.
 Payload fields are still assembled by application code and need a single normative
 message-schema table before interoperability testing. The cart claim client
-requires a durable transaction-ID seed. The current station reference policy commits the first valid claim received; it does not provide an RF fairness window. The Arduino core adapters and PCF8574 LCD adapter are reference implementations only; no RA-02 radio or physical persistence adapter exists yet.
+requires a durable transaction-ID seed. The current station reference policy commits the first valid claim received; it does not provide an RF fairness window. Reliable station broadcasts require a provisioned cart registry; broadcast fan-out and ACK tracking are now implemented in the host reference endpoint. The Arduino core adapters and PCF8574 LCD adapter are reference implementations only; no RA-02 radio or physical persistence adapter exists yet.
