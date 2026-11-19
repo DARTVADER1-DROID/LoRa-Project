@@ -1,0 +1,26 @@
+name: Firmware formatting
+
+on:
+  pull_request:
+    paths:
+      - "firmware/campus_assistance/**"
+      - ".clang-format"
+      - ".github/workflows/firmware-format.yml"
+  push:
+    branches: [main]
+    paths:
+      - "firmware/campus_assistance/**"
+      - ".clang-format"
+
+permissions:
+  contents: read
+
+jobs:
+  clang-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
+      - name: Verify formatting
+        run: sh firmware/campus_assistance/scripts/check-format.sh
