@@ -104,14 +104,13 @@ int main() {
   for (uint8_t i = 0; i < sizeof(thirdValue); ++i)
     assert(output[i] == thirdValue[i]);
 
-  // A corrupt newest slot falls back to the previous committed generation.
+  // A committed slot with a bad CRC is corruption, not an interrupted write.
+  // Fail closed rather than roll back the request-ID allocator.
   storage.bytes()[12] ^= 0x01;
-  assert(persistence.load(key, output, sizeof(output), bytesRead).ok());
-  assert(bytesRead == sizeof(newValue));
-  for (uint8_t i = 0; i < sizeof(newValue); ++i)
-    assert(output[i] == newValue[i]);
+  assert(persistence.load(key, output, sizeof(output), bytesRead).code ==
+         ErrorCode::STORAGE_FAILURE);
 
-  // If both commit markers are damaged, never reinterpret the store as empty.
+  // Damaging the other slot marker must never reinterpret the store as empty.
   storage.bytes()[255] ^= 0x01;
   assert(persistence.load(key, output, sizeof(output), bytesRead).code ==
          ErrorCode::STORAGE_FAILURE);
