@@ -3,17 +3,17 @@
 
 namespace ca {
 
-CartEventReconciler::CartEventReconciler(DeviceId cartId,
-                                         PendingRequestStore& pendingRequests,
-                                         ActiveAssignment& activeAssignment,
-                                         DriverAvailabilityController& availability,
-                                         CartClaimClient& claimClient)
+CartEventReconciler::CartEventReconciler(
+    DeviceId cartId, PendingRequestStore& pendingRequests,
+    ActiveAssignment& activeAssignment,
+    DriverAvailabilityController& availability, CartClaimClient& claimClient)
     : cartId_(cartId), pendingRequests_(pendingRequests),
       activeAssignment_(activeAssignment), availability_(availability),
       claimClient_(claimClient) {
 }
 
-Status CartEventReconciler::applyAssignmentNotice(const AssignmentNotice& notice) {
+Status CartEventReconciler::applyAssignmentNotice(
+    const AssignmentNotice& notice) {
   const AssignmentRecord& assignment = notice.assignment;
   if (!RequestIdentity::isValid(assignment.requestId) ||
       assignment.assignedCartId == 0 || assignment.epoch == 0 ||
@@ -37,7 +37,8 @@ Status CartEventReconciler::applyAssignmentNotice(const AssignmentNotice& notice
   return Status();
 }
 
-Status CartEventReconciler::applyCancellationNotice(const CancellationNotice& notice) {
+Status CartEventReconciler::applyCancellationNotice(
+    const CancellationNotice& notice) {
   if (!RequestIdentity::isValid(notice.requestId) ||
       static_cast<uint8_t>(notice.source) >
           static_cast<uint8_t>(CancellationSource::SYSTEM))
@@ -71,9 +72,10 @@ Status CartEventReconciler::applySnapshot(const RequestSnapshot& snapshot) {
     if (snapshot.state == RequestState::CANCELLED ||
         snapshot.state == RequestState::EXPIRED) {
       pendingRequests_.remove(snapshot.requestId);
-      resolveLostClaim(snapshot.requestId,
-                       snapshot.state == RequestState::CANCELLED ? ErrorCode::CANCELLED
-                                                                 : ErrorCode::EXPIRED);
+      resolveLostClaim(
+          snapshot.requestId,
+          snapshot.state == RequestState::CANCELLED ? ErrorCode::CANCELLED
+                                                    : ErrorCode::EXPIRED);
     }
     return Status();
   }
@@ -123,7 +125,8 @@ Status CartEventReconciler::applySnapshot(const RequestSnapshot& snapshot) {
   return Status();
 }
 
-void CartEventReconciler::resolveLostClaim(const RequestId& id, ErrorCode reason) {
+void CartEventReconciler::resolveLostClaim(const RequestId& id,
+                                           ErrorCode reason) {
   if (!claimClient_.hasClaimInFlight())
     return;
   ClaimRequest claim = {};
@@ -135,8 +138,9 @@ void CartEventReconciler::resolveLostClaim(const RequestId& id, ErrorCode reason
   result.requestId = id;
   result.transactionId = claim.transactionId;
   result.result = reason;
-  result.finalState = reason == ErrorCode::ALREADY_ASSIGNED ? ClaimState::COMMITTED
-                                                            : ClaimState::WITHDRAWN;
+  result.finalState =
+      reason == ErrorCode::ALREADY_ASSIGNED ? ClaimState::COMMITTED
+                                            : ClaimState::WITHDRAWN;
   claimClient_.onClaimResult(result);
 }
 
