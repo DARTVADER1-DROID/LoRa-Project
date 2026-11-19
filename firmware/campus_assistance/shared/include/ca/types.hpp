@@ -209,6 +209,9 @@ struct RequestSnapshot {
   DeviceId assignedCartId;
   AssignmentEpoch assignmentEpoch;
   EventSequence lastEventSequence;
+  ClaimState claimState;
+  DeviceId claimCartId;
+  TransactionId claimTransactionId;
 };
 
 struct DriverAction {
