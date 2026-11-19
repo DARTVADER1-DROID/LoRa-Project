@@ -87,9 +87,8 @@ int main() {
     assert(repository.reserveNextRequestId(1, claimPendingId).ok());
     assert(repository.insertNew(makePending(claimPendingId)).ok());
     RequestRecord pendingClaim = {};
-    assert(repository.beginClaimIfEligible(claimPendingId, 4, 66, 200,
-                                           pendingClaim)
-               .ok());
+    assert(
+        repository.beginClaimIfEligible(claimPendingId, 4, 66, 200, pendingClaim).ok());
 
     RequestRecord updated = {};
     assert(repository.beginClaimIfEligible(allocated, 9, 55, 200, updated).ok());
