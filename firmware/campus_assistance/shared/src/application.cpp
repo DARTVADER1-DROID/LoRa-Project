@@ -589,6 +589,12 @@ void CartApplication::service() {
     onProtocolEvent(protocolEvent);
   }
 
+  CartUiContext viewContext = {};
+  viewContext.screenId = dependencies_.ui.view().screenId;
+  viewContext.acceptanceMode = dependencies_.driverAvailability.acceptanceMode();
+  viewContext.serviceState = dependencies_.driverAvailability.serviceState();
+  viewContext.activeAssignment = dependencies_.activeAssignment.isOccupied();
+  dependencies_.ui.update(viewContext);
   dependencies_.display.render(dependencies_.ui.view());
 }
 
