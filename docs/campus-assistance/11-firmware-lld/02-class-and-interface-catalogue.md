@@ -302,7 +302,7 @@ The following C++ headers are authoritative for the current interface scaffold. 
 - `PendingRequestStore::insertIfAbsent` returns `Status`; storage remains bounded and duplicate insertion does not reorder.
 - `RequestLifecycle` exposes create, cancel, expiry, sequenced journey update and find. It does **not** commit assignments.
 - `IRequestRepository` is the only repository abstraction; concrete storage implementations implement it directly.
-- `IRequestRepository::assignIfUnassigned` is the atomic persistence guard used by the sole assignment writer, `StationClaimCoordinator`.
+- Conditional repository operations serialize claim, withdrawal, assignment, cancellation and expiry; no generic update can bypass them.
 - `StationClaimCoordinator::evaluate` returns explicit `Status`; `commitWinner` is the only operation allowed to commit a winner.
 - `CartClaimClient::onClaimResult` consumes ClaimResult; `onAssignmentNotice` returns Status and only a matching station assignment can activate the cart.
 - `FrameCodec` accepts byte-oriented FrameView/MutableFrameView. `IRadioTransport` never sends domain ProtocolMessage objects.
