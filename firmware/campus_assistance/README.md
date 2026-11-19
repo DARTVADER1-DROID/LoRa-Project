@@ -43,15 +43,24 @@ git config core.hooksPath .githooks
 chmod +x .githooks/pre-commit
 ```
 
-GitHub Actions independently checks formatting on pull requests.
+GitHub Actions checks formatting on pull requests and automatically formats firmware
+sources on pushes to any branch. The pre-commit hook refuses to touch a partially
+staged file with unstaged edits, preventing accidental inclusion of unrelated hunks.
 
 ## Architecture rules
 
 - Both role applications use explicit dependency injection.
 - Domain and protocol layers contain no Arduino / ESP-IDF dependencies.
 - StationClaimCoordinator is the sole assignment-commit authority.
-- The request repository stores complete RequestRecord values and exposes an
-  atomic assign-if-unassigned guard.
+- The request repository exposes only conditional atomic state transitions; it has
+  no generic record update that can bypass assignment/cancellation/expiry invariants.
+- Claim withdrawal and assignment commit race on the same durable transaction ID;
+  a late withdrawal cannot undo a committed assignment.
+- ActiveAssignment is the sole owner of cart assignment/journey state; journey
+  progression policy is stateless and EventReconciler only orchestrates.
+- Protocol events retain their validated envelope metadata and sender-validation
+  level for authorization, replay filtering and transaction correlation.
+- Retry exhaustion is an explicit outcome, and persistence reads report output length.
 - Radio transport operates on encoded bytes; applications receive typed events.
 - All queues, frame buffers and retry tables must be bounded.
 - Cart receive and queue behavior is independent of driver acceptance.
