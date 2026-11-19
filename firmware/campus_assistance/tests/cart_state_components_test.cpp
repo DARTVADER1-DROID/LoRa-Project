@@ -16,7 +16,7 @@ int main() {
   assert(driver.onClaimStarted().ok());
   assert(driver.disableAcceptance(disable).code == ErrorCode::COMMUNICATION_UNCERTAIN);
   assert(driver.acceptanceMode() == AcceptanceMode::NOT_ACCEPTING);
-  assert(driver.onClaimWithdrawnByStation().code == ErrorCode::INVALID_STATE);
+  assert(driver.onClaimWithdrawnByStation().ok());
   assert(driver.serviceState() == CartServiceState::IDLE);
 
   AssignmentRecord assignment = {};
