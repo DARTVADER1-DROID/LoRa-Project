@@ -48,6 +48,7 @@ public:
     return enqueueStatus_;
   }
   bool pollEvent(ProtocolEvent&) override { return false; }
+  bool pollRetryOutcome(RetryOutcome&) override { return false; }
 
   ProtocolMessage lastMessage_;
   DeliveryClass lastDelivery_;
