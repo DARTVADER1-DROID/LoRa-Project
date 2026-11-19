@@ -374,13 +374,13 @@ private:
 
     for (uint16_t i = 0; i < count; ++i) {
       const RequestRecord record = decodeRecord(encoded_, offset);
-      if (record.id.originStationId != stationId_ || !state_.restoreRecord(record).ok())
+      if (record.id.originStationId != stationId_ || !target.restoreRecord(record).ok())
         return false;
     }
     if (offset != length - kChecksumBytes)
       return false;
 
-    return state_.restoreAllocatorState(nextSequence, nextGeneration, exhausted != 0)
+    return target.restoreAllocatorState(nextSequence, nextGeneration, exhausted != 0)
         .ok();
   }
 };
