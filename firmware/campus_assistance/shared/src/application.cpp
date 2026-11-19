@@ -105,6 +105,48 @@ Status enqueueAssignmentNotice(ProtocolEndpoint& protocol,
   return protocol.enqueue(message, DeliveryClass::RETRY_UNTIL_ACK);
 }
 
+Status enqueueJourneyUpdate(ProtocolEndpoint& protocol,
+                            const DeviceConfig& config,
+                            const AssignmentRecord& assignment,
+                            JourneyStatus journey, EventSequence sequence) {
+  ProtocolMessage message = {};
+  message.header.protocolVersion = config.protocolVersion;
+  message.header.networkId = config.networkId;
+  message.header.messageType = MessageType::JOURNEY_UPDATE;
+  message.header.sourceDeviceId = config.deviceId;
+  message.header.destinationDeviceId = assignment.requestId.originStationId;
+  message.header.transactionId = transactionFor(assignment.requestId);
+  message.header.messageSequence = sequence;
+  uint16_t offset = 0;
+  put16(message.payload, offset, assignment.requestId.originStationId);
+  put32(message.payload, offset, assignment.requestId.sequence);
+  put16(message.payload, offset, assignment.requestId.generation);
+  put16(message.payload, offset, assignment.assignedCartId);
+  message.payload[offset++] = static_cast<uint8_t>(journey);
+  put32(message.payload, offset, sequence);
+  message.payloadLength = offset;
+  return protocol.enqueue(message, DeliveryClass::RETRY_UNTIL_ACK);
+}
+
+bool currentJourney(const AssignmentRecord& assignment, JourneyStatus& journey) {
+  switch (assignment.state) {
+  case RequestState::ASSIGNED:
+    journey = JourneyStatus::RECEIVED;
+    return true;
+  case RequestState::ON_THE_WAY:
+    journey = JourneyStatus::ON_THE_WAY;
+    return true;
+  case RequestState::ARRIVED_AT_PICKUP:
+    journey = JourneyStatus::ARRIVED_AT_PICKUP;
+    return true;
+  case RequestState::COMPLETED:
+    journey = JourneyStatus::COMPLETED;
+    return true;
+  default:
+    return false;
+  }
+}
+
 } // namespace
 
 StationApplication::StationApplication(StationDependencies dependencies)
@@ -398,6 +440,63 @@ void CartApplication::onButtonEvent(const ButtonEvent& event) {
 
   const UiIntent intent = dependencies_.buttonInterpreter.interpret(
       event, UiContext{context.screenId, context.activeAssignment});
+  if (intent.type == UiIntentType::ADVANCE_JOURNEY ||
+      intent.type == UiIntentType::CONFIRM_COMPLETION) {
+    AssignmentRecord assignment = {};
+    JourneyStatus current = JourneyStatus::RECEIVED;
+    if (!dependencies_.activeAssignment.get(assignment) ||
+        !currentJourney(assignment, current)) {
+      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
+                                       ErrorCode::INVALID_STATE);
+      return;
+    }
+
+    const bool completing =
+        intent.type == UiIntentType::CONFIRM_COMPLETION;
+    const JourneyStatus next =
+        completing
+            ? JourneyStatus::COMPLETED
+            : (current == JourneyStatus::RECEIVED
+                   ? JourneyStatus::ON_THE_WAY
+                   : JourneyStatus::ARRIVED_AT_PICKUP);
+    const DriverAction action = {
+        completing ? DriverActionType::CONFIRM_COMPLETION
+                   : DriverActionType::ADVANCE_JOURNEY,
+        event.timestampMs};
+    Status status =
+        dependencies_.journeyProgress.validateTransition(current, next, action);
+    if (!status.ok()) {
+      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
+                                       status.code);
+      return;
+    }
+
+    const EventSequence nextSequence = assignment.lastEventSequence + 1U;
+    status = enqueueJourneyUpdate(dependencies_.protocol, config_, assignment,
+                                  next, nextSequence);
+    if (!status.ok()) {
+      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
+                                       status.code);
+      return;
+    }
+
+    if (completing) {
+      status = dependencies_.activeAssignment.complete(action);
+      if (status.ok())
+        status = dependencies_.activeAssignment.updateJourneyStatus(
+            next, nextSequence);
+      if (status.ok())
+        status = dependencies_.driverAvailability.onJourneyCompleted();
+    } else {
+      status = dependencies_.activeAssignment.updateJourneyStatus(
+          next, nextSequence);
+    }
+    if (!status.ok())
+      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
+                                       status.code);
+    return;
+  }
+
   if (intent.type == UiIntentType::CONFIRM) {
     if (!dependencies_.driverAvailability.mayClaim()) {
       dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
