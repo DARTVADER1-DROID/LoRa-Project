@@ -11,7 +11,7 @@ static ProtocolMessage makeMessage(TransactionId transactionId) {
   message.header.networkId = 7;
   message.header.messageType = MessageType::REQUEST;
   message.header.sourceDeviceId = 1;
-  message.header.destinationDeviceId = 0;
+  message.header.destinationDeviceId = 2;
   message.header.transactionId = transactionId;
   message.header.messageSequence = 9;
   message.payloadLength = 2;
@@ -63,7 +63,7 @@ int main() {
   retries.service(400);
   assert(retries.pollDue(due, attempt));
   assert(retries.onTransmissionAttempt(88, true, 400).ok());
-  assert(retries.onAcknowledgement(88).ok());
+  assert(retries.onAcknowledgement(88, 2).ok());
   assert(retries.pollOutcome(outcome));
   assert(outcome.transactionId == 88);
   assert(outcome.outcome == RetryOutcomeCode::ACKNOWLEDGED);
