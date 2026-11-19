@@ -13,7 +13,8 @@ and separate Arduino Uno / ESP32 station / cart entry points.
 - `shared/src/README.md`: implementation boundary and layering rule.
 - `targets/uno/{station,cart}/`: Arduino Uno entry points.
 - `targets/esp32/{station,cart}/`: ESP32 entry points; exact board remains TBD.
-- `tests/contract_compile.cpp`: host compiler smoke test for public headers.
+- `tests/contract_compile.cpp`: host C++11 public-header and API-boundary checks.
+- `tests/repository_transition_test.cpp`: fixed-capacity reference tests for atomic transition ordering.
 - `CMakeLists.txt`: host-side C++11 contract compile target.
 - `scripts/`: formatting and format verification commands.
 
@@ -25,8 +26,10 @@ cmake --build build/campus-assistance
 ctest --test-dir build/campus-assistance --output-on-failure
 ```
 
-This checks header consistency only. It is not an Arduino IDE or PlatformIO build,
-and does not verify target memory, timing, radio behavior or hardware adapters.
+This compiles the public contracts and runs reference transition tests. The fake
+repository is not a production implementation. It is not an Arduino IDE or PlatformIO
+build, and does not verify target memory, timing, radio behavior, flash atomicity,
+reboot recovery or hardware adapters.
 
 ## Format code automatically
 
