@@ -32,7 +32,9 @@ StationApplication / CartApplication
                  board-specific adapters
 ```
 
-- Domain contracts depend on portable value types and repository/clock abstractions only.
+- Domain contracts depend only on portable value types. Repository, runtime/clock,
+  persistence and hardware ports are separate abstractions; consumers include only
+  the narrow port headers they require.
 - Protocol contracts depend on portable protocol/domain values, never UI, GPIO, Arduino or ESP-IDF.
 - Applications depend on abstractions and receive collaborators through explicit dependency structs.
 - Hardware adapters implement ports; they do not own request policy.
@@ -230,3 +232,14 @@ Fixed-capacity storage templates are grouped under
 header because the compiler must instantiate them for the target-selected capacity.
 These templates are bounded volatile storage; they do not provide durable station
 recovery or atomic flash persistence.
+
+
+## 12. Port interface segregation
+
+The former mixed `ports.hpp` has been split into focused interfaces:
+`ports/hardware.hpp`, `ports/runtime.hpp`, `ports/persistence.hpp` and
+`ports/request_repository.hpp`. `ports.hpp` remains only as a convenience
+aggregate for external consumers. Domain and protocol headers must not include
+that aggregate; they include portable value types directly. This prevents domain
+contracts from acquiring hardware or persistence dependencies merely to access
+shared types.
