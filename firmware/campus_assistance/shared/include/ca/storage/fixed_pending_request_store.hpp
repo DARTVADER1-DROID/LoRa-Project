@@ -18,6 +18,12 @@ public:
     if (capacity == 0 || capacity > StorageCapacity)
       return Status(ErrorCode::INVALID_ARGUMENT);
 
+    if (capacity_ != 0) {
+      if (count_ != 0 || capacity_ != capacity)
+        return Status(ErrorCode::INVALID_STATE);
+      return Status();
+    }
+
     count_ = 0;
     capacity_ = capacity;
     return Status();
