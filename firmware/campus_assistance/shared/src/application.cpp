@@ -824,8 +824,7 @@ void CartApplication::onProtocolEvent(const ProtocolEvent& event) {
         RequestIdentity::equals(snapshot.requestId, pendingJourneySyncRequestId_)) {
       const SerialNumberOrder order =
           compareSequence(snapshot.lastEventSequence, pendingJourneySyncSequence_);
-      if (order == SerialNumberOrder::EQUAL ||
-          order == SerialNumberOrder::NEWER)
+      if (order == SerialNumberOrder::EQUAL || order == SerialNumberOrder::NEWER)
         clearJourneySync();
     }
     break;
@@ -881,9 +880,8 @@ void CartApplication::serviceJourneySync(uint32_t nowMs) {
   message.header.messageType = MessageType::SNAPSHOT_QUERY;
   message.header.sourceDeviceId = config_.deviceId;
   message.header.destinationDeviceId = pendingJourneySyncRequestId_.originStationId;
-  message.header.transactionId =
-      transactionFor(pendingJourneySyncRequestId_) ^
-      (snapshotQueryCounter_ * 2246822519UL) ^ 0x40000000UL;
+  message.header.transactionId = transactionFor(pendingJourneySyncRequestId_) ^
+                                 (snapshotQueryCounter_ * 2246822519UL) ^ 0x40000000UL;
   if (message.header.transactionId == 0)
     message.header.transactionId = snapshotQueryCounter_;
   message.header.messageSequence = snapshotQueryCounter_;
