@@ -500,6 +500,7 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
       }
       if (record.state == RequestState::COMPLETED)
         dependencies_.requestController.onRequestTerminal(update.requestId);
+      status = Status();
     }
     break;
   }
@@ -572,6 +573,7 @@ void CartApplication::service() {
   dependencies_.buttons.service(nowMs);
   dependencies_.buzzer.service(nowMs);
   dependencies_.protocol.service(nowMs);
+  drainRetryOutcomes(dependencies_.protocol, dependencies_.diagnostics);
 
   for (uint8_t processed = 0; processed < 4; ++processed) {
     ButtonEvent buttonEvent = {};
