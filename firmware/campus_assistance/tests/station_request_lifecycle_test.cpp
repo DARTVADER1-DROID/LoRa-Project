@@ -66,6 +66,14 @@ int main() {
   assert(lifecycle.create(input, rejected).code == ErrorCode::INVALID_ARGUMENT);
   destinations.setEnabled(true);
 
+  // Cancellation remains a station-authoritative, idempotent transition.
+  RequestRecord cancelledRequest = {};
+  assert(lifecycle.create(input, cancelledRequest).ok());
+  assert(lifecycle.cancel(cancelledRequest.id, CancellationSource::STUDENT).ok());
+  assert(lifecycle.cancel(cancelledRequest.id, CancellationSource::STUDENT).ok());
+  assert(lifecycle.find(cancelledRequest.id, found));
+  assert(found.state == RequestState::CANCELLED);
+
   // An assigned ride is not subject to the unassigned-request expiry timer.
   RequestRecord assignedRequest = {};
   assert(lifecycle.create(input, assignedRequest).ok());
@@ -84,7 +92,9 @@ int main() {
   assert(lifecycle.find(created.id, found));
   assert(found.state == RequestState::EXPIRED);
   assert(lifecycle.find(assignedRequest.id, found));
-  assert(found.state == RequestState::ASSIGNED);
+  assert(found.state == RequestState::ON_THE_WAY);
+  assert(lifecycle.find(cancelledRequest.id, found));
+  assert(found.state == RequestState::CANCELLED);
 
   // Expiry output capacity is checked before any mutation.
   FixedRequestRepository<2> smallRepository;
