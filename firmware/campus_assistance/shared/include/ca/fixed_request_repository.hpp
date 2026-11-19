@@ -1,7 +1,6 @@
 #pragma once
 
-#include "ports.hpp"
-#include "ca/request_identity.hpp"
+#include "domain.hpp"
 
 namespace ca {
 
@@ -24,7 +23,8 @@ public:
   Status insertNew(const RequestRecord& record) override {
     if (!configured_ || !RequestIdentity::isValid(record.id) ||
         record.destinationId == 0 || record.state != RequestState::PENDING_UNASSIGNED ||
-        record.claimState != ClaimState::IDLE || record.expiresAtMs == record.createdAtMs)
+        record.claimState != ClaimState::IDLE || record.expiresAtMs == record.createdAtMs ||
+        static_cast<uint32_t>(record.expiresAtMs - record.createdAtMs) > 0x7FFFFFFFUL)
       return Status(ErrorCode::INVALID_ARGUMENT);
     if (findIndex(record.id) >= 0)
       return Status(ErrorCode::DUPLICATE);
