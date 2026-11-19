@@ -61,6 +61,7 @@ and separate Arduino Uno / ESP32 station / cart entry points.
 - `tests/cart_event_reconciler_test.cpp`: assignment, claim-loss, snapshot and completion reconciliation.
 - `tests/fixed_destination_catalog_test.cpp`: bounded destination loading, validation and lookup.
 - `CMakeLists.txt`: host-side C++11 contract compile target.
+- `platformio.ini`: Arduino-core compile matrix for Uno R3 and ESP32 DevKit V1 station/cart sketches.
 - `scripts/`: formatting and format verification commands.
 
 ## Build the public contracts
