@@ -3,13 +3,15 @@
 
 namespace ca {
 
-CartEventReconciler::CartEventReconciler(
-    DeviceId cartId, PendingRequestStore& pendingRequests,
-    ActiveAssignment& activeAssignment,
-    DriverAvailabilityController& availability, CartClaimClient& claimClient)
+CartEventReconciler::CartEventReconciler(DeviceId cartId,
+                                         PendingRequestStore& pendingRequests,
+                                         ActiveAssignment& activeAssignment,
+                                         DriverAvailabilityController& availability,
+                                         CartClaimClient& claimClient)
     : cartId_(cartId), pendingRequests_(pendingRequests),
       activeAssignment_(activeAssignment), availability_(availability),
-      claimClient_(claimClient) {}
+      claimClient_(claimClient) {
+}
 
 Status CartEventReconciler::applyAssignmentNotice(const AssignmentNotice& notice) {
   const AssignmentRecord& assignment = notice.assignment;
@@ -27,8 +29,7 @@ Status CartEventReconciler::applyAssignmentNotice(const AssignmentNotice& notice
   const Status activated = activeAssignment_.activate(assignment);
   if (!activated.ok())
     return activated;
-  const Status availability =
-      availability_.onAssignmentConfirmed(assignment);
+  const Status availability = availability_.onAssignmentConfirmed(assignment);
   if (!availability.ok())
     return availability;
   if (claimClient_.hasClaimInFlight())
@@ -36,8 +37,7 @@ Status CartEventReconciler::applyAssignmentNotice(const AssignmentNotice& notice
   return Status();
 }
 
-Status CartEventReconciler::applyCancellationNotice(
-    const CancellationNotice& notice) {
+Status CartEventReconciler::applyCancellationNotice(const CancellationNotice& notice) {
   if (!RequestIdentity::isValid(notice.requestId) ||
       static_cast<uint8_t>(notice.source) >
           static_cast<uint8_t>(CancellationSource::SYSTEM))
@@ -61,11 +61,10 @@ Status CartEventReconciler::applySnapshot(const RequestSnapshot& snapshot) {
           static_cast<uint8_t>(RequestState::COMMUNICATION_UNCERTAIN))
     return Status(ErrorCode::INVALID_ARGUMENT);
 
-  const bool assigned =
-      snapshot.state == RequestState::ASSIGNED ||
-      snapshot.state == RequestState::ON_THE_WAY ||
-      snapshot.state == RequestState::ARRIVED_AT_PICKUP ||
-      snapshot.state == RequestState::COMPLETED;
+  const bool assigned = snapshot.state == RequestState::ASSIGNED ||
+                        snapshot.state == RequestState::ON_THE_WAY ||
+                        snapshot.state == RequestState::ARRIVED_AT_PICKUP ||
+                        snapshot.state == RequestState::COMPLETED;
   if (!assigned) {
     if (snapshot.assignedCartId != 0 || snapshot.assignmentEpoch != 0)
       return Status(ErrorCode::INVALID_ARGUMENT);
@@ -73,9 +72,8 @@ Status CartEventReconciler::applySnapshot(const RequestSnapshot& snapshot) {
         snapshot.state == RequestState::EXPIRED) {
       pendingRequests_.remove(snapshot.requestId);
       resolveLostClaim(snapshot.requestId,
-                       snapshot.state == RequestState::CANCELLED
-                           ? ErrorCode::CANCELLED
-                           : ErrorCode::EXPIRED);
+                       snapshot.state == RequestState::CANCELLED ? ErrorCode::CANCELLED
+                                                                 : ErrorCode::EXPIRED);
     }
     return Status();
   }
@@ -137,9 +135,8 @@ void CartEventReconciler::resolveLostClaim(const RequestId& id, ErrorCode reason
   result.requestId = id;
   result.transactionId = claim.transactionId;
   result.result = reason;
-  result.finalState = reason == ErrorCode::ALREADY_ASSIGNED
-                          ? ClaimState::COMMITTED
-                          : ClaimState::WITHDRAWN;
+  result.finalState = reason == ErrorCode::ALREADY_ASSIGNED ? ClaimState::COMMITTED
+                                                            : ClaimState::WITHDRAWN;
   claimClient_.onClaimResult(result);
 }
 

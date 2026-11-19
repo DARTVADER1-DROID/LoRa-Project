@@ -13,8 +13,7 @@ public:
   FixedDestinationCatalog() : count_(0), loaded_(false) {}
 
   Status load(const DestinationConfig& config) override {
-    if (config.count > StorageCapacity ||
-        (config.count > 0 && config.entries == 0) ||
+    if (config.count > StorageCapacity || (config.count > 0 && config.entries == 0) ||
         config.count > config.capacity)
       return Status(ErrorCode::INVALID_ARGUMENT);
 

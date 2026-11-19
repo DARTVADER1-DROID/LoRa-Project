@@ -11,7 +11,8 @@ namespace ca {
 // Stateless orchestration of station-authoritative events for one cart.
 class CartEventReconciler final : public EventReconciler {
 public:
-  CartEventReconciler(DeviceId cartId, PendingRequestStore& pendingRequests,
+  CartEventReconciler(DeviceId cartId,
+                      PendingRequestStore& pendingRequests,
                       ActiveAssignment& activeAssignment,
                       DriverAvailabilityController& availability,
                       CartClaimClient& claimClient);
