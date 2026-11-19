@@ -331,3 +331,12 @@ The endpoint refuses physical sends when the radio reports uninitialized or
 faulted. Retry entries remain pending while the endpoint is faulted; transport
 submission failures once attempted still consume an attempt according to the
 current retry policy.
+
+
+### 19.1 Best-effort delivery without transaction identity
+
+A non-ACK protocol event may use transaction ID zero only with BEST_EFFORT or
+PRIORITY delivery. Such frames are decoded and delivered but are not ACKed and
+are not entered into the duplicate/replay window. RETRY_UNTIL_ACK always requires
+a nonzero transaction ID. ACK frames themselves require a nonzero transaction
+ID and an empty payload.
