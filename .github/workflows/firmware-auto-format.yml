@@ -35,3 +35,9 @@ jobs:
           else
             echo "Firmware sources are already formatted."
           fi
+      - name: Configure host contract build
+        run: cmake -S firmware/campus_assistance -B build/campus-assistance
+      - name: Compile public C++11 contracts
+        run: cmake --build build/campus-assistance --parallel
+      - name: Run contract smoke test
+        run: ctest --test-dir build/campus-assistance --output-on-failure
