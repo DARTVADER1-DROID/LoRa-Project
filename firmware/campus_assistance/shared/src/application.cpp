@@ -110,6 +110,33 @@ Status enqueueAssignmentNotice(ProtocolEndpoint& protocol,
   return protocol.enqueue(message, DeliveryClass::RETRY_UNTIL_ACK);
 }
 
+Status enqueueAuthoritativeSnapshot(ProtocolEndpoint& protocol,
+                                     const DeviceConfig& config,
+                                     const RequestRecord& record,
+                                     EventSequence sequence) {
+  if (record.assignedCartId == 0 || record.assignmentEpoch == 0)
+    return Status(ErrorCode::INVALID_STATE);
+
+  ProtocolMessage message = {};
+  message.header.protocolVersion = config.protocolVersion;
+  message.header.networkId = config.networkId;
+  message.header.messageType = MessageType::SNAPSHOT;
+  message.header.sourceDeviceId = config.deviceId;
+  message.header.destinationDeviceId = record.assignedCartId;
+  message.header.transactionId = journeyTransactionFor(record.id, sequence);
+  message.header.messageSequence = sequence;
+  uint16_t offset = 0;
+  put16(message.payload, offset, record.id.originStationId);
+  put32(message.payload, offset, record.id.sequence);
+  put16(message.payload, offset, record.id.generation);
+  message.payload[offset++] = static_cast<uint8_t>(record.state);
+  put16(message.payload, offset, record.assignedCartId);
+  put16(message.payload, offset, record.assignmentEpoch);
+  put32(message.payload, offset, record.lastJourneyEventSequence);
+  message.payloadLength = offset;
+  return protocol.enqueue(message, DeliveryClass::RETRY_UNTIL_ACK);
+}
+
 Status enqueueJourneyUpdate(ProtocolEndpoint& protocol,
                             const DeviceConfig& config,
                             const AssignmentRecord& assignment,
@@ -376,8 +403,21 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
       break;
     }
     status = dependencies_.requestLifecycle.applyJourneyUpdate(update);
-    if (status.ok() && update.status == JourneyStatus::COMPLETED)
-      dependencies_.requestController.onRequestTerminal(update.requestId);
+    if (status.ok() || status.code == ErrorCode::DUPLICATE) {
+      RequestRecord record = {};
+      if (!dependencies_.requestLifecycle.find(update.requestId, record)) {
+        status = Status(ErrorCode::NOT_FOUND);
+        break;
+      }
+      const Status snapshot = enqueueAuthoritativeSnapshot(
+          dependencies_.protocol, config_, record, update.eventSequence);
+      if (!snapshot.ok()) {
+        status = snapshot;
+        break;
+      }
+      if (record.state == RequestState::COMPLETED)
+        dependencies_.requestController.onRequestTerminal(update.requestId);
+    }
     break;
   }
   case ProtocolEventType::ACKNOWLEDGEMENT_RECEIVED:
@@ -398,8 +438,7 @@ bool StationApplication::isHealthy() const {
 }
 
 CartApplication::CartApplication(CartDependencies dependencies)
-    : dependencies_(dependencies), config_(), completionTransactionId_(0),
-      completionAwaitingAcknowledgement_(false), initialized_(false) {
+    : dependencies_(dependencies), config_(), initialized_(false) {
 }
 
 Status CartApplication::begin(const DeviceConfig& config) {
