@@ -27,9 +27,13 @@ target_link_libraries(types_test PRIVATE campus_assistance_contracts)
 add_executable(request_identity_test tests/request_identity_test.cpp)
 target_link_libraries(request_identity_test PRIVATE campus_assistance_contracts)
 
+add_executable(pending_request_store_test tests/pending_request_store_test.cpp)
+target_link_libraries(pending_request_store_test PRIVATE campus_assistance_contracts)
+
 enable_testing()
 add_test(NAME contract_compile COMMAND contract_compile)
 add_test(NAME repository_transition_test COMMAND repository_transition_test)
 add_test(NAME config_validator_test COMMAND config_validator_test)
 add_test(NAME types_test COMMAND types_test)
 add_test(NAME request_identity_test COMMAND request_identity_test)
+add_test(NAME pending_request_store_test COMMAND pending_request_store_test)
