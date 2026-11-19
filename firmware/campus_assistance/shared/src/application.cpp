@@ -579,10 +579,19 @@ void CartApplication::onProtocolEvent(const ProtocolEvent& event) {
       break;
     }
     status = dependencies_.claimClient.onClaimResult(event.payload.claimResult);
+    if (status.code == ErrorCode::STALE_EVENT &&
+        event.payload.claimResult.finalState == ClaimState::COMMITTED) {
+      AssignmentRecord active = {};
+      if (dependencies_.activeAssignment.get(active) &&
+          RequestIdentity::equals(active.requestId,
+                                  event.payload.claimResult.requestId))
+        status = Status();
+    }
     if (status.ok() &&
         (event.payload.claimResult.finalState == ClaimState::WITHDRAWN ||
          (event.payload.claimResult.result != ErrorCode::NONE &&
-          event.payload.claimResult.finalState != ClaimState::COMMITTED))) {
+          (event.payload.claimResult.finalState == ClaimState::IDLE ||
+           event.payload.claimResult.finalState == ClaimState::WITHDRAWN)))) {
       const Status resolved =
           dependencies_.driverAvailability.onClaimWithdrawnByStation();
       if (!resolved.ok() && resolved.code != ErrorCode::INVALID_STATE)
