@@ -524,6 +524,16 @@ void CartApplication::onProtocolEvent(const ProtocolEvent& event) {
       break;
     }
     status = dependencies_.claimClient.onClaimResult(event.payload.claimResult);
+    if (status.ok() &&
+        (event.payload.claimResult.finalState == ClaimState::WITHDRAWN ||
+         (event.payload.claimResult.result != ErrorCode::NONE &&
+          event.payload.claimResult.finalState != ClaimState::COMMITTED))) {
+      const Status resolved =
+          dependencies_.driverAvailability.onClaimWithdrawnByStation();
+      if (!resolved.ok() && resolved.code != ErrorCode::INVALID_STATE)
+        dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected,
+                                         resolved.code);
+    }
     break;
   case ProtocolEventType::ACKNOWLEDGEMENT_RECEIVED:
     status = Status();
