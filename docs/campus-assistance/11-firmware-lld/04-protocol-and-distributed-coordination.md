@@ -287,3 +287,15 @@ lets a rebooting or communication-uncertain cart distinguish its own still-pendi
 claim from another cart's claim, a withdrawn claim, an unassigned request, or an
 authoritative assignment. A cart preserves a matching in-flight claim; a mismatched
 claim is resolved locally without treating CLAIM_PENDING as assignment ownership.
+
+
+## 20. Cart-side semantic confirmation loop
+
+A transport ACK for a JOURNEY_UPDATE confirms frame receipt only; it does not prove
+that the station lifecycle transition was committed. After a cart queues a journey
+update, it retains the expected RequestId and event sequence. Until a station
+SNAPSHOT confirms that sequence (or a newer authoritative sequence), the cart
+periodically sends a uniquely correlated SNAPSHOT_QUERY. Query attempts use
+distinct delivery transaction IDs so bounded duplicate suppression does not hide
+later application-level queries. The cart clears this synchronization obligation
+only after reconciling a sufficiently new station snapshot.
