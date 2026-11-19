@@ -8,12 +8,13 @@
 #include "ca/platform/arduino_byte_storage.hpp"
 #include "ca/storage/fixed_dual_slot_persistence.hpp"
 
-Esp32PreferencesByteStorage<768> byteStorage;
-FixedDualSlotPersistence<384> persistence(byteStorage, 1);
 #include "ca/platform/esp32/devkit_v1_profile.hpp"
 
 using namespace ca;
 using namespace ca::platform;
+
+Esp32PreferencesByteStorage<768> byteStorage;
+FixedDualSlotPersistence<384> persistence(byteStorage, 1);
 
 const BoardPinMap kBoardPins = Esp32DevKitV1Profile::pins();
 ArduinoSx1278Transport radio(kBoardPins, SPI);
