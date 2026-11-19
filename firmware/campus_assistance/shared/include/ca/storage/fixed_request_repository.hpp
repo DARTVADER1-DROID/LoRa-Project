@@ -285,8 +285,7 @@ public:
   uint16_t nextGeneration() const { return nextGeneration_; }
   bool identifiersExhausted() const { return identifiersExhausted_; }
 
-  Status restoreAllocatorState(uint32_t sequence, uint16_t generation,
-                               bool exhausted) {
+  Status restoreAllocatorState(uint32_t sequence, uint16_t generation, bool exhausted) {
     if (!configured_)
       return Status(ErrorCode::INVALID_STATE);
     nextSequence_ = sequence;
