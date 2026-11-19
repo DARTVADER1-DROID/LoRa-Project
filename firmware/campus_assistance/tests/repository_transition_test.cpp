@@ -182,8 +182,7 @@ public:
       return Status(ErrorCode::NOT_FOUND);
     if (!isValidJourneyStatus(update.status) || update.assignedCartId == 0 ||
         r->assignedCartId != update.assignedCartId ||
-        (r->state != RequestState::ASSIGNED &&
-         r->state != RequestState::ON_THE_WAY &&
+        (r->state != RequestState::ASSIGNED && r->state != RequestState::ON_THE_WAY &&
          r->state != RequestState::ARRIVED_AT_PICKUP))
       return Status(ErrorCode::STALE_EVENT);
     if (compareSequence(update.eventSequence, r->lastJourneyEventSequence) !=
@@ -286,8 +285,9 @@ void testTerminalAndAssignedStatesCannotBeOverwritten() {
   FakeRequestRepository cancelledRepo;
   RequestRecord cancelled = makeRequest(500);
   assert(cancelledRepo.insertNew(cancelled).ok());
-  assert(cancelledRepo.cancelIfUnassigned(cancelled.id, CancellationSource::STUDENT,
-                                          updated).ok());
+  assert(cancelledRepo
+             .cancelIfUnassigned(cancelled.id, CancellationSource::STUDENT, updated)
+             .ok());
   assert(cancelledRepo.beginClaimIfEligible(cancelled.id, 2, 22, 1000, updated).code ==
          ErrorCode::CANCELLED);
   assert(cancelledRepo.find(cancelled.id, updated));
@@ -297,11 +297,13 @@ void testTerminalAndAssignedStatesCannotBeOverwritten() {
   RequestRecord assigned = makeRequest(500);
   assert(assignedRepo.insertNew(assigned).ok());
   assert(assignedRepo.beginClaimIfEligible(assigned.id, 3, 33, 100, updated).ok());
-  assert(assignedRepo.commitAssignmentIfClaimPending(assigned.id, 3, 33, 1, 101,
-                                                     updated).ok());
+  assert(
+      assignedRepo.commitAssignmentIfClaimPending(assigned.id, 3, 33, 1, 101, updated)
+          .ok());
   // A duplicate commit after the original expiry deadline remains idempotent.
-  assert(assignedRepo.commitAssignmentIfClaimPending(assigned.id, 3, 33, 1, 1000,
-                                                     updated).ok());
+  assert(
+      assignedRepo.commitAssignmentIfClaimPending(assigned.id, 3, 33, 1, 1000, updated)
+          .ok());
   assert(assignedRepo.find(assigned.id, updated));
   assert(updated.state == RequestState::ASSIGNED);
 }
@@ -320,8 +322,8 @@ void testJourneyUpdatesRequireValidAssignedStateAndSequence() {
          ErrorCode::STALE_EVENT);
 
   assert(repository.beginClaimIfEligible(request.id, 4, 44, 100, updated).ok());
-  assert(repository.commitAssignmentIfClaimPending(request.id, 4, 44, 1, 101,
-                                                   updated).ok());
+  assert(repository.commitAssignmentIfClaimPending(request.id, 4, 44, 1, 101, updated)
+             .ok());
   update.status = static_cast<JourneyStatus>(0xFF);
   assert(repository.applyJourneyUpdateIfCurrent(update, updated).code ==
          ErrorCode::STALE_EVENT);
