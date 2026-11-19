@@ -41,6 +41,7 @@ and separate Arduino Uno / ESP32 station / cart entry points.
 - `shared/src/application.cpp`: station/cart event-loop orchestration, claim handling, expiry outbox, snapshot query handling and cart-side semantic journey confirmation.
 - `platform/include/ca/platform/arduino_core_adapters.hpp`: Arduino GPIO sampling, clock and buzzer adapters.
 - `platform/include/ca/platform/arduino_pcf8574_lcd.hpp`: configurable PCF8574-backed 16×2 LCD adapter.
+- `platform/include/ca/platform/arduino_sx127x_transport.hpp`: poll-driven raw-SPI SX127x LoRa transport for Arduino targets.
 - `shared/src/station/repository_station_claim_coordinator.cpp`: repository-serialized claim/withdraw/assignment transitions.
 - `shared/src/station_request_controller.cpp`: station request submission/cancellation and retry-class enqueue.
 - `shared/src/README.md`: implementation boundary and layering rule.
@@ -163,4 +164,4 @@ cycle under Indian WPC rules. A provisional binary frame envelope is versioned a
 with CRC32; this is a host-reference implementation, not an approved wire standard.
 Payload fields are still assembled by application code and need a single normative
 message-schema table before interoperability testing. The cart claim client
-requires a durable transaction-ID seed. The current station reference policy commits the first valid claim received; it does not provide an RF fairness window. Reliable station broadcasts require a provisioned cart registry; broadcast fan-out and ACK tracking are now implemented in the host reference endpoint. The Arduino core adapters and PCF8574 LCD adapter are reference implementations only; no RA-02 radio or physical persistence adapter exists yet.
+requires a durable transaction-ID seed. The current station reference policy commits the first valid claim received; it does not provide an RF fairness window. Reliable station broadcasts require a provisioned cart registry; broadcast fan-out and ACK tracking are now implemented in the host reference endpoint. The Arduino core, PCF8574 LCD and raw-SPI SX127x adapters are reference implementations only; none has yet been compiled against the selected target cores or validated on hardware. No physical persistence adapter exists yet.
