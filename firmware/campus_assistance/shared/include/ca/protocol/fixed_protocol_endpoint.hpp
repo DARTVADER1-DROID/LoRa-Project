@@ -13,13 +13,15 @@ class FixedProtocolEndpoint final : public ProtocolEndpoint {
   static_assert(EventCapacity > 0, "EventCapacity must be nonzero");
 
 public:
-  FixedProtocolEndpoint(FrameCodec& codec, MessageValidator& validator,
-                        IRadioTransport& transport, RetryManager& retries,
+  FixedProtocolEndpoint(FrameCodec& codec,
+                        MessageValidator& validator,
+                        IRadioTransport& transport,
+                        RetryManager& retries,
                         const DeviceConfig& config,
                         const RadioProfile& radioProfile)
-      : codec_(codec), validator_(validator), transport_(transport),
-        retries_(retries), config_(config), radioProfile_(radioProfile),
-        eventHead_(0), eventCount_(0), nowMs_(0), initialized_(false) {}
+      : codec_(codec), validator_(validator), transport_(transport), retries_(retries),
+        config_(config), radioProfile_(radioProfile), eventHead_(0), eventCount_(0),
+        nowMs_(0), initialized_(false) {}
 
   Status begin() override {
     if (initialized_ || config_.deviceId == 0 || config_.networkId == 0 ||
@@ -46,8 +48,7 @@ public:
         break;
       (void)attemptNumber;
       const Status status = sendMessage(message);
-      retries_.onTransmissionAttempt(message.header.transactionId,
-                                     status.ok(), nowMs_);
+      retries_.onTransmissionAttempt(message.header.transactionId, status.ok(), nowMs_);
     }
 
     for (uint8_t received = 0; received < EventCapacity; ++received) {
@@ -60,8 +61,7 @@ public:
     }
   }
 
-  Status enqueue(const ProtocolMessage& message,
-                 DeliveryClass deliveryClass) override {
+  Status enqueue(const ProtocolMessage& message, DeliveryClass deliveryClass) override {
     if (!initialized_)
       return Status(ErrorCode::INVALID_STATE);
     if (message.header.sourceDeviceId != config_.deviceId ||
@@ -92,9 +92,7 @@ public:
     return true;
   }
 
-  bool pollRetryOutcome(RetryOutcome& outcome) {
-    return retries_.pollOutcome(outcome);
-  }
+  bool pollRetryOutcome(RetryOutcome& outcome) { return retries_.pollOutcome(outcome); }
 
   uint8_t queuedEventCount() const { return eventCount_; }
 
@@ -128,13 +126,11 @@ private:
     ProtocolMessage message = {};
     const FrameView input = {frame.bytes, frame.length};
     const DecodeResult decoded = codec_.decode(input, message);
-    if (!decoded.status.ok() ||
-        !validator_.validate(message, config_).ok())
+    if (!decoded.status.ok() || !validator_.validate(message, config_).ok())
       return;
 
     SenderValidation senderValidation = SenderValidation::UNVALIDATED;
-    if (!validator_.authorizeSender(message.header, config_,
-                                    senderValidation).ok() ||
+    if (!validator_.authorizeSender(message.header, config_, senderValidation).ok() ||
         senderValidation == SenderValidation::UNVALIDATED)
       return;
 
@@ -148,8 +144,8 @@ private:
       return;
     event.senderValidation = senderValidation;
 
-    const uint8_t tail = static_cast<uint8_t>(
-        (eventHead_ + eventCount_) % EventCapacity);
+    const uint8_t tail =
+        static_cast<uint8_t>((eventHead_ + eventCount_) % EventCapacity);
     events_[tail] = event;
     ++eventCount_;
 
