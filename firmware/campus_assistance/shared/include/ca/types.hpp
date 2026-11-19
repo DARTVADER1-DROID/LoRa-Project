@@ -5,7 +5,6 @@
 namespace ca {
 
 static const uint32_t kDefaultRequestLifetimeMs = 600000UL;
-static const uint32_t kDefaultTerminalRetentionMs = 604800000UL;
 static const uint16_t kMaxProtocolPayloadBytes = 64;
 static const uint16_t kMaxFrameBytes = 96;
 static const uint8_t kMaxPhysicalButtons = 2;
