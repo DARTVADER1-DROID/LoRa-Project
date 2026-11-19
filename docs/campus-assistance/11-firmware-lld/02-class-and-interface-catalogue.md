@@ -79,8 +79,10 @@ All declarations are conceptual C++-like contracts. They are not implementation.
 
     class IPersistence {
     public:
-      virtual Status load(RecordKey, MutableByteSpan) = 0;
-      virtual Status storeAtomically(RecordKey, ByteSpan) = 0;
+      virtual Status load(RecordKey, uint8_t* output, uint16_t capacity,
+                          uint16_t& bytesRead) = 0;
+      virtual Status storeAtomically(RecordKey, const uint8_t* data,
+                                     uint16_t length) = 0;
       virtual Status erase(RecordKey) = 0;
     };
 
@@ -313,6 +315,9 @@ The following C++ headers are authoritative for the current interface scaffold. 
 - `PendingRequestStore::insertIfAbsent` returns `Status`; storage remains bounded and duplicate insertion does not reorder.
 - `RequestLifecycle` exposes create, cancel, expiry, sequenced journey update and find. It does **not** commit assignments.
 - `IRequestRepository` is the only repository abstraction; concrete storage implementations implement it directly.
+- `IRequestRepository::reserveNextRequestId` durably reserves a full identity; `recordAt` provides bounded read-only iteration.
+- `DurableRequestRepository<Capacity>` is the bounded snapshot implementation; `FixedRequestRepository<Capacity>` is volatile reference storage.
+- `StationRequestLifecycle` is the concrete station request use case; the repository must be configured/recovered before lifecycle configuration.
 - Conditional repository operations serialize claim, withdrawal, assignment, cancellation and expiry; no generic update can bypass them.
 - `StationClaimCoordinator::evaluate` returns explicit `Status`; `commitWinner` is the only operation allowed to commit a winner.
 - CartClaimClient consumes claim outcomes only; EventReconciler routes validated ASSIGN notices to ActiveAssignment.
@@ -353,3 +358,13 @@ StationClaimCoordinator::commitWinner receives stationNowMs explicitly. It passe
 `IPersistence::storeAtomically()` is a strict adapter contract, not an assumption about raw EEPROM writes. A production implementation must use a dual-slot/journal or equivalent scheme, document erase/program and endurance behavior, and pass power-cut tests. The host fake tests restart and failed-store rollback but does not prove physical flash atomicity.
 
 `StationRequestLifecycle` is a separate use-case implementation. It accepts only enabled destinations, allocates complete identities through the repository, stores the station clock's creation/expiry basis, and expires only PENDING_UNASSIGNED / CLAIM_PENDING requests. Assigned journeys are never subject to the unassigned-request expiry timer. Expiry output is caller-owned bounded memory; insufficient capacity returns BUFFER_FULL before any expiry mutation.
+
+
+### 12.2 Durable repository and station lifecycle
+
+The implementation-facing classes and exact C++11 headers are:
+- `ca/storage/durable_request_repository.hpp`: `DurableRequestRepository<StorageCapacity>`
+- `ca/storage/fixed_request_repository.hpp`: `FixedRequestRepository<StorageCapacity>`
+- `ca/station/station_request_lifecycle.hpp`: `StationRequestLifecycle`
+
+The durable implementation's snapshot schema is versioned and CRC32 protected. It is intentionally a single-writer event-loop component. A production IPersistence adapter must guarantee old-or-new replacement across power loss; the host fake is only a contract test. See documents 03, 05 and 06 for reboot expiry, memory and flash-endurance constraints.
