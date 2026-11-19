@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <Wire.h>
+#include <Preferences.h>
 
 #include "ca/platform/arduino_core_adapters.hpp"
 #include "ca/platform/arduino_pcf8574_lcd.hpp"
