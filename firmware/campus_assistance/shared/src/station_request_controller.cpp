@@ -123,8 +123,7 @@ bool StationRequestController::hasCurrentRequest() const {
 }
 
 void StationRequestController::onRequestTerminal(const RequestId& requestId) {
-  if (hasCurrentRequest_ &&
-      RequestIdentity::equals(currentRequestId_, requestId)) {
+  if (hasCurrentRequest_ && RequestIdentity::equals(currentRequestId_, requestId)) {
     hasCurrentRequest_ = false;
     currentRequestId_ = RequestId();
   }

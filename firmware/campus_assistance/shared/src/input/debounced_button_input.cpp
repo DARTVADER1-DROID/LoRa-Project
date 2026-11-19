@@ -3,8 +3,8 @@
 namespace ca {
 
 DebouncedButtonInput::DebouncedButtonInput(IButtonPinReader& reader)
-    : reader_(reader), debouncer_(), config_(), lastStatus_(),
-      initialized_(false) {}
+    : reader_(reader), debouncer_(), config_(), lastStatus_(), initialized_(false) {
+}
 
 Status DebouncedButtonInput::begin(const ButtonConfig& config) {
   if (initialized_)
@@ -37,6 +37,8 @@ bool DebouncedButtonInput::pollEvent(ButtonEvent& event) {
   return initialized_ && debouncer_.pollEvent(event);
 }
 
-Status DebouncedButtonInput::lastStatus() const { return lastStatus_; }
+Status DebouncedButtonInput::lastStatus() const {
+  return lastStatus_;
+}
 
 } // namespace ca
