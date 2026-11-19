@@ -69,7 +69,7 @@ There is exactly one assignment-commit authority: `StationClaimCoordinator::comm
 
 - `RequestLifecycle` does not expose `commitAssignment`.
 - `RequestLedger` stores complete records: full RequestId, destination, creation/expiry basis, lifecycle state, assigned cart, assignment epoch and last accepted journey event sequence.
-- The repository exposes an atomic `assignIfUnassigned(id, cartId, epoch, stationNowMs, updated)` operation. It succeeds only if the record still exists, is not terminal/expired at the supplied station time and has no assigned cart. Expiry is checked inside the same atomic operation to close the claim/expiry boundary race.
+- The repository exposes only conditional atomic state transitions, including exact-transaction assignment commit and station-time expiry checks.
 - The claim coordinator serializes competing claims and invokes this atomic guard. A failed or duplicate claim cannot overwrite the winner.
 - The station emits ASSIGN only after the atomic commit succeeds.
 - CLAIM, CLAIM_RESULT, transport ACK and retry completion are never proof of ownership.
