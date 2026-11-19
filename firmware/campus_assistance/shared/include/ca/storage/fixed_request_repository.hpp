@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ca/domain.hpp"
+#include "ca/ports/request_repository.hpp"
 
 namespace ca {
 
