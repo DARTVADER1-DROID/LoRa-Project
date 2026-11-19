@@ -52,6 +52,7 @@ class CartUserInterface {
 public:
   virtual ~CartUserInterface() {}
   virtual void onIntent(const UiIntent& intent, const CartUiContext& context) = 0;
+  virtual void update(const CartUiContext& context) { (void)context; }
   virtual UiViewModel view() const = 0;
 };
 
