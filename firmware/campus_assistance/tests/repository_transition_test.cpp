@@ -270,7 +270,7 @@ void testCancellationAndExpiryClosePendingClaim() {
           .ok());
   assert(
       cancelledRepo.commitAssignmentIfClaimPending(request.id, 3, 303, 1, 201, updated)
-          .code == ErrorCode::STALE_EVENT);
+          .code == ErrorCode::CANCELLED);
 
   assert(expiredRepo.insertNew(request).ok());
   assert(expiredRepo.beginClaimIfEligible(request.id, 4, 404, 200, updated).ok());
