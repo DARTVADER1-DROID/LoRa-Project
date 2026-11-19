@@ -18,6 +18,7 @@ and separate Arduino Uno / ESP32 station / cart entry points.
 - `tests/contract_compile.cpp`: host C++11 public-header and API-boundary checks.
 - `tests/repository_transition_test.cpp`: fixed-capacity reference tests for atomic transition ordering.
 - `tests/config_validator_test.cpp`: configuration validation boundary and malformed-input tests.
+- `tests/types_test.cpp`: wraparound, serial-number ambiguity and state-classification tests.
 - `CMakeLists.txt`: host-side C++11 contract compile target.
 - `scripts/`: formatting and format verification commands.
 
