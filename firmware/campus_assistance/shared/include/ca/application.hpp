@@ -15,6 +15,8 @@ struct StationDependencies {
   IDisplay& display;
   IBuzzer& buzzer;
   IDiagnostics& diagnostics;
+  ConfigValidator& configValidator;
+  ButtonEventInterpreter& buttonInterpreter;
   ProtocolEndpoint& protocol;
   StationRequestController& requestController;
   StationClaimCoordinator& claims;
