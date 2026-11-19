@@ -180,6 +180,8 @@ public:
     const Status result = candidate.removeTerminalBefore(retentionBoundaryMs);
     if (!result.ok())
       return result;
+    if (sameState(state_, candidate))
+      return Status();
     if (!persistSnapshot(candidate))
       return Status(ErrorCode::STORAGE_FAILURE);
     state_ = candidate;
