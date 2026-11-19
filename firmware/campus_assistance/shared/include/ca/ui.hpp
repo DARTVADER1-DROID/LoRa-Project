@@ -11,7 +11,8 @@ struct UiContext {
 
 struct CartUiContext {
   uint8_t screenId;
-  DriverMode driverMode;
+  AcceptanceMode acceptanceMode;
+  CartServiceState serviceState;
   bool activeAssignment;
 };
 
