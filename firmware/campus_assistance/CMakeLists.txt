@@ -4,6 +4,7 @@ project(campus_assistance_contracts LANGUAGES CXX)
 
 add_library(campus_assistance_contracts STATIC
   shared/src/cart/basic_driver_availability_controller.cpp
+  shared/src/cart/cart_event_reconciler.cpp
   shared/src/cart/default_journey_progress_controller.cpp
   shared/src/cart/fixed_active_assignment.cpp
   shared/src/cart/fixed_cart_claim_client.cpp
@@ -63,6 +64,10 @@ target_link_libraries(station_claim_coordinator_test PRIVATE campus_assistance_c
 add_executable(cart_claim_client_test tests/cart_claim_client_test.cpp)
 target_link_libraries(cart_claim_client_test PRIVATE campus_assistance_contracts)
 
+add_executable(cart_event_reconciler_test
+  tests/cart_event_reconciler_test.cpp)
+target_link_libraries(cart_event_reconciler_test PRIVATE campus_assistance_contracts)
+
 enable_testing()
 add_test(NAME contract_compile COMMAND contract_compile)
 add_test(NAME repository_transition_test COMMAND repository_transition_test)
@@ -78,3 +83,4 @@ add_test(NAME station_request_lifecycle_test COMMAND station_request_lifecycle_t
 add_test(NAME protocol_codec_test COMMAND protocol_codec_test)
 add_test(NAME station_claim_coordinator_test COMMAND station_claim_coordinator_test)
 add_test(NAME cart_claim_client_test COMMAND cart_claim_client_test)
+add_test(NAME cart_event_reconciler_test COMMAND cart_event_reconciler_test)
