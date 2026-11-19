@@ -75,9 +75,11 @@ int main() {
 
   assert(controller.selectDestination(99).code == ErrorCode::NOT_FOUND);
   assert(controller.selectDestination(3).ok());
+  assert(!controller.hasCurrentRequest());
   RequestId created = {};
   assert(controller.submit(created).ok());
   assert(created.sequence == 1);
+  assert(controller.hasCurrentRequest());
   assert(protocol.enqueued_);
   assert(protocol.lastDelivery_ == DeliveryClass::RETRY_UNTIL_ACK);
   assert(protocol.lastMessage_.header.messageType == MessageType::REQUEST);
@@ -87,6 +89,7 @@ int main() {
   assert(protocol.lastMessage_.header.messageType == MessageType::CANCEL);
   assert(protocol.lastMessage_.payloadLength == 9);
   assert(lifecycle.cancelCount_ == 1);
+  assert(!controller.hasCurrentRequest());
   assert(lifecycle.lastSource_ == CancellationSource::STUDENT);
 
   protocol.enqueueStatus_ = Status(ErrorCode::QUEUE_FULL);
