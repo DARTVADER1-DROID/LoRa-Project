@@ -122,4 +122,12 @@ bool StationRequestController::hasCurrentRequest() const {
   return hasCurrentRequest_;
 }
 
+void StationRequestController::onRequestTerminal(const RequestId& requestId) {
+  if (hasCurrentRequest_ &&
+      RequestIdentity::equals(currentRequestId_, requestId)) {
+    hasCurrentRequest_ = false;
+    currentRequestId_ = RequestId();
+  }
+}
+
 } // namespace ca
