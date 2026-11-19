@@ -14,11 +14,10 @@ struct DecodeResult {
   uint16_t bytesRead;
 };
 
-// Payload is decoded into a bounded, typed event before role application
-// dispatch. The tag determines which union member is valid.
 union ProtocolEventPayload {
   RequestSummary request;
   ClaimRequest claim;
+  ClaimWithdraw claimWithdraw;
   ClaimResult claimResult;
   AssignmentNotice assignment;
   CancellationNotice cancellation;
@@ -28,9 +27,20 @@ union ProtocolEventPayload {
   TransactionId acknowledgedTransaction;
 };
 
+// The validated wire envelope is retained end-to-end for authorization,
+// replay detection, deduplication and ACK correlation. NETWORK_MEMBER_VALIDATED
+// is not cryptographic authentication.
 struct ProtocolEvent {
   ProtocolEventType type;
+  ProtocolHeader envelope;
+  SenderValidation senderValidation;
   ProtocolEventPayload payload;
+};
+
+struct RetryOutcome {
+  TransactionId transactionId;
+  RetryOutcomeCode outcome;
+  uint8_t attemptsUsed;
 };
 
 class FrameCodec {
@@ -46,6 +56,9 @@ public:
   virtual ~MessageValidator() {}
   virtual Status validate(const ProtocolMessage& message,
                           const DeviceConfig& localConfig) const = 0;
+  virtual Status authorizeSender(const ProtocolHeader& envelope,
+                                 const DeviceConfig& localConfig,
+                                 SenderValidation& validation) const = 0;
 };
 
 class ProtocolEndpoint {
@@ -63,8 +76,9 @@ public:
   virtual ~RetryManager() {}
   virtual Status schedule(const ProtocolMessage& message, uint32_t nowMs) = 0;
   virtual void service(uint32_t nowMs) = 0;
-  virtual void onAcknowledgement(TransactionId transactionId) = 0;
-  virtual void cancel(TransactionId transactionId) = 0;
+  virtual Status onAcknowledgement(TransactionId transactionId) = 0;
+  virtual Status cancel(TransactionId transactionId) = 0;
+  virtual bool pollOutcome(RetryOutcome& outcome) = 0;
 };
 
 } // namespace ca
