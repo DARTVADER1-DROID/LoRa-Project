@@ -55,6 +55,7 @@ int main() {
   RetryOutcome outcome = {};
   assert(retries.pollOutcome(outcome));
   assert(outcome.transactionId == 77);
+  assert(outcome.messageSequence == 9);
   assert(outcome.outcome == RetryOutcomeCode::EXHAUSTED);
   assert(outcome.attemptsUsed == 3);
   assert(!retries.pollOutcome(outcome));
