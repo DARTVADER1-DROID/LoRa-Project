@@ -74,6 +74,8 @@ Status CartEventReconciler::applySnapshot(const RequestSnapshot& snapshot) {
       resolveLostClaim(snapshot.requestId,
                        snapshot.state == RequestState::CANCELLED ? ErrorCode::CANCELLED
                                                                  : ErrorCode::EXPIRED);
+    } else if (snapshot.state == RequestState::PENDING_UNASSIGNED) {
+      resolveLostClaim(snapshot.requestId, ErrorCode::STALE_EVENT);
     }
     return Status();
   }
