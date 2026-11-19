@@ -162,7 +162,7 @@ Status enqueueAuthoritativeSnapshot(ProtocolEndpoint& protocol,
   message.header.networkId = config.networkId;
   message.header.messageType = MessageType::SNAPSHOT;
   message.header.sourceDeviceId = config.deviceId;
-  message.header.destinationDeviceId = record.assignedCartId;
+  message.header.destinationDeviceId = destinationCartId;
   message.header.transactionId = journeyTransactionFor(record.id, sequence);
   message.header.messageSequence = sequence;
   uint16_t offset = 0;
@@ -446,6 +446,22 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
     }
     break;
   }
+  case ProtocolEventType::SNAPSHOT_QUERY_RECEIVED: {
+    const RequestId& requestId = event.payload.snapshotQuery;
+    RequestRecord record = {};
+    if (!RequestIdentity::isValid(requestId)) {
+      status = Status(ErrorCode::INVALID_ARGUMENT);
+      break;
+    }
+    if (!dependencies_.requestLifecycle.find(requestId, record)) {
+      status = Status(ErrorCode::NOT_FOUND);
+      break;
+    }
+    status = enqueueAuthoritativeSnapshot(
+        dependencies_.protocol, config_, record, event.envelope.sourceDeviceId,
+        record.lastJourneyEventSequence);
+    break;
+  }
   case ProtocolEventType::JOURNEY_UPDATE_RECEIVED: {
     const JourneyUpdate& update = event.payload.journeyUpdate;
     if (event.envelope.sourceDeviceId != update.assignedCartId ||
@@ -461,7 +477,8 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
         break;
       }
       const Status snapshot = enqueueAuthoritativeSnapshot(
-          dependencies_.protocol, config_, record, update.eventSequence);
+          dependencies_.protocol, config_, record, update.assignedCartId,
+          update.eventSequence);
       if (!snapshot.ok()) {
         status = snapshot;
         break;
