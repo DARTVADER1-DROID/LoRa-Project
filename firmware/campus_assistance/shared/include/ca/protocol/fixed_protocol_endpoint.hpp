@@ -64,7 +64,8 @@ public:
         (void)attemptNumber;
         const Status status = sendMessage(message);
         retries_.onTransmissionAttempt(
-            message.header.transactionId, status.ok(), nowMs_);
+            message.header.transactionId, message.header.messageSequence,
+            status.ok(), nowMs_);
       }
     }
 
