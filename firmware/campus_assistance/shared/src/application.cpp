@@ -80,6 +80,9 @@ Status StationApplication::begin(const DeviceConfig& config) {
     return status;
   if (!isValidButtonProfile(dependencies_.buttonConfig))
     return Status(ErrorCode::CONFIGURATION_INVALID);
+  status = dependencies_.requestLifecycle.configure();
+  if (!status.ok())
+    return status;
 
   config_ = config;
   status = dependencies_.buttons.begin(dependencies_.buttonConfig);
