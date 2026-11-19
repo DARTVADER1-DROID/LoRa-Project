@@ -52,8 +52,7 @@ int main() {
   uncertain.transactionId = 101;
   uncertain.result = ErrorCode::STORAGE_FAILURE;
   uncertain.finalState = ClaimState::PENDING;
-  assert(client.onClaimResult(uncertain).code ==
-         ErrorCode::COMMUNICATION_UNCERTAIN);
+  assert(client.onClaimResult(uncertain).code == ErrorCode::COMMUNICATION_UNCERTAIN);
   assert(client.hasClaimInFlight());
 
   ClaimResult rejected = {};

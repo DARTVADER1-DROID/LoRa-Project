@@ -237,8 +237,7 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
           withdrawal.requestId = claim.requestId;
           withdrawal.cartId = claim.cartId;
           withdrawal.transactionId = claim.transactionId;
-          withdrawalSucceeded =
-              dependencies_.claims.withdrawClaim(withdrawal).ok();
+          withdrawalSucceeded = dependencies_.claims.withdrawClaim(withdrawal).ok();
         }
       }
 
@@ -254,10 +253,9 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
 
       const ClaimState finalState =
           assigned ? ClaimState::COMMITTED
-                   : (claimStarted
-                          ? (withdrawalSucceeded ? ClaimState::WITHDRAWN
-                                                 : ClaimState::PENDING)
-                          : ClaimState::IDLE);
+                   : (claimStarted ? (withdrawalSucceeded ? ClaimState::WITHDRAWN
+                                                          : ClaimState::PENDING)
+                                   : ClaimState::IDLE);
       const Status response = enqueueClaimResult(
           dependencies_.protocol, config_, claim, status.code, finalState);
       if (!response.ok())
