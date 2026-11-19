@@ -57,7 +57,8 @@ public:
     scheduleBroadcasts();
 
     const RadioHealth radioHealth = transport_.health();
-    if (radioHealth.initialized && !radioHealth.faulted) {
+    if (radioHealth.initialized && radioHealth.receiving &&
+        !radioHealth.faulted) {
       ProtocolMessage message = {};
       uint8_t attemptNumber = 0;
       if (retries_.pollDue(message, attemptNumber)) {
@@ -214,6 +215,8 @@ private:
     const RadioHealth radioHealth = transport_.health();
     if (!radioHealth.initialized || radioHealth.faulted)
       return Status(ErrorCode::RADIO_UNAVAILABLE);
+    if (!radioHealth.receiving)
+      return Status(ErrorCode::BUSY);
 
     uint8_t bytes[kMaxFrameBytes] = {};
     MutableFrameView output = {bytes, kMaxFrameBytes};
