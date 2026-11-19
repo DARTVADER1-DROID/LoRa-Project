@@ -19,7 +19,6 @@ int main() {
   assert(driver.acceptanceMode() == AcceptanceMode::NOT_ACCEPTING);
   assert(driver.onClaimWithdrawnByStation().ok());
   assert(driver.serviceState() == CartServiceState::IDLE);
-  assert(driver.onJourneyCompleted().ok());
 
   AssignmentRecord assignment = {};
   assignment.requestId.originStationId = 1;
@@ -28,6 +27,9 @@ int main() {
   assignment.assignedCartId = 7;
   assignment.epoch = 1;
   assignment.state = RequestState::ASSIGNED;
+  assert(driver.onAssignmentConfirmed(assignment).ok());
+  assert(driver.onJourneyCompleted().ok());
+  assert(driver.onJourneyCompleted().ok());
 
   FixedActiveAssignment active;
   assert(active.activate(assignment).ok());
