@@ -37,7 +37,7 @@ public:
     pinMode(pins_.radioReset, OUTPUT);
     pinMode(pins_.radioDio0, INPUT);
 
-#if defined(ESP32)
+#if defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
     spi_.begin(pins_.radioSck, pins_.radioMiso, pins_.radioMosi, pins_.radioChipSelect);
 #else
     spi_.begin();
@@ -182,7 +182,7 @@ public:
 
 private:
   static const uint8_t kReceiveCapacity = 2;
-  static const uint32_t kTransmitTimeoutMs = 10000UL;
+  static const uint32_t kTransmitTimeoutMs = 120000UL;
 
   static const uint8_t kRegFifo = 0x00;
   static const uint8_t kRegOpMode = 0x01;
