@@ -12,5 +12,5 @@ fi
 while IFS= read -r -d '' file; do
   clang-format --dry-run --Werror -- "$file"
 done < <(
-  find firmware/campus_assistance -type f \\( -name '*.h' -o -name '*.hpp' -o -name '*.cpp' -o -name '*.ino' \\) -print0
+  find firmware/campus_assistance -type f \( -name '*.h' -o -name '*.hpp' -o -name '*.cpp' -o -name '*.ino' \) -print0
 )
