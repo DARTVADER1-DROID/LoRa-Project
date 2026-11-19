@@ -61,3 +61,20 @@ HD44780 16×2 LCD adapter over a PCF8574 I2C backpack. The I2C address and expan
 bit mapping are constructor inputs because common backpack clones differ. It pads
 short text rows and refreshes only when a row changes. The adapter still requires
 compile and electrical verification with the actual backpack and Arduino core.
+
+
+### Arduino SX127x transport reference
+
+`platform/include/ca/platform/arduino_sx127x_transport.hpp` provides a poll-driven
+raw-SPI SX1276/SX1278 LoRa-mode adapter using the injected board pin map. It supports
+explicit-header LoRa frames with spreading factors 7–12, the enumerated bandwidth
+set, coding rates 4/5–4/8 and PA_BOOST output 2–17 dBm. SF6 implicit-header mode and
+20 dBm high-power operation are intentionally rejected by this adapter. TX completion
+and RX events are polled without blocking the application loop; RX buffering is fixed
+at two frames and overflow drops the frame without acknowledging it.
+
+This is a reference driver, not yet validated against physical RA-02 modules, antenna
+matching, DIO wiring, supply integrity, RF airtime or WPC rules. The 120-second TX
+watchdog is a conservative guard for slow legal LoRa profiles and must be revisited
+after airtime limits are frozen. Do not assume the configured frequency or power is
+authorized for Indian operation.
