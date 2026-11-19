@@ -54,6 +54,10 @@ int main() {
   assert(assignment.epoch == 1);
   assert(assignment.state == RequestState::ASSIGNED);
   assert(coordinator.isAssigned(request.id));
+  AssignmentRecord recovered = {};
+  assert(coordinator.getAssignment(request.id, recovered));
+  assert(recovered.assignedCartId == 8);
+  assert(recovered.epoch == 1);
 
   // A delayed withdrawal cannot undo a committed winner.
   withdrawal.cartId = competing.cartId;
