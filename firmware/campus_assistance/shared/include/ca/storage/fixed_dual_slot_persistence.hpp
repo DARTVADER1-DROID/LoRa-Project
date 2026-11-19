@@ -161,15 +161,21 @@ private:
       return Status(ErrorCode::STORAGE_FAILURE);
     }
     if (firstStatus.ok()) {
+      if (secondStatus.code == ErrorCode::STORAGE_FAILURE)
+        return Status(ErrorCode::STORAGE_FAILURE);
       latest = first;
       return Status();
     }
     if (secondStatus.ok()) {
+      if (firstStatus.code == ErrorCode::STORAGE_FAILURE)
+        return Status(ErrorCode::STORAGE_FAILURE);
       latest = second;
       return Status();
     }
     if (firstStatus.code == ErrorCode::STORAGE_FAILURE ||
-        secondStatus.code == ErrorCode::STORAGE_FAILURE)
+        secondStatus.code == ErrorCode::STORAGE_FAILURE ||
+        firstStatus.code == ErrorCode::CORRUPT_DATA ||
+        secondStatus.code == ErrorCode::CORRUPT_DATA)
       return Status(ErrorCode::STORAGE_FAILURE);
     return Status(ErrorCode::NOT_FOUND);
   }
@@ -190,7 +196,7 @@ private:
     if (magic != kMagic || storedKey != key_)
       return Status(ErrorCode::NOT_FOUND);
     if (generation == 0 || length > kMaxPayloadBytes)
-      return Status(ErrorCode::STORAGE_FAILURE);
+      return Status(ErrorCode::CORRUPT_DATA);
 
     const uint16_t checksumOffset = static_cast<uint16_t>(kHeaderBytes + length);
     const uint32_t supplied =
@@ -199,7 +205,7 @@ private:
         (static_cast<uint32_t>(scratch_[checksumOffset + 2U]) << 8) |
         static_cast<uint32_t>(scratch_[checksumOffset + 3U]);
     if (crc32(scratch_, checksumOffset) != supplied)
-      return Status(ErrorCode::STORAGE_FAILURE);
+      return Status(ErrorCode::CORRUPT_DATA);
 
     info.index = index;
     info.generation = generation;
