@@ -38,7 +38,7 @@ and separate Arduino Uno / ESP32 station / cart entry points.
 - `shared/include/ca/protocol/fixed_protocol_endpoint.hpp`: bounded RX event queue, frame validation, ACK handling and recipient-specific reliable broadcast.
 - `shared/include/ca/storage/fixed_cart_registry.hpp`: validated station-side roster for reliable cart broadcasts.
 - `shared/include/ca/storage/fixed_station_registry.hpp`: validated cart-side station allowlist.
-- `shared/src/application.cpp`: station/cart event-loop orchestration, claim handling, expiry outbox and authoritative journey snapshots.
+- `shared/src/application.cpp`: station/cart event-loop orchestration, claim handling, expiry outbox, snapshot query handling and cart-side semantic journey confirmation.
 - `platform/include/ca/platform/arduino_core_adapters.hpp`: Arduino GPIO sampling, clock and buzzer adapters.
 - `platform/include/ca/platform/arduino_pcf8574_lcd.hpp`: configurable PCF8574-backed 16×2 LCD adapter.
 - `shared/src/station/repository_station_claim_coordinator.cpp`: repository-serialized claim/withdraw/assignment transitions.
@@ -114,6 +114,7 @@ staged file with unstaged edits, preventing accidental inclusion of unrelated hu
 - Retry exhaustion is an explicit outcome, and persistence reads report output length.
 - Reliable broadcasts require a provisioned cart roster and are expanded into per-cart unicast transactions; ACKs are accepted only from the intended recipient.
 - Inbound station/cart senders must appear in the corresponding provisioned peer registry; network ID alone is not identity.
+- Cart journey updates remain pending at the application layer until a station snapshot confirms the committed event sequence; transport ACK alone does not release the assignment.
 - Radio transport operates on encoded bytes; applications receive typed events.
 - All queues, frame buffers and retry tables must be bounded.
 - Cart receive and queue behavior is independent of driver acceptance.
