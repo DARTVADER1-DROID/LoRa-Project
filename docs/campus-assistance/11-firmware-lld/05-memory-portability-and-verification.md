@@ -195,3 +195,20 @@ Verify the selected EEPROM/NVS behavior with power-cut tests, inspect linker RAM
 usage and stack high-water marks, and measure write frequency before increasing
 repository capacity. If the Uno's total SRAM budget is exceeded, reduce its
 repository and retry capacities or move durable storage to external FRAM.
+
+
+### 12.1 Storage adapter caveats
+
+The shared writer programs the inactive slot in ascending address order and
+places the commit marker at the final byte. On AVR, EEPROM byte updates are
+immediate; an interrupted write leaves the previous slot untouched and the
+partially written target fails CRC validation. On ESP32, Preferences stages the
+two-slot image in RAM and submits it as one NVS blob update.
+
+Espressif documents NVS sudden-power-loss protection and atomic updates, but
+also warns that NVS is intended for small, relatively infrequent updates and
+cannot guarantee consistency under out-of-spec unstable power conditions.
+The present default-NVS blob implementation is therefore a prototype adapter:
+measure update frequency, NVS partition headroom, latency and battery brownout
+behavior before relying on it. A dedicated application NVS partition and
+hardware power-cut testing remain production gates.
