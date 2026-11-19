@@ -113,28 +113,29 @@ transmission. Hardware adapters and runtime behavior remain future work.
 
 ### Host contract tests
 
-The CMake/CTest suite includes:
-- public-header C++11 compile checks and compile-time ownership/API assertions;
-- RequestId and fixed pending FIFO tests for full-identity behavior, bounded capacity, stable FIFO order, expiry removal and local clearing;
-- default configuration validation for nonzero identifiers/capacities, wrap-safe request lifetime, bounded registry views, unique station/destination IDs, bounded destination labels and supported SX1278 radio parameter ranges;
-- a fixed-capacity reference repository suite for claim-withdraw/commit ordering,
-  delayed withdrawal, cancellation/expiry races and expiry-boundary claim rejection.
+The CMake/CTest suite covers:
+- public-header C++11 compilation and compile-time ownership/API assertions;
+- RequestId identity, sequence behavior and fixed pending FIFO semantics;
+- configuration validation and malformed bounded registry views;
+- volatile repository claim/withdraw/commit, cancellation and expiry races;
+- durable snapshot recovery, CRC rejection, station identity binding, request-ID
+  continuity, interrupted-store rollback and same-object recovery retry;
+- reboot fail-closed expiry for unassigned and claim-pending requests while
+  preserving committed assignments;
+- station lifecycle destination validation, creation, cancellation, journey
+  updates and unassigned-only expiry.
 
-The fixed repository is a volatile reference implementation. The durable
-repository uses a single atomic snapshot and requires a persistence adapter that
-guarantees old-or-new visibility after power loss. Its host fake tests restart,
-CRC rejection, request-ID continuity, interrupted-store rollback and preservation
-of committed assignments. Unassigned requests are expired on reboot because
-millis() cannot measure time while power is off without a persistent RTC.
+The durable repository uses a single versioned, CRC32-protected snapshot. Its host
+fake tests the required old-or-new persistence contract; it does not prove that a
+physical flash/EEPROM adapter is atomic. A real adapter must use a journal,
+dual-slot or equivalent scheme and pass hardware power-cut/endurance testing.
+
+Because the current clock contract is uptime millis rather than a persistent RTC,
+the station expires unassigned and claim-pending requests during reboot recovery.
+Committed assignments are retained. A persistent wall clock is needed if the
+system must preserve the exact remaining ten-minute expiry window across power-off.
 
 The default radio validator accepts the RA-02/SX1278 tuning range and supported
 spreading-factor, bandwidth, coding-rate and PA output ranges. This is a module
-capability check only; it does not approve a frequency, transmit power or duty cycle
-under Indian WPC rules. The durable repository recovers committed records and request-ID allocation from
-a versioned CRC-protected snapshot. Since the current clock contract is uptime
-millis rather than a persistent RTC, recovery expires all unassigned/claim-pending
-requests fail-closed; committed assignments are retained. A real adapter must
-implement old-or-new atomic replacement with a journal/dual-slot strategy and
-pass hardware power-cut/endurance tests. No concrete flash adapter exists yet.
-This host suite does not prove physical flash atomicity, radio behavior or
-target-MCU correctness.
+capability check only; it does not approve a frequency, transmit power or duty
+cycle under Indian WPC rules. No concrete flash, radio or MCU adapter exists yet.
