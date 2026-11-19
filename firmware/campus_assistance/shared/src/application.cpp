@@ -151,7 +151,8 @@ bool currentJourney(const AssignmentRecord& assignment, JourneyStatus& journey) 
 } // namespace
 
 StationApplication::StationApplication(StationDependencies dependencies)
-    : dependencies_(dependencies), config_(), initialized_(false) {
+    : dependencies_(dependencies), config_(), expiryOutboxCount_(0),
+      expiryOutboxIndex_(0), initialized_(false) {
 }
 
 Status StationApplication::begin(const DeviceConfig& config) {
@@ -163,7 +164,9 @@ Status StationApplication::begin(const DeviceConfig& config) {
   Status status = dependencies_.configValidator.validate(config);
   if (!status.ok())
     return status;
-  if (!isValidButtonProfile(dependencies_.buttonConfig))
+  if (!isValidButtonProfile(dependencies_.buttonConfig) ||
+      dependencies_.expiryBuffer.items == 0 ||
+      dependencies_.expiryBuffer.capacity < config.pendingCapacity)
     return Status(ErrorCode::CONFIGURATION_INVALID);
   status = dependencies_.requestLifecycle.configure();
   if (!status.ok())
@@ -195,33 +198,51 @@ void StationApplication::service() {
 
   const uint32_t nowMs = dependencies_.clock.millisNow();
 
-  Status expiryStatus =
-      dependencies_.requestLifecycle.expireDue(nowMs, dependencies_.expiryBuffer);
-  if (!expiryStatus.ok()) {
-    dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected,
-                                     expiryStatus.code);
-  } else {
-    for (uint16_t i = 0; i < dependencies_.expiryBuffer.count; ++i) {
-      const RequestId& id = dependencies_.expiryBuffer.items[i];
-      dependencies_.requestController.onRequestTerminal(id);
-      ProtocolMessage message = {};
-      message.header.protocolVersion = config_.protocolVersion;
-      message.header.networkId = config_.networkId;
-      message.header.messageType = MessageType::EXPIRED;
-      message.header.sourceDeviceId = config_.deviceId;
-      message.header.destinationDeviceId = 0;
-      message.header.transactionId = transactionFor(id);
-      message.header.messageSequence = id.sequence;
-      uint16_t offset = 0;
-      put16(message.payload, offset, id.originStationId);
-      put32(message.payload, offset, id.sequence);
-      put16(message.payload, offset, id.generation);
-      message.payloadLength = offset;
-      const Status queued =
-          dependencies_.protocol.enqueue(message, DeliveryClass::RETRY_UNTIL_ACK);
-      if (!queued.ok())
-        dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected, queued.code);
+  if (expiryOutboxIndex_ >= expiryOutboxCount_) {
+    dependencies_.expiryBuffer.count = 0;
+    const Status expiryStatus =
+        dependencies_.requestLifecycle.expireDue(nowMs, dependencies_.expiryBuffer);
+    if (!expiryStatus.ok()) {
+      dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected,
+                                       expiryStatus.code);
+    } else {
+      expiryOutboxCount_ = dependencies_.expiryBuffer.count;
+      expiryOutboxIndex_ = 0;
+      for (uint16_t i = 0; i < expiryOutboxCount_; ++i)
+        dependencies_.requestController.onRequestTerminal(
+            dependencies_.expiryBuffer.items[i]);
     }
+  }
+
+  while (expiryOutboxIndex_ < expiryOutboxCount_) {
+    const RequestId& id =
+        dependencies_.expiryBuffer.items[expiryOutboxIndex_];
+    ProtocolMessage message = {};
+    message.header.protocolVersion = config_.protocolVersion;
+    message.header.networkId = config_.networkId;
+    message.header.messageType = MessageType::EXPIRED;
+    message.header.sourceDeviceId = config_.deviceId;
+    message.header.destinationDeviceId = 0;
+    message.header.transactionId = transactionFor(id);
+    message.header.messageSequence = id.sequence;
+    uint16_t offset = 0;
+    put16(message.payload, offset, id.originStationId);
+    put32(message.payload, offset, id.sequence);
+    put16(message.payload, offset, id.generation);
+    message.payloadLength = offset;
+    const Status queued =
+        dependencies_.protocol.enqueue(message, DeliveryClass::RETRY_UNTIL_ACK);
+    if (!queued.ok()) {
+      dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected,
+                                       queued.code);
+      break;
+    }
+    ++expiryOutboxIndex_;
+  }
+
+  if (expiryOutboxIndex_ >= expiryOutboxCount_) {
+    expiryOutboxCount_ = 0;
+    expiryOutboxIndex_ = 0;
   }
 
   const Status cancellationStatus = dependencies_.requestController.service();
