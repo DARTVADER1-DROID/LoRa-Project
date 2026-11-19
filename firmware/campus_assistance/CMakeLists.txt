@@ -20,6 +20,7 @@ target_include_directories(
   campus_assistance_contracts
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/platform/include
 )
 target_compile_features(campus_assistance_contracts PUBLIC cxx_std_11)
 
@@ -77,6 +78,9 @@ add_executable(station_request_controller_test
   tests/station_request_controller_test.cpp)
 target_link_libraries(station_request_controller_test PRIVATE campus_assistance_contracts)
 
+add_executable(board_profile_test tests/board_profile_test.cpp)
+target_link_libraries(board_profile_test PRIVATE campus_assistance_contracts)
+
 enable_testing()
 add_test(NAME contract_compile COMMAND contract_compile)
 add_test(NAME repository_transition_test COMMAND repository_transition_test)
@@ -95,3 +99,4 @@ add_test(NAME cart_claim_client_test COMMAND cart_claim_client_test)
 add_test(NAME cart_event_reconciler_test COMMAND cart_event_reconciler_test)
 add_test(NAME fixed_destination_catalog_test COMMAND fixed_destination_catalog_test)
 add_test(NAME station_request_controller_test COMMAND station_request_controller_test)
+add_test(NAME board_profile_test COMMAND board_profile_test)
