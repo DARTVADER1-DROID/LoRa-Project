@@ -73,9 +73,8 @@ int main() {
   FixedActiveAssignment recovered;
   assert(recovered.activate(assignment).ok());
   assert(recovered.reconcileSnapshot(JourneyStatus::ON_THE_WAY, 0x7FFFFFFFUL).ok());
-  assert(recovered.reconcileSnapshot(JourneyStatus::ARRIVED_AT_PICKUP,
-                                     0x80000000UL)
-             .ok());
+  assert(
+      recovered.reconcileSnapshot(JourneyStatus::ARRIVED_AT_PICKUP, 0x80000000UL).ok());
   assert(recovered.reconcileSnapshot(JourneyStatus::COMPLETED, 0xFFFFFFFFUL).ok());
   assert(recovered.reconcileSnapshot(JourneyStatus::COMPLETED, 0).ok());
   assert(recovered.get(current));

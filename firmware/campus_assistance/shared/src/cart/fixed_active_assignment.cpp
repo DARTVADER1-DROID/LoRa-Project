@@ -58,7 +58,7 @@ Status FixedActiveAssignment::updateJourneyStatus(JourneyStatus status,
 }
 
 Status FixedActiveAssignment::reconcileSnapshot(JourneyStatus status,
-                                                           EventSequence sequence) {
+                                                EventSequence sequence) {
   if (!occupied_ || !isValidJourneyStatus(status))
     return Status(ErrorCode::INVALID_STATE);
   if (compareSequence(sequence, lastSequence_) != SerialNumberOrder::NEWER)

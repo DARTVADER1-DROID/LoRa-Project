@@ -13,8 +13,7 @@ public:
   bool isOccupied() const override;
   Status activate(const AssignmentRecord& stationConfirmed) override;
   Status updateJourneyStatus(JourneyStatus status, EventSequence sequence) override;
-  Status reconcileSnapshot(JourneyStatus status,
-                           EventSequence sequence) override;
+  Status reconcileSnapshot(JourneyStatus status, EventSequence sequence) override;
   Status complete(const DriverAction& action) override;
   Status clearAfterTerminal() override;
   bool get(AssignmentRecord& assignment) const override;
