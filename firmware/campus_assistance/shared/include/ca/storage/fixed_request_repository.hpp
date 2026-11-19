@@ -283,24 +283,42 @@ public:
         record.state == RequestState::CREATED ||
         record.state == RequestState::COMMUNICATION_UNCERTAIN)
       return Status(ErrorCode::INVALID_ARGUMENT);
-    const bool assigned = record.state == RequestState::ASSIGNED ||
-                          record.state == RequestState::ON_THE_WAY ||
-                          record.state == RequestState::ARRIVED_AT_PICKUP ||
-                          record.state == RequestState::COMPLETED;
-    if (assigned && (record.assignedCartId == 0 || record.assignmentEpoch == 0 ||
-                     record.claimState != ClaimState::COMMITTED))
-      return Status(ErrorCode::INVALID_ARGUMENT);
-    if (record.state == RequestState::CLAIM_PENDING &&
-        (record.claimState != ClaimState::PENDING || record.claimCartId == 0 ||
-         record.claimTransactionId == 0))
-      return Status(ErrorCode::INVALID_ARGUMENT);
-    if ((record.state == RequestState::PENDING_UNASSIGNED ||
-         record.state == RequestState::CANCELLED ||
-         record.state == RequestState::EXPIRED) &&
-        (record.assignedCartId != 0 || record.assignmentEpoch != 0 ||
-         record.claimState == ClaimState::PENDING ||
-         record.claimState == ClaimState::COMMITTED))
-      return Status(ErrorCode::INVALID_ARGUMENT);
+
+    const bool assigned = isAssignedState(record.state);
+    if (assigned) {
+      if (record.assignedCartId == 0 || record.assignmentEpoch == 0 ||
+          record.claimState != ClaimState::COMMITTED ||
+          record.claimCartId != record.assignedCartId ||
+          record.claimTransactionId == 0)
+        return Status(ErrorCode::INVALID_ARGUMENT);
+      if ((record.state == RequestState::ASSIGNED &&
+           record.lastJourneyEventSequence != 0) ||
+          (record.state != RequestState::ASSIGNED &&
+           record.lastJourneyEventSequence == 0))
+        return Status(ErrorCode::INVALID_ARGUMENT);
+    } else if (record.state == RequestState::CLAIM_PENDING) {
+      if (record.assignedCartId != 0 || record.assignmentEpoch != 0 ||
+          record.claimState != ClaimState::PENDING || record.claimCartId == 0 ||
+          record.claimTransactionId == 0 ||
+          record.lastJourneyEventSequence != 0)
+        return Status(ErrorCode::INVALID_ARGUMENT);
+    } else {
+      if (record.state != RequestState::PENDING_UNASSIGNED &&
+          record.state != RequestState::CANCELLED &&
+          record.state != RequestState::EXPIRED)
+        return Status(ErrorCode::INVALID_ARGUMENT);
+      if (record.assignedCartId != 0 || record.assignmentEpoch != 0 ||
+          record.lastJourneyEventSequence != 0 ||
+          (record.claimState != ClaimState::IDLE &&
+           record.claimState != ClaimState::WITHDRAWN))
+        return Status(ErrorCode::INVALID_ARGUMENT);
+      if ((record.claimState == ClaimState::IDLE &&
+           (record.claimCartId != 0 || record.claimTransactionId != 0)) ||
+          (record.claimState == ClaimState::WITHDRAWN &&
+           (record.claimCartId == 0 || record.claimTransactionId == 0)))
+        return Status(ErrorCode::INVALID_ARGUMENT);
+    }
+
     if (findIndex(record.id) >= 0)
       return Status(ErrorCode::DUPLICATE);
     if (count_ >= StorageCapacity)
