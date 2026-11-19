@@ -1,7 +1,9 @@
 # Shared implementation boundary
 
 Portable implementations belong in focused translation units and must remain
-C++11-compatible without Arduino or ESP-IDF dependencies.
+C++11-compatible without Arduino or ESP-IDF dependencies. Domain headers include
+portable value types directly; hardware, runtime, persistence and repository ports
+are separated under `include/ca/ports/`.
 
 `config.cpp` contains the default provisioned-configuration validator. `types.cpp`
 contains shared wrap-safe time/sequence helpers and request/journey-state predicates.
