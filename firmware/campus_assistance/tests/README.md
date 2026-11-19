@@ -9,7 +9,9 @@ Required suites:
    terminal-state classification and journey-status validation.
 2. [Partially implemented] Full RequestId validation/equality/hash; generation rollover policy and persistence recovery remain unimplemented.
 3. [Implemented] Pending FIFO, deduplication, capacity, local-only clear, expiry removal and exact removal.
-4. Driver state: boot NOT_ACCEPTING, no claim while disabled, explicit enable, completion forces disabled.
+4. [Partially implemented] Driver state: boot NOT_ACCEPTING, no claim while disabled,
+   explicit enable, claim-withdraw resolution, completion forces disabled; integration
+   with the application-level queue-clear and assignment reconciliation remains pending.
 5. Competing claims: exactly one station winner; CLAIM alone never activates.
 6. Missed/duplicate/delayed ASSIGN, CANCEL and EXPIRED reconciliation.
 7. [Partially implemented in reference tests] 600000 ms default expiry; CLAIM/expiry boundary; assigned requests not pending-expired.
