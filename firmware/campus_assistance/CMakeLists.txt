@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 project(campus_assistance_contracts LANGUAGES CXX)
 
 add_library(campus_assistance_contracts STATIC
+  shared/src/application.cpp
   shared/src/cart/basic_driver_availability_controller.cpp
   shared/src/cart/cart_event_reconciler.cpp
   shared/src/cart/default_journey_progress_controller.cpp
