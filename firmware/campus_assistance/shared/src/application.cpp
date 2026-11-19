@@ -7,6 +7,7 @@ namespace {
 const uint16_t kDiagnosticInitializationFailure = 1;
 const uint16_t kDiagnosticProtocolEventRejected = 2;
 const uint16_t kDiagnosticButtonEventRejected = 3;
+const uint16_t kDiagnosticRetryExhausted = 4;
 
 bool isValidButtonProfile(const ButtonConfig& config) {
   return config.buttonCount > 0 && config.buttonCount <= kMaxPhysicalButtons &&
@@ -60,6 +61,19 @@ TransactionId withdrawalDeliveryTransactionFor(const ClaimRequest& claim) {
   if (value == 0 || value == claim.transactionId)
     value = claim.transactionId == 0xFFFFFFFFUL ? 1 : claim.transactionId + 1U;
   return value;
+}
+
+void drainRetryOutcomes(ProtocolEndpoint& protocol,
+                         IDiagnostics& diagnostics) {
+  for (uint8_t processed = 0; processed < 4; ++processed) {
+    RetryOutcome outcome = {};
+    if (!protocol.pollRetryOutcome(outcome))
+      break;
+    if (outcome.outcome == RetryOutcomeCode::EXHAUSTED)
+      diagnostics.record(kDiagnosticRetryExhausted, ErrorCode::TIMEOUT);
+    else if (outcome.outcome == RetryOutcomeCode::STORAGE_FAILURE)
+      diagnostics.record(kDiagnosticRetryExhausted, ErrorCode::STORAGE_FAILURE);
+  }
 }
 
 bool senderIsValidated(SenderValidation validation) {
@@ -310,6 +324,7 @@ void StationApplication::service() {
   dependencies_.buttons.service(nowMs);
   dependencies_.buzzer.service(nowMs);
   dependencies_.protocol.service(nowMs);
+  drainRetryOutcomes(dependencies_.protocol, dependencies_.diagnostics);
 
   for (uint8_t processed = 0; processed < 4; ++processed) {
     ButtonEvent buttonEvent = {};
