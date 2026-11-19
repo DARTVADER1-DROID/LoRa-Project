@@ -46,7 +46,7 @@ StationApplication / CartApplication
 | `ConfigValidator` | Validate provisioned board/device/network/radio settings and registries | Request submission or runtime enrollment |
 | `StationRequestController` | Select destination; submit/cancel the current station request use case | Persistence internals, claim arbitration, frame encoding |
 | `RequestLifecycle` | Create, cancel, expire and apply sequenced journey updates | Choosing the winning cart |
-| `RequestLedger` / `IRequestRepository` | Store and retrieve complete authoritative `RequestRecord` values | UI, RF policy, driver state |
+| `IRequestRepository` | Store complete authoritative `RequestRecord` values through conditional atomic transitions | UI, RF policy, driver state |
 | `StationClaimCoordinator` | Evaluate claims and commit the single winning assignment | Request creation, driver input |
 | `PendingRequestStore` | Bounded cart-local FIFO and exact identity removal | Global ownership or network cancellation |
 | `ActiveAssignment` | Hold zero or one station-confirmed assignment | Pending FIFO or claim arbitration |
