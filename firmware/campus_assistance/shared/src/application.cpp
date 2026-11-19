@@ -179,6 +179,9 @@ Status enqueueAuthoritativeSnapshot(ProtocolEndpoint& protocol,
   put16(message.payload, offset, record.assignedCartId);
   put16(message.payload, offset, record.assignmentEpoch);
   put32(message.payload, offset, record.lastJourneyEventSequence);
+  message.payload[offset++] = static_cast<uint8_t>(record.claimState);
+  put16(message.payload, offset, record.claimCartId);
+  put32(message.payload, offset, record.claimTransactionId);
   message.payloadLength = offset;
   return protocol.enqueue(message, DeliveryClass::RETRY_UNTIL_ACK);
 }
