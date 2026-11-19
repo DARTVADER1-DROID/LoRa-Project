@@ -9,8 +9,8 @@ namespace ca {
 class BasicDriverAvailabilityController final : public DriverAvailabilityController {
 public:
   BasicDriverAvailabilityController()
-      : acceptance_(AcceptanceMode::NOT_ACCEPTING),
-        service_(CartServiceState::IDLE), claimOutstanding_(false) {}
+      : acceptance_(AcceptanceMode::NOT_ACCEPTING), service_(CartServiceState::IDLE),
+        claimOutstanding_(false) {}
 
   AcceptanceMode acceptanceMode() const override { return acceptance_; }
   CartServiceState serviceState() const override { return service_; }
@@ -98,8 +98,7 @@ private:
 class FixedActiveAssignment final : public ActiveAssignment {
 public:
   FixedActiveAssignment()
-      : occupied_(false), journey_(JourneyStatus::RECEIVED),
-        lastSequence_(0) {}
+      : occupied_(false), journey_(JourneyStatus::RECEIVED), lastSequence_(0) {}
 
   bool isOccupied() const override { return occupied_; }
 
@@ -122,8 +121,7 @@ public:
     return Status();
   }
 
-  Status updateJourneyStatus(JourneyStatus status,
-                             EventSequence sequence) override {
+  Status updateJourneyStatus(JourneyStatus status, EventSequence sequence) override {
     if (!occupied_ || !isValidJourneyStatus(status))
       return Status(ErrorCode::INVALID_STATE);
     if (compareSequence(sequence, lastSequence_) != SerialNumberOrder::NEWER)
@@ -132,13 +130,13 @@ public:
       return Status(ErrorCode::INVALID_STATE);
     journey_ = status;
     lastSequence_ = sequence;
-    current_.state = status == JourneyStatus::ON_THE_WAY
-                         ? RequestState::ON_THE_WAY
-                         : (status == JourneyStatus::ARRIVED_AT_PICKUP
-                                ? RequestState::ARRIVED_AT_PICKUP
-                                : (status == JourneyStatus::COMPLETED
-                                       ? RequestState::COMPLETED
-                                       : RequestState::ASSIGNED));
+    current_.state =
+        status == JourneyStatus::ON_THE_WAY
+            ? RequestState::ON_THE_WAY
+            : (status == JourneyStatus::ARRIVED_AT_PICKUP
+                   ? RequestState::ARRIVED_AT_PICKUP
+                   : (status == JourneyStatus::COMPLETED ? RequestState::COMPLETED
+                                                         : RequestState::ASSIGNED));
     return Status();
   }
 
@@ -176,8 +174,7 @@ private:
   EventSequence lastSequence_;
 
   static bool validStep(JourneyStatus current, JourneyStatus next) {
-    return (current == JourneyStatus::RECEIVED &&
-            next == JourneyStatus::ON_THE_WAY) ||
+    return (current == JourneyStatus::RECEIVED && next == JourneyStatus::ON_THE_WAY) ||
            (current == JourneyStatus::ON_THE_WAY &&
             next == JourneyStatus::ARRIVED_AT_PICKUP) ||
            (current == JourneyStatus::ARRIVED_AT_PICKUP &&
@@ -187,12 +184,12 @@ private:
 
 class DefaultJourneyProgressController final : public JourneyProgressController {
 public:
-  Status validateTransition(JourneyStatus current, JourneyStatus next,
+  Status validateTransition(JourneyStatus current,
+                            JourneyStatus next,
                             const DriverAction& action) const override {
     if (!isValidJourneyStatus(current) || !isValidJourneyStatus(next))
       return Status(ErrorCode::INVALID_ARGUMENT);
-    if (current == JourneyStatus::RECEIVED &&
-        next == JourneyStatus::ON_THE_WAY &&
+    if (current == JourneyStatus::RECEIVED && next == JourneyStatus::ON_THE_WAY &&
         action.type == DriverActionType::ADVANCE_JOURNEY)
       return Status();
     if (current == JourneyStatus::ON_THE_WAY &&
