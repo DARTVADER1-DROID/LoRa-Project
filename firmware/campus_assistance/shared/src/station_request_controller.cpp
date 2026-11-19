@@ -118,4 +118,8 @@ Status StationRequestController::cancelCurrentRequest() {
   return queued;
 }
 
+bool StationRequestController::hasCurrentRequest() const {
+  return hasCurrentRequest_;
+}
+
 } // namespace ca
