@@ -24,12 +24,14 @@ Start with [the Campus Assistance documentation index](docs/campus-assistance/RE
 ## Repository structure
 
 - `docs/campus-assistance/` — active project specification and engineering documentation.
-- `firmware/campus_assistance/` — interface-only C++/Arduino firmware skeleton; implementation intentionally pending.
+- `firmware/campus_assistance/` — interface-only C++11 firmware contracts, target entry points, host compile smoke test and formatting tools.
 - `.gitignore` — repository-wide local build-artifact exclusions.
 
 ## Firmware development status
 
-The approved Firmware LLD has been translated into an organized **interface/stub codebase** under `firmware/campus_assistance/`. It contains shared portable contracts, separate station/cart entry points for Uno and ESP32, and implementation-obligation comments. It is not operational firmware and is not yet wired to a complete Arduino IDE/PlatformIO build. No legacy firmware should be treated as compliant with the current target design.
+The Firmware LLD has been translated into an interface-only C++ contract scaffold. It now defines explicit dependency-injected role composition, separate use cases, a single station assignment-commit authority, a complete request-record repository contract, byte-oriented radio transport and typed protocol events. Runtime implementations and hardware adapters remain intentionally pending.
+
+A host CMake target and GitHub Actions checks are included for public-header compilation and formatting. These checks do not establish Arduino/ESP32 target buildability, radio functionality, memory/timing budgets or hardware correctness. No legacy firmware should be treated as compliant with the current target design.
 
 ## Safety and regulatory gates
 
