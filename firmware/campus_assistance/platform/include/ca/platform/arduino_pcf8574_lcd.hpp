@@ -39,7 +39,7 @@ public:
         rwBit_ == enableBit_ || rwBit_ == backlightBit_ || enableBit_ == backlightBit_)
       return Status(ErrorCode::CONFIGURATION_INVALID);
 
-#if defined(ESP32)
+#if defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
     Wire.begin(static_cast<int>(pins_.displaySda), static_cast<int>(pins_.displayScl));
 #else
     Wire.begin();
