@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ca/domain.hpp"
+#include "ca/domain/journey_progress_controller.hpp"
 
 namespace ca {
 
