@@ -69,6 +69,10 @@ int main() {
   SenderValidation sender = SenderValidation::UNVALIDATED;
   assert(validator.authorizeSender(message.header, local, sender).ok());
   assert(sender == SenderValidation::NETWORK_MEMBER_VALIDATED);
+  message.header.sourceDeviceId = 9;
+  assert(validator.authorizeSender(message.header, local, sender).code ==
+         ErrorCode::INVALID_ARGUMENT);
+  message.header.sourceDeviceId = 2;
 
   local.networkId = 8;
   assert(validator.validate(message, local).code == ErrorCode::PROTOCOL_MISMATCH);
