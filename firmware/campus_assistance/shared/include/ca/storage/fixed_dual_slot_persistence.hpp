@@ -113,11 +113,11 @@ public:
       return Status(ErrorCode::INVALID_STATE);
     if (key != key_)
       return Status(ErrorCode::NOT_FOUND);
-    const uint8_t invalidMarker = 0;
     for (uint8_t slot = 0; slot < 2; ++slot) {
-      const uint16_t address =
-          static_cast<uint16_t>((slot * SlotBytes) + SlotBytes - 1U);
-      const Status status = storage_.write(address, &invalidMarker, 1);
+      const uint16_t base = static_cast<uint16_t>(slot * SlotBytes);
+      for (uint16_t i = 0; i < SlotBytes; ++i)
+        scratch_[i] = 0xFF;
+      const Status status = storage_.write(base, scratch_, SlotBytes);
       if (!status.ok())
         return status;
       const Status synced = storage_.sync();
@@ -185,8 +185,16 @@ private:
     const Status readStatus = storage_.read(base, scratch_, SlotBytes);
     if (!readStatus.ok())
       return readStatus;
-    if (scratch_[SlotBytes - 1U] != kCommitMarker)
-      return Status(ErrorCode::NOT_FOUND);
+    if (scratch_[SlotBytes - 1U] != kCommitMarker) {
+      bool blank = true;
+      for (uint16_t i = 0; i < SlotBytes; ++i)
+        if (scratch_[i] != 0xFF) {
+          blank = false;
+          break;
+        }
+      return blank ? Status(ErrorCode::NOT_FOUND)
+                   : Status(ErrorCode::CORRUPT_DATA);
+    }
 
     uint16_t offset = 0;
     const uint32_t magic = get32(scratch_, offset);
@@ -194,7 +202,7 @@ private:
     const uint32_t generation = get32(scratch_, offset);
     const uint16_t length = get16(scratch_, offset);
     if (magic != kMagic || storedKey != key_)
-      return Status(ErrorCode::NOT_FOUND);
+      return Status(ErrorCode::CORRUPT_DATA);
     if (generation == 0 || length > kMaxPayloadBytes)
       return Status(ErrorCode::CORRUPT_DATA);
 
