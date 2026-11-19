@@ -149,7 +149,7 @@ The public header contracts supersede older shorthand signatures in this documen
 - `RequestLifecycle::expireDue(uint32_t stationNowMs, ExpiredRequestSet&)`.
 - `RequestLifecycle::applyJourneyUpdate(const JourneyUpdate&)`.
 - `ActiveAssignment::complete(const DriverAction&)`.
-- `JourneyProgressController::advance(JourneyStatus, const DriverAction&)`.
+- `JourneyProgressController::validateTransition(current, next, const DriverAction&)` is stateless policy; ActiveAssignment owns journey state.
 - `ProtocolEndpoint::enqueue(const ProtocolMessage&, DeliveryClass)`.
 - `ProtocolEndpoint::pollEvent(ProtocolEvent&)`.
 
