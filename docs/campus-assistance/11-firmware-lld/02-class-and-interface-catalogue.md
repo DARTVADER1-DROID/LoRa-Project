@@ -5,7 +5,8 @@ All declarations are conceptual C++-like contracts. They are not implementation.
 ## 1. Shared types
 
     enum class DeviceRole { STATION, CART };
-    enum class AcceptanceMode { NOT_ACCEPTING, ACCEPTING };\n    enum class CartServiceState { IDLE, CLAIM_PENDING, SERVING, UNCERTAIN };
+    enum class AcceptanceMode { NOT_ACCEPTING, ACCEPTING };
+    enum class CartServiceState { IDLE, CLAIM_PENDING, SERVING, UNCERTAIN };
     enum class RequestState {
       CREATED, PENDING_UNASSIGNED, CLAIM_PENDING, ASSIGNED,
       ON_THE_WAY, ARRIVED_AT_PICKUP, COMPLETED,
@@ -122,7 +123,7 @@ Invariants: bounded FIFO; full-identity deduplication; duplicate insert does not
     public:
       bool isOccupied() const;
       Status activate(const AssignmentRecord& stationConfirmed);
-      Status updateJourneyStatus(JourneyStatus);
+      Status updateJourneyStatus(JourneyStatus, EventSequence);
       Status complete(const DriverAction&);
       Status clearAfterTerminal();
       bool get(AssignmentRecord&) const;
@@ -130,7 +131,8 @@ Invariants: bounded FIFO; full-identity deduplication; duplicate insert does not
 
     class DriverAvailabilityController {
     public:
-      DriverMode mode() const;
+      AcceptanceMode acceptanceMode() const;
+      CartServiceState serviceState() const;
       Status enableAcceptance(const DriverAction&);
       Status disableAcceptance(const DriverAction&);
       Status onAssignmentConfirmed(const AssignmentRecord&);
@@ -145,19 +147,26 @@ Invariants: zero or one active assignment; activation requires matching station 
     class RequestLifecycle {
     public:
       Status create(const NewRequest&, RequestRecord&);
-      Status validateClaim(const ClaimRequest&, uint32_t stationNowMs);
-      Status commitAssignment(const ClaimRequest&, AssignmentRecord&);
       Status cancel(const RequestId&, CancellationSource);
       Status expireDue(uint32_t stationNowMs, ExpiredRequestSet&);
       Status applyJourneyUpdate(const JourneyUpdate&);
       bool find(const RequestId&, RequestRecord&) const;
     };
 
-    class RequestLedger {
+    class IRequestRepository {
     public:
-      Status add(const RequestRecord&);
+      Status insertNew(const RequestRecord&);
       bool find(const RequestId&, RequestRecord&) const;
-      Status update(const RequestRecord&);
+      Status beginClaimIfEligible(const RequestId&, DeviceId, TransactionId,
+                                  uint32_t stationNowMs, RequestRecord&);
+      Status withdrawClaimIfPending(const RequestId&, DeviceId, TransactionId,
+                                    RequestRecord&);
+      Status commitAssignmentIfClaimPending(const RequestId&, DeviceId,
+                                            TransactionId, AssignmentEpoch,
+                                            uint32_t stationNowMs, RequestRecord&);
+      Status cancelIfUnassigned(const RequestId&, CancellationSource, RequestRecord&);
+      Status expireIfDue(const RequestId&, uint32_t stationNowMs, RequestRecord&);
+      Status applyJourneyUpdateIfCurrent(const JourneyUpdate&, RequestRecord&);
       Status removeTerminalBefore(uint32_t retentionBoundary);
       uint16_t size() const;
     };
@@ -171,7 +180,7 @@ Invariants: zero or one active assignment; activation requires matching station 
       bool isEnabled(DeviceId) const;
     };
 
-Station alone creates requests, authoritatively expires/cancels them and commits at most one cart per RequestId.
+There is no generic repository update. Every mutation is a conditional atomic transition against the same authoritative RequestId. RequestLifecycle owns request creation, cancellation, expiry and journey update policy; StationClaimCoordinator alone commits assignment.
 
 ## 6. Protocol components
 
@@ -217,19 +226,21 @@ Protocol handles frames and delivery; domain classes handle business transitions
     class CartClaimClient {
     public:
       Status requestClaim(const RequestId&, DeviceId cartId);
-      void onClaimResult(const ClaimResult&);
-      void onAssignmentNotice(const AssignmentNotice&);
-      ClaimClientState state() const;
+      Status withdrawClaim(const ClaimWithdraw&);
+      Status onClaimResult(const ClaimResult&);
+      bool hasClaimInFlight() const;
+      bool getOutstandingClaim(ClaimRequest&) const;
     };
 
     class StationClaimCoordinator {
     public:
-      ClaimDecision evaluate(const ClaimRequest&, uint32_t nowMs);
+      Status evaluate(const ClaimRequest&, uint32_t nowMs) const;
+      Status withdrawClaim(const ClaimWithdraw&);
       Status commitWinner(const ClaimRequest&, AssignmentRecord&);
       bool isAssigned(const RequestId&) const;
     };
 
-Station coordinator serializes/atomically decides competing claims. Exact RF arbitration is specified in the protocol document.
+The station persists the exact claim transaction identity. Withdrawal and assignment commit serialize against that same record. CartClaimClient never activates an assignment; only EventReconciler may route a validated station ASSIGN to ActiveAssignment.
 
 ## 8. Role applications
 
@@ -272,11 +283,11 @@ Station coordinator serializes/atomically decides competing claims. Exact RF arb
 
     class JourneyProgressController {
     public:
-      Status advance(JourneyStatus, const DriverAction&);
-      JourneyStatus current() const;
+      Status validateTransition(JourneyStatus current, JourneyStatus next,
+                                const DriverAction&) const;
     };
 
-Exact two-button mapping is not frozen. UI emits intents; application/domain controllers validate them. Button events cannot directly force an invalid state transition.
+ActiveAssignment alone owns the active assignment and current journey state. JourneyProgressController is stateless transition policy. EventReconciler orchestrates authoritative notices and snapshots without maintaining a second copy of assignment/journey state.
 
 ## 10. Ownership
 
