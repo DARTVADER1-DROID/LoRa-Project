@@ -88,6 +88,8 @@ public:
       return payloadStatus;
 
     if (deliveryClass == DeliveryClass::RETRY_UNTIL_ACK) {
+      if (message.header.transactionId == 0)
+        return Status(ErrorCode::INVALID_ARGUMENT);
       if (message.header.destinationDeviceId == 0)
         return scheduleReliableBroadcast(message);
       return retries_.schedule(message, nowMs_);
