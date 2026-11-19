@@ -6,6 +6,8 @@
 
 // PlatformIO compile smoke only. The Arduino IDE .ino files remain the role
 // entry points; actual application composition is a separate implementation.
-void setup() {}
+void setup() {
+}
 
-void loop() {}
+void loop() {
+}

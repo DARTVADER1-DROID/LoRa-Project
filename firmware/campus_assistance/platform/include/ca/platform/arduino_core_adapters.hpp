@@ -51,8 +51,7 @@ public:
 
 class ArduinoSerialDiagnostics final : public IDiagnostics {
 public:
-  explicit ArduinoSerialDiagnostics(bool enabled = true,
-                                    uint32_t baudRate = 115200UL)
+  explicit ArduinoSerialDiagnostics(bool enabled = true, uint32_t baudRate = 115200UL)
       : enabled_(enabled), baudRate_(baudRate), initialized_(false) {}
 
   Status begin() {
