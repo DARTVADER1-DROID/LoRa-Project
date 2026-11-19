@@ -166,3 +166,8 @@ with CRC32; this is a host-reference implementation, not an approved wire standa
 Payload fields are still assembled by application code and need a single normative
 message-schema table before interoperability testing. The cart claim client
 requires a durable transaction-ID seed. The current station reference policy commits the first valid claim received; it does not provide an RF fairness window. Reliable station broadcasts require a provisioned cart registry; broadcast fan-out and ACK tracking are now implemented in the host reference endpoint. The Arduino core, PCF8574 LCD and raw-SPI SX127x adapters are reference implementations only; none has yet been compiled against the selected target cores or validated on hardware. No physical persistence adapter exists yet.
+
+
+- The station ledger retains terminal records until capacity pressure; when full,
+  insertion may evict the oldest terminal record, never a live or uncertain
+  request. This avoids relying on millis() as a wall clock across reboot.
