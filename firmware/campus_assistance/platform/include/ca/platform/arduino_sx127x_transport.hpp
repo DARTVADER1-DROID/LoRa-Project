@@ -16,11 +16,12 @@ namespace platform {
 // ESP32-class boards. No RadioLib/LoRa library dependency is required.
 class ArduinoSx1278Transport final : public IRadioTransport {
 public:
-  ArduinoSx1278Transport(const BoardPinMap& pins, SPIClass& spi,
+  ArduinoSx1278Transport(const BoardPinMap& pins,
+                         SPIClass& spi,
                          uint32_t spiClockHz = 8000000UL)
       : pins_(pins), spi_(spi), spiClockHz_(spiClockHz), initialized_(false),
-        transmitting_(false), faulted_(false), txStartedAtMs_(0),
-        receiveHead_(0), receiveCount_(0) {}
+        transmitting_(false), faulted_(false), txStartedAtMs_(0), receiveHead_(0),
+        receiveCount_(0) {}
 
   Status begin(const RadioProfile& profile) override {
     if (initialized_ || !isValidPinMap(pins_) || spiClockHz_ == 0 ||
@@ -37,8 +38,7 @@ public:
     pinMode(pins_.radioDio0, INPUT);
 
 #if defined(ESP32)
-    spi_.begin(pins_.radioSck, pins_.radioMiso, pins_.radioMosi,
-               pins_.radioChipSelect);
+    spi_.begin(pins_.radioSck, pins_.radioMiso, pins_.radioMosi, pins_.radioChipSelect);
 #else
     spi_.begin();
 #endif
@@ -99,8 +99,8 @@ public:
   }
 
   RadioHealth health() const override {
-    RadioHealth result = {initialized_, initialized_ && !transmitting_ && !faulted_,
-                          faulted_};
+    RadioHealth result = {
+        initialized_, initialized_ && !transmitting_ && !faulted_, faulted_};
     return result;
   }
 
@@ -170,8 +170,8 @@ public:
     }
 
     writeRegister(kRegFifoAddrPtr, readRegister(kRegFifoRxCurrentAddr));
-    const uint8_t tail = static_cast<uint8_t>(
-        (receiveHead_ + receiveCount_) % kReceiveCapacity);
+    const uint8_t tail =
+        static_cast<uint8_t>((receiveHead_ + receiveCount_) % kReceiveCapacity);
     received_[tail].length = length;
     readFifo(received_[tail].bytes, length);
     ++receiveCount_;
