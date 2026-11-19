@@ -24,7 +24,12 @@ and separate Arduino Uno / ESP32 station / cart entry points.
 - `shared/include/ca/storage/fixed_pending_request_store.hpp`: allocation-free,
   compile-time-bounded cart-local FIFO implementation.
 - `shared/include/ca/storage/fixed_request_repository.hpp`: bounded volatile
-  station repository template; it is not a durable production ledger.
+  station repository template for host/reference use.
+- `shared/include/ca/storage/durable_request_repository.hpp`: bounded,
+  versioned/CRC-checked snapshot repository over the atomic persistence port.
+- `shared/include/ca/station/station_request_lifecycle.hpp` and
+  `shared/src/station/station_request_lifecycle.cpp`: station request creation,
+  cancellation, expiry and journey-update use case.
 - `shared/src/cart/`: separate implementations for driver availability, active
   assignment and journey transition policy.
 - `shared/src/README.md`: implementation boundary and layering rule.
@@ -49,7 +54,9 @@ ctest --test-dir build/campus-assistance --output-on-failure
 
 This compiles the public contracts, shared configuration validator and concrete
 cart-state components, then runs configuration, request-identity, pending-FIFO,
-repository and cart-state transition tests. The fake repository is not a production implementation. It is not an Arduino IDE or PlatformIO
+repository, durable reboot-recovery and station-lifecycle tests. The host fake
+persistence adapter models the atomic old-or-new contract; it does not prove a
+real flash/EEPROM adapter's power-loss behavior. It is not an Arduino IDE or PlatformIO
 build, and does not verify target memory, timing, radio behavior, flash atomicity,
 reboot recovery or hardware adapters.
 
@@ -113,11 +120,21 @@ The CMake/CTest suite includes:
 - a fixed-capacity reference repository suite for claim-withdraw/commit ordering,
   delayed withdrawal, cancellation/expiry races and expiry-boundary claim rejection.
 
-The reference repository is a test double for the contract, not a production
-storage implementation.
+The fixed repository is a volatile reference implementation. The durable
+repository uses a single atomic snapshot and requires a persistence adapter that
+guarantees old-or-new visibility after power loss. Its host fake tests restart,
+CRC rejection, request-ID continuity, interrupted-store rollback and preservation
+of committed assignments. Unassigned requests are expired on reboot because
+millis() cannot measure time while power is off without a persistent RTC.
 
 The default radio validator accepts the RA-02/SX1278 tuning range and supported
 spreading-factor, bandwidth, coding-rate and PA output ranges. This is a module
 capability check only; it does not approve a frequency, transmit power or duty cycle
-under Indian WPC rules. It does not establish flash atomicity, reboot recovery,
-radio behavior or target-MCU correctness.
+under Indian WPC rules. The durable repository recovers committed records and request-ID allocation from
+a versioned CRC-protected snapshot. Since the current clock contract is uptime
+millis rather than a persistent RTC, recovery expires all unassigned/claim-pending
+requests fail-closed; committed assignments are retained. A real adapter must
+implement old-or-new atomic replacement with a journal/dual-slot strategy and
+pass hardware power-cut/endurance tests. No concrete flash adapter exists yet.
+This host suite does not prove physical flash atomicity, radio behavior or
+target-MCU correctness.
