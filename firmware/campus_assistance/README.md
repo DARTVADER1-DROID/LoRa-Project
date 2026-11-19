@@ -151,4 +151,4 @@ cycle under Indian WPC rules. A provisional binary frame envelope is versioned a
 with CRC32; this is a host-reference implementation, not an approved wire standard.
 Payload fields are still assembled by application code and need a single normative
 message-schema table before interoperability testing. The cart claim client
-requires a durable transaction-ID seed. No concrete flash, radio or MCU adapter exists yet.
+requires a durable transaction-ID seed. The current station reference policy commits the first valid claim received; it does not provide an RF fairness window. No concrete flash, radio or MCU adapter exists yet.
