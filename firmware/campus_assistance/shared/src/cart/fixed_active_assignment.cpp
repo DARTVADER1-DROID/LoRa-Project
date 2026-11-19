@@ -14,8 +14,7 @@ bool FixedActiveAssignment::isOccupied() const {
 Status FixedActiveAssignment::activate(const AssignmentRecord& assignment) {
   if (!RequestIdentity::isValid(assignment.requestId) ||
       assignment.assignedCartId == 0 || assignment.epoch == 0 ||
-      assignment.state != RequestState::ASSIGNED ||
-      assignment.lastEventSequence != 0)
+      assignment.state != RequestState::ASSIGNED || assignment.lastEventSequence != 0)
     return Status(ErrorCode::INVALID_ARGUMENT);
 
   if (occupied_) {
