@@ -39,6 +39,13 @@ TransactionId journeyTransactionFor(const RequestId& id, EventSequence sequence)
   return value == 0 ? 1 : value;
 }
 
+TransactionId withdrawalDeliveryTransactionFor(const ClaimRequest& claim) {
+  TransactionId value = claim.transactionId ^ 0x80000000UL;
+  if (value == 0 || value == claim.transactionId)
+    value = claim.transactionId == 0xFFFFFFFFUL ? 1 : claim.transactionId + 1U;
+  return value;
+}
+
 bool senderIsValidated(SenderValidation validation) {
   return validation == SenderValidation::NETWORK_MEMBER_VALIDATED ||
          validation == SenderValidation::AUTHENTICATED;
@@ -665,20 +672,16 @@ void CartApplication::onButtonEvent(const ButtonEvent& event) {
       message.header.messageType = MessageType::CLAIM_WITHDRAW;
       message.header.sourceDeviceId = config_.deviceId;
       message.header.destinationDeviceId = claim.requestId.originStationId;
-      message.header.transactionId = claim.transactionId;
+      message.header.transactionId =
+          withdrawalDeliveryTransactionFor(claim);
       message.header.messageSequence = claim.requestId.sequence;
-      message.payloadLength = 10;
+      message.payloadLength = 14;
       uint16_t offset = 0;
-      message.payload[offset++] =
-          static_cast<uint8_t>(claim.requestId.originStationId >> 8);
-      message.payload[offset++] = static_cast<uint8_t>(claim.requestId.originStationId);
-      for (int8_t shift = 24; shift >= 0; shift -= 8)
-        message.payload[offset++] =
-            static_cast<uint8_t>(claim.requestId.sequence >> shift);
-      message.payload[offset++] = static_cast<uint8_t>(claim.requestId.generation >> 8);
-      message.payload[offset++] = static_cast<uint8_t>(claim.requestId.generation);
-      message.payload[offset++] = static_cast<uint8_t>(claim.cartId >> 8);
-      message.payload[offset++] = static_cast<uint8_t>(claim.cartId);
+      put16(message.payload, offset, claim.requestId.originStationId);
+      put32(message.payload, offset, claim.requestId.sequence);
+      put16(message.payload, offset, claim.requestId.generation);
+      put16(message.payload, offset, claim.cartId);
+      put32(message.payload, offset, claim.transactionId);
       const Status withdrawalQueued =
           dependencies_.protocol.enqueue(message, DeliveryClass::RETRY_UNTIL_ACK);
       if (!withdrawalQueued.ok())
