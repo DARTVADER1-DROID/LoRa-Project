@@ -149,13 +149,14 @@ Applications and use cases receive interfaces/references through composition str
 
 ## 10. Implementation order
 
-1. Implement fixed-capacity value stores and repository semantics; test RequestId, FIFO/deduplication and atomic assignment.
-2. Implement station lifecycle and claim coordinator; test cancellation/expiry/withdrawal races.
-3. Implement cart queue, driver state, active assignment and reconciliation.
-4. Implement frame codec/validator with golden vectors shared across targets.
-5. Implement protocol endpoint/retry using byte-oriented radio port.
-6. Implement role application orchestration and UI intents.
-7. Add target-specific adapters and only then select/build exact hardware profiles.
+1. Implement fixed-capacity value stores and repository semantics; test RequestId, FIFO/deduplication and atomic assignment. [Implemented for volatile reference storage.]
+2. Implement durable station storage and request lifecycle; test reboot recovery, power-loss contract, cancellation/expiry races and identity continuity. [Implemented against the IPersistence contract; hardware adapter remains pending.]
+3. Implement station claim coordinator; test cancellation/expiry/withdrawal/assignment races.
+4. Implement cart queue, driver state, active assignment and reconciliation.
+5. Implement frame codec/validator with golden vectors shared across targets.
+6. Implement protocol endpoint/retry using byte-oriented radio port.
+7. Implement role application orchestration and UI intents.
+8. Add target-specific adapters and only then select/build exact hardware profiles.
 
 ## 11. Review corrections — enforceable distributed invariants
 
