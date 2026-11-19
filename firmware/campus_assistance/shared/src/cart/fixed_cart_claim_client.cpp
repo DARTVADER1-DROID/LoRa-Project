@@ -52,14 +52,18 @@ Status FixedCartClaimClient::onClaimResult(const ClaimResult& result) {
       static_cast<uint8_t>(ClaimState::COMMITTED))
     return Status(ErrorCode::INVALID_ARGUMENT);
 
-  if (result.result != ErrorCode::NONE || result.finalState == ClaimState::WITHDRAWN ||
+  if (result.finalState == ClaimState::PENDING) {
+    return result.result == ErrorCode::NONE
+               ? Status()
+               : Status(ErrorCode::COMMUNICATION_UNCERTAIN);
+  }
+  if (result.finalState == ClaimState::IDLE ||
+      result.finalState == ClaimState::WITHDRAWN ||
       result.finalState == ClaimState::COMMITTED) {
     clear();
     return Status();
   }
-  if (result.finalState != ClaimState::PENDING)
-    return Status(ErrorCode::INVALID_STATE);
-  return Status();
+  return Status(ErrorCode::INVALID_STATE);
 }
 
 Status FixedCartClaimClient::onAssignmentConfirmed(const AssignmentRecord& assignment) {
