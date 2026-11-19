@@ -18,7 +18,7 @@ public:
                           DeviceId stationId,
                           uint32_t requestLifetimeMs);
 
-  Status configure();
+  Status configure() override;
   Status create(const NewRequest& input, RequestRecord& created) override;
   Status cancel(const RequestId& id, CancellationSource source) override;
   Status expireDue(uint32_t stationNowMs, ExpiredRequestSet& expired) override;
