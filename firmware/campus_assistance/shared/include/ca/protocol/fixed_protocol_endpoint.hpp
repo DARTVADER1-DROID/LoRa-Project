@@ -33,8 +33,8 @@ public:
                         ICartRegistry& cartRegistry)
       : codec_(codec), validator_(validator), transport_(transport), retries_(retries),
         config_(config), radioProfile_(radioProfile), cartRegistry_(&cartRegistry),
-        eventHead_(0), eventCount_(0), broadcastHead_(0), broadcastCount_(0),
-        nowMs_(0), initialized_(false) {}
+        eventHead_(0), eventCount_(0), broadcastHead_(0), broadcastCount_(0), nowMs_(0),
+        initialized_(false) {}
 
   Status begin() override {
     if (initialized_ || config_.deviceId == 0 || config_.networkId == 0 ||
@@ -156,8 +156,7 @@ private:
     }
 
     const uint8_t tail = static_cast<uint8_t>(
-        (static_cast<uint16_t>(broadcastHead_) + broadcastCount_) %
-        EventCapacity);
+        (static_cast<uint16_t>(broadcastHead_) + broadcastCount_) % EventCapacity);
     broadcasts_[tail].message = message;
     broadcasts_[tail].recipientCount = count;
     broadcasts_[tail].nextRecipient = 0;
@@ -166,26 +165,22 @@ private:
   }
 
   void scheduleBroadcasts() {
-    while (broadcastCount_ > 0 &&
-           retries_.pendingCount() < retries_.capacity()) {
+    while (broadcastCount_ > 0 && retries_.pendingCount() < retries_.capacity()) {
       BroadcastJob& job = broadcasts_[broadcastHead_];
       if (job.nextRecipient >= job.recipientCount) {
-        broadcastHead_ =
-            static_cast<uint8_t>((broadcastHead_ + 1U) % EventCapacity);
+        broadcastHead_ = static_cast<uint8_t>((broadcastHead_ + 1U) % EventCapacity);
         --broadcastCount_;
         continue;
       }
 
-      const DeviceId cartId =
-          cartRegistry_->enabledCartAt(job.nextRecipient);
+      const DeviceId cartId = cartRegistry_->enabledCartAt(job.nextRecipient);
       if (cartId == 0 || cartId == config_.deviceId)
         return;
 
       ProtocolMessage unicast = job.message;
       unicast.header.destinationDeviceId = cartId;
       unicast.header.transactionId =
-          job.message.header.transactionId +
-          static_cast<uint32_t>(cartId) * 65537UL;
+          job.message.header.transactionId + static_cast<uint32_t>(cartId) * 65537UL;
       if (unicast.header.transactionId == 0)
         unicast.header.transactionId = job.message.header.transactionId;
 
@@ -194,8 +189,7 @@ private:
         return;
       ++job.nextRecipient;
       if (job.nextRecipient >= job.recipientCount) {
-        broadcastHead_ =
-            static_cast<uint8_t>((broadcastHead_ + 1U) % EventCapacity);
+        broadcastHead_ = static_cast<uint8_t>((broadcastHead_ + 1U) % EventCapacity);
         --broadcastCount_;
       }
     }
