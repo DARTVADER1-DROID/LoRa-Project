@@ -125,3 +125,30 @@ Each invocation processes bounded work and returns. No waiting for remote ACKs, 
 - Clock rollover: wrap-safe elapsed-time arithmetic.
 - Storage failure: explicit degraded/recovery state.
 - Lost status ACK: bounded idempotent retry; show pending/uncertain, not physical success.
+
+
+## 11. Resolved CLAIMING disable transition
+
+The former open transition is resolved by the normative policy in [06 — SOLID Boundaries, Ownership and Scalability Contracts](06-solid-and-scalability-contracts.md):
+
+- Driver disable immediately makes the cart NOT_ACCEPTING and clears only its local pending FIFO.
+- If a claim is unresolved, send CLAIM_WITHDRAW for that transaction and keep tracking it until station resolution.
+- The station atomically orders CLAIM_WITHDRAW against assignment commit.
+- If withdrawal wins, no assignment is created. If ASSIGN already committed, it remains authoritative; the cart must process it and alert the driver rather than silently discard it.
+- New requests continue to be received and may repopulate the local queue while disabled.
+
+## 12. Authoritative implementation signatures
+
+The public header contracts supersede older shorthand signatures in this document:
+
+- `StationApplication::service()` and `CartApplication::service()` are bounded role service calls; they obtain time through injected IClock.
+- `RequestLifecycle::create(const NewRequest&, RequestRecord&)`.
+- `RequestLifecycle::cancel(const RequestId&, CancellationSource)`.
+- `RequestLifecycle::expireDue(uint32_t stationNowMs, ExpiredRequestSet&)`.
+- `RequestLifecycle::applyJourneyUpdate(const JourneyUpdate&)`.
+- `ActiveAssignment::complete(const DriverAction&)`.
+- `JourneyProgressController::advance(JourneyStatus, const DriverAction&)`.
+- `ProtocolEndpoint::enqueue(const ProtocolMessage&, DeliveryClass)`.
+- `ProtocolEndpoint::pollEvent(ProtocolEvent&)`.
+
+No API may imply that a CLAIM, ACK or local UI action commits assignment or proves physical completion.
