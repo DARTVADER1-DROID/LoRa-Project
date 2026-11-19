@@ -73,10 +73,19 @@ public:
       service_ = CartServiceState::CLAIM_PENDING;
       return Status();
     }
+    if (service_ == CartServiceState::UNCERTAIN)
+      return Status(ErrorCode::COMMUNICATION_UNCERTAIN);
     claimOutstanding_ = false;
-    if (service_ == CartServiceState::CLAIM_PENDING ||
-        service_ == CartServiceState::UNCERTAIN)
+    if (service_ == CartServiceState::CLAIM_PENDING)
       service_ = CartServiceState::IDLE;
+    return Status();
+  }
+
+  Status onClaimWithdrawnByStation() {
+    if (!claimOutstanding_ || service_ != CartServiceState::UNCERTAIN)
+      return Status(ErrorCode::INVALID_STATE);
+    claimOutstanding_ = false;
+    service_ = CartServiceState::IDLE;
     return Status();
   }
 
