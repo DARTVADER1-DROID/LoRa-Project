@@ -10,11 +10,13 @@ and separate Arduino Uno / ESP32 station / cart entry points.
 - `shared/include/ca/`: portable value types, ports, domain contracts, protocol,
   configuration, station use case, UI and role application contracts.
 - `shared/include/CampusAssistance.h`: public umbrella include.
+- `shared/src/config.cpp`: portable validation for provisioned device, station, destination and RA-02/SX1278 radio settings.
 - `shared/src/README.md`: implementation boundary and layering rule.
 - `targets/uno/{station,cart}/`: Arduino Uno entry points.
 - `targets/esp32/{station,cart}/`: ESP32 entry points; exact board remains TBD.
 - `tests/contract_compile.cpp`: host C++11 public-header and API-boundary checks.
 - `tests/repository_transition_test.cpp`: fixed-capacity reference tests for atomic transition ordering.
+- `tests/config_validator_test.cpp`: configuration validation boundary and malformed-input tests.
 - `CMakeLists.txt`: host-side C++11 contract compile target.
 - `scripts/`: formatting and format verification commands.
 
@@ -26,8 +28,8 @@ cmake --build build/campus-assistance
 ctest --test-dir build/campus-assistance --output-on-failure
 ```
 
-This compiles the public contracts and runs reference transition tests. The fake
-repository is not a production implementation. It is not an Arduino IDE or PlatformIO
+This compiles the public contracts and shared configuration validator, then runs
+configuration and reference transition tests. The fake repository is not a production implementation. It is not an Arduino IDE or PlatformIO
 build, and does not verify target memory, timing, radio behavior, flash atomicity,
 reboot recovery or hardware adapters.
 
@@ -86,6 +88,7 @@ transmission. Hardware adapters and runtime behavior remain future work.
 
 The CMake/CTest suite includes:
 - public-header C++11 compile checks and compile-time ownership/API assertions;
+- default configuration validation for nonzero identifiers/capacities, wrap-safe request lifetime, bounded registry views, unique station/destination IDs, bounded destination labels and supported SX1278 radio parameter ranges;
 - a fixed-capacity reference repository suite for claim-withdraw/commit ordering,
   delayed withdrawal, cancellation/expiry races and expiry-boundary claim rejection.
 
