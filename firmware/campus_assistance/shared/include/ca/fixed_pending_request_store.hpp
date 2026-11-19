@@ -45,13 +45,10 @@ public:
     return true;
   }
 
-  bool remove(const RequestId& id) override {
-    return removeAtFirstMatch(id);
-  }
+  bool remove(const RequestId& id) override { return removeAtFirstMatch(id); }
 
   uint16_t removeExpired(const ExpiredRequestSet& expired) override {
-    if ((expired.count > 0 && expired.items == 0) ||
-        expired.count > expired.capacity)
+    if ((expired.count > 0 && expired.items == 0) || expired.count > expired.capacity)
       return 0;
 
     uint16_t removed = 0;
@@ -106,8 +103,7 @@ private:
     return false;
   }
 
-  static bool containsInSet(const RequestId& id,
-                            const ExpiredRequestSet& expired) {
+  static bool containsInSet(const RequestId& id, const ExpiredRequestSet& expired) {
     for (uint16_t i = 0; i < expired.count; ++i) {
       if (RequestIdentity::equals(id, expired.items[i]))
         return true;
