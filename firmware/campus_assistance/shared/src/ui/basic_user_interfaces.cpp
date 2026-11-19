@@ -79,7 +79,7 @@ void BasicStationUserInterface::moveSelection(int8_t direction) {
     if (requests_.selectDestination(destination.id).ok()) {
       selectedIndex_ = candidate;
       selectedDestinationId_ = destination.id;
-      setStatus("Press B to request");
+      setStatus("Press 2 to send");
       return;
     }
   }
