@@ -288,8 +288,7 @@ public:
     if (assigned) {
       if (record.assignedCartId == 0 || record.assignmentEpoch == 0 ||
           record.claimState != ClaimState::COMMITTED ||
-          record.claimCartId != record.assignedCartId ||
-          record.claimTransactionId == 0)
+          record.claimCartId != record.assignedCartId || record.claimTransactionId == 0)
         return Status(ErrorCode::INVALID_ARGUMENT);
       if ((record.state == RequestState::ASSIGNED &&
            record.lastJourneyEventSequence != 0) ||
@@ -299,8 +298,7 @@ public:
     } else if (record.state == RequestState::CLAIM_PENDING) {
       if (record.assignedCartId != 0 || record.assignmentEpoch != 0 ||
           record.claimState != ClaimState::PENDING || record.claimCartId == 0 ||
-          record.claimTransactionId == 0 ||
-          record.lastJourneyEventSequence != 0)
+          record.claimTransactionId == 0 || record.lastJourneyEventSequence != 0)
         return Status(ErrorCode::INVALID_ARGUMENT);
     } else {
       if (record.state != RequestState::PENDING_UNASSIGNED &&
