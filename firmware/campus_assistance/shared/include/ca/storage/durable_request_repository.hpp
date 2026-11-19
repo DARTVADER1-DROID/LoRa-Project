@@ -365,9 +365,9 @@ private:
     const uint8_t exhausted = get8(encoded_, offset);
 
     if (storedStationId != stationId_ || count > StorageCapacity || exhausted > 1 ||
-        static_cast<uint32_t>(length) !=
-            static_cast<uint32_t>(kHeaderBytes) +
-                (static_cast<uint32_t>(count) * 34UL) + kChecksumBytes)
+        static_cast<uint32_t>(length) != static_cast<uint32_t>(kHeaderBytes) +
+                                             (static_cast<uint32_t>(count) * 34UL) +
+                                             kChecksumBytes)
       return false;
 
     for (uint16_t i = 0; i < count; ++i) {
