@@ -78,3 +78,13 @@ matching, DIO wiring, supply integrity, RF airtime or WPC rules. The 120-second 
 watchdog is a conservative guard for slow legal LoRa profiles and must be revisited
 after airtime limits are frozen. Do not assume the configured frequency or power is
 authorized for Indian operation.
+
+
+## Arduino compile matrix
+
+`platformio.ini` defines four compile-smoke environments: Uno R3 station/cart and
+ESP32 DevKit V1 station/cart. The GitHub Actions workflow
+`.github/workflows/arduino-target-build.yml` compiles all four against their
+respective Arduino cores. The current role sketches include the adapters but still
+contain placeholder composition roots; a successful PlatformIO build proves
+toolchain/header compatibility only, not that a complete application is flashed.
