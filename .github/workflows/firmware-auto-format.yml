@@ -3,7 +3,7 @@ name: Auto-format firmware
 on:
   push:
     branches:
-      - feature/campus-assistance-firmware-skeleton
+      - "**"
     paths:
       - "firmware/campus_assistance/**"
       - ".clang-format"
