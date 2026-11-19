@@ -23,7 +23,8 @@ public:
   Status insertNew(const RequestRecord& record) override {
     if (!configured_ || !RequestIdentity::isValid(record.id) ||
         record.destinationId == 0 || record.state != RequestState::PENDING_UNASSIGNED ||
-        record.claimState != ClaimState::IDLE || record.expiresAtMs == record.createdAtMs ||
+        record.claimState != ClaimState::IDLE ||
+        record.expiresAtMs == record.createdAtMs ||
         static_cast<uint32_t>(record.expiresAtMs - record.createdAtMs) > 0x7FFFFFFFUL)
       return Status(ErrorCode::INVALID_ARGUMENT);
     if (findIndex(record.id) >= 0)
@@ -42,11 +43,14 @@ public:
     return true;
   }
 
-  Status beginClaimIfEligible(const RequestId& id, DeviceId cartId,
-                              TransactionId transactionId, uint32_t now,
+  Status beginClaimIfEligible(const RequestId& id,
+                              DeviceId cartId,
+                              TransactionId transactionId,
+                              uint32_t now,
                               RequestRecord& updated) override {
     RequestRecord* record = mutableFind(id);
-    if (!record) return Status(ErrorCode::NOT_FOUND);
+    if (!record)
+      return Status(ErrorCode::NOT_FOUND);
     if (cartId == 0 || transactionId == 0)
       return Status(ErrorCode::INVALID_ARGUMENT);
     if (record->state == RequestState::CANCELLED)
@@ -72,21 +76,21 @@ public:
     return Status();
   }
 
-  Status withdrawClaimIfPending(const RequestId& id, DeviceId cartId,
+  Status withdrawClaimIfPending(const RequestId& id,
+                                DeviceId cartId,
                                 TransactionId transactionId,
                                 RequestRecord& updated) override {
     RequestRecord* record = mutableFind(id);
-    if (!record) return Status(ErrorCode::NOT_FOUND);
+    if (!record)
+      return Status(ErrorCode::NOT_FOUND);
     if (record->claimState == ClaimState::COMMITTED)
       return Status(ErrorCode::ALREADY_ASSIGNED);
-    if (record->claimState == ClaimState::WITHDRAWN &&
-        record->claimCartId == cartId &&
+    if (record->claimState == ClaimState::WITHDRAWN && record->claimCartId == cartId &&
         record->claimTransactionId == transactionId) {
       updated = *record;
       return Status();
     }
-    if (record->claimState != ClaimState::PENDING ||
-        record->claimCartId != cartId ||
+    if (record->claimState != ClaimState::PENDING || record->claimCartId != cartId ||
         record->claimTransactionId != transactionId)
       return Status(ErrorCode::STALE_EVENT);
     record->claimState = ClaimState::WITHDRAWN;
@@ -95,14 +99,16 @@ public:
     return Status();
   }
 
-  Status commitAssignmentIfClaimPending(const RequestId& id, DeviceId cartId,
+  Status commitAssignmentIfClaimPending(const RequestId& id,
+                                        DeviceId cartId,
                                         TransactionId transactionId,
-                                        AssignmentEpoch epoch, uint32_t now,
+                                        AssignmentEpoch epoch,
+                                        uint32_t now,
                                         RequestRecord& updated) override {
     RequestRecord* record = mutableFind(id);
-    if (!record) return Status(ErrorCode::NOT_FOUND);
-    if (record->claimState == ClaimState::COMMITTED &&
-        record->claimCartId == cartId &&
+    if (!record)
+      return Status(ErrorCode::NOT_FOUND);
+    if (record->claimState == ClaimState::COMMITTED && record->claimCartId == cartId &&
         record->claimTransactionId == transactionId) {
       updated = *record;
       return Status();
@@ -119,8 +125,7 @@ public:
       return Status(ErrorCode::EXPIRED);
     }
     if (epoch == 0 || record->claimState != ClaimState::PENDING ||
-        record->claimCartId != cartId ||
-        record->claimTransactionId != transactionId ||
+        record->claimCartId != cartId || record->claimTransactionId != transactionId ||
         record->state != RequestState::CLAIM_PENDING)
       return Status(ErrorCode::STALE_EVENT);
     record->claimState = ClaimState::COMMITTED;
@@ -131,10 +136,12 @@ public:
     return Status();
   }
 
-  Status cancelIfUnassigned(const RequestId& id, CancellationSource,
+  Status cancelIfUnassigned(const RequestId& id,
+                            CancellationSource,
                             RequestRecord& updated) override {
     RequestRecord* record = mutableFind(id);
-    if (!record) return Status(ErrorCode::NOT_FOUND);
+    if (!record)
+      return Status(ErrorCode::NOT_FOUND);
     if (isAssignedState(record->state))
       return Status(ErrorCode::ALREADY_ASSIGNED);
     if (record->state == RequestState::CANCELLED) {
@@ -150,10 +157,11 @@ public:
     return Status();
   }
 
-  Status expireIfDue(const RequestId& id, uint32_t now,
-                     RequestRecord& updated) override {
+  Status
+  expireIfDue(const RequestId& id, uint32_t now, RequestRecord& updated) override {
     RequestRecord* record = mutableFind(id);
-    if (!record) return Status(ErrorCode::NOT_FOUND);
+    if (!record)
+      return Status(ErrorCode::NOT_FOUND);
     if (isAssignedState(record->state))
       return Status(ErrorCode::ALREADY_ASSIGNED);
     if (record->state == RequestState::CANCELLED)
@@ -172,15 +180,16 @@ public:
   Status applyJourneyUpdateIfCurrent(const JourneyUpdate& update,
                                      RequestRecord& updated) override {
     RequestRecord* record = mutableFind(update.requestId);
-    if (!record) return Status(ErrorCode::NOT_FOUND);
+    if (!record)
+      return Status(ErrorCode::NOT_FOUND);
     if (!isValidJourneyStatus(update.status) || update.assignedCartId == 0 ||
         record->assignedCartId != update.assignedCartId ||
         (record->state != RequestState::ASSIGNED &&
          record->state != RequestState::ON_THE_WAY &&
          record->state != RequestState::ARRIVED_AT_PICKUP))
       return Status(ErrorCode::STALE_EVENT);
-    if (compareSequence(update.eventSequence,
-                        record->lastJourneyEventSequence) != SerialNumberOrder::NEWER)
+    if (compareSequence(update.eventSequence, record->lastJourneyEventSequence) !=
+        SerialNumberOrder::NEWER)
       return Status(ErrorCode::STALE_EVENT);
     if (!validJourneyStep(record->state, update.status))
       return Status(ErrorCode::INVALID_STATE);
@@ -217,8 +226,7 @@ private:
 
   static bool isAssignedState(RequestState state) {
     return state == RequestState::ASSIGNED || state == RequestState::ON_THE_WAY ||
-           state == RequestState::ARRIVED_AT_PICKUP ||
-           state == RequestState::COMPLETED;
+           state == RequestState::ARRIVED_AT_PICKUP || state == RequestState::COMPLETED;
   }
 
   static bool due(const RequestRecord& record, uint32_t now) {
