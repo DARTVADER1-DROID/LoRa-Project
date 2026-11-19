@@ -109,9 +109,14 @@ public:
       updated = *record;
       return Status();
     }
-    if (record->state != RequestState::PENDING_UNASSIGNED ||
-        (record->claimState != ClaimState::IDLE &&
-         record->claimState != ClaimState::WITHDRAWN))
+    if (record->state != RequestState::PENDING_UNASSIGNED)
+      return Status(ErrorCode::BUSY);
+    if (record->claimState == ClaimState::WITHDRAWN &&
+        record->claimCartId == cartId &&
+        record->claimTransactionId == transactionId)
+      return Status(ErrorCode::STALE_EVENT);
+    if (record->claimState != ClaimState::IDLE &&
+        record->claimState != ClaimState::WITHDRAWN)
       return Status(ErrorCode::BUSY);
     record->claimState = ClaimState::PENDING;
     record->claimCartId = cartId;
@@ -132,6 +137,14 @@ public:
       return Status(ErrorCode::ALREADY_ASSIGNED);
     if (record->claimState == ClaimState::WITHDRAWN && record->claimCartId == cartId &&
         record->claimTransactionId == transactionId) {
+      updated = *record;
+      return Status();
+    }
+    if (record->state == RequestState::PENDING_UNASSIGNED &&
+        record->claimState == ClaimState::IDLE) {
+      record->claimState = ClaimState::WITHDRAWN;
+      record->claimCartId = cartId;
+      record->claimTransactionId = transactionId;
       updated = *record;
       return Status();
     }
