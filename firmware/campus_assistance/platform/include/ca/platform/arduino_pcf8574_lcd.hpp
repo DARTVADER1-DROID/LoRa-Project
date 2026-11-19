@@ -43,6 +43,10 @@ public:
 #else
     Wire.begin();
 #endif
+    Wire.beginTransmission(address_);
+    if (Wire.endTransmission() != 0)
+      return Status(ErrorCode::HARDWARE_UNAVAILABLE);
+
     backlightMask_ = static_cast<uint8_t>(1U << backlightBit_);
     delay(50);
     writeExpander(backlightMask_);
