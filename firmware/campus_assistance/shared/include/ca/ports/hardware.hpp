@@ -8,6 +8,7 @@ class IRadioTransport {
 public:
   virtual ~IRadioTransport() {}
   virtual Status begin(const RadioProfile& profile) = 0;
+  // receiving is false while the half-duplex radio is transmitting.
   virtual RadioHealth health() const = 0;
   virtual Status send(FrameView frame) = 0;
   virtual bool pollReceived(ReceivedFrame& frame) = 0;
