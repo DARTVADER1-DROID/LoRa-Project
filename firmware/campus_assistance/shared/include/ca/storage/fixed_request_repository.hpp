@@ -5,9 +5,9 @@
 
 namespace ca {
 
-// Bounded, allocation-free request ledger for a single-threaded station event
-// loop and host simulation. This is deliberately volatile: do not use it as
-// the production persistence layer until an atomic durable journal is added.
+// Bounded, allocation-free volatile request ledger for a single-threaded
+// station event loop and host simulation. Use DurableRequestRepository when
+// state must survive reset; this class alone provides no reboot recovery.
 template <uint16_t StorageCapacity>
 class FixedRequestRepository final : public IRequestRepository {
   static_assert(StorageCapacity > 0, "StorageCapacity must be nonzero");
