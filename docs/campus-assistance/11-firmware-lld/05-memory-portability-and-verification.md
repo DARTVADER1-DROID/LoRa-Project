@@ -174,3 +174,24 @@ A module is integration-ready only when interfaces/invariants and errors are doc
 - RequestGeneration and AssignmentEpoch are finite 16-bit values. They must never wrap into a value that could collide with a live record, retained terminal record, unexpired frame/retry, or reboot-recovery snapshot. Before exhaustion, rotate the relevant persistent identity/session namespace or refuse new allocation and enter an explicit maintenance/error state. A wrap is not silently accepted.
 - RequestSequence and EventSequence are 32-bit monotonic counters within their identity namespace. Comparisons use a documented wrap-safe serial-number rule and never treat an ambiguous half-range difference as newer. A new persistent generation/session namespace is required before reuse.
 - Assignment epoch uniqueness is scoped to the station/request identity and retained assignment history. Reboot must restore the allocator state before committing new assignments.
+
+
+## 12. Reference persistence storage sizing
+
+The reference persistence adapter now separates the atomic record protocol from
+the physical byte store:
+
+- FixedDualSlotPersistence<SlotBytes> implements versioned, CRC-protected
+  old-or-new record replacement with two slots and a commit marker written last.
+- Uno uses AVR EEPROM byte updates with two 176-byte slots (352 bytes total).
+  This leaves a bounded DurableRequestRepository<4> snapshot within each slot.
+- ESP32 DevKit V1 uses Preferences/NVS with a 768-byte two-slot image and
+  384-byte slots, sized for a DurableRequestRepository<10> snapshot.
+- The AVR and ESP32 byte stores are target adapters; the shared dual-slot
+  algorithm is host-testable through IByteStorage.
+
+These are initial memory allocations, not proven endurance or power-fail claims.
+Verify the selected EEPROM/NVS behavior with power-cut tests, inspect linker RAM
+usage and stack high-water marks, and measure write frequency before increasing
+repository capacity. If the Uno's total SRAM budget is exceeded, reduce its
+repository and retry capacities or move durable storage to external FRAM.
