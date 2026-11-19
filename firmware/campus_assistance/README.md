@@ -93,5 +93,10 @@ The CMake/CTest suite includes:
   delayed withdrawal, cancellation/expiry races and expiry-boundary claim rejection.
 
 The reference repository is a test double for the contract, not a production
-storage implementation. It does not establish flash atomicity, reboot recovery,
+storage implementation.
+
+The default radio validator accepts the RA-02/SX1278 tuning range and supported
+spreading-factor, bandwidth, coding-rate and PA output ranges. This is a module
+capability check only; it does not approve a frequency, transmit power or duty cycle
+under Indian WPC rules. It does not establish flash atomicity, reboot recovery,
 radio behavior or target-MCU correctness.
