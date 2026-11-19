@@ -458,9 +458,11 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
       status = Status(ErrorCode::NOT_FOUND);
       break;
     }
-    status = enqueueAuthoritativeSnapshot(
-        dependencies_.protocol, config_, record, event.envelope.sourceDeviceId,
-        record.lastJourneyEventSequence);
+    status = enqueueAuthoritativeSnapshot(dependencies_.protocol,
+                                          config_,
+                                          record,
+                                          event.envelope.sourceDeviceId,
+                                          record.lastJourneyEventSequence);
     break;
   }
   case ProtocolEventType::JOURNEY_UPDATE_RECEIVED: {
@@ -477,9 +479,11 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
         status = Status(ErrorCode::NOT_FOUND);
         break;
       }
-      const Status snapshot = enqueueAuthoritativeSnapshot(
-          dependencies_.protocol, config_, record, update.assignedCartId,
-          update.eventSequence);
+      const Status snapshot = enqueueAuthoritativeSnapshot(dependencies_.protocol,
+                                                           config_,
+                                                           record,
+                                                           update.assignedCartId,
+                                                           update.eventSequence);
       if (!snapshot.ok()) {
         status = snapshot;
         break;
