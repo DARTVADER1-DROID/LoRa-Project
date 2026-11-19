@@ -41,6 +41,10 @@ static_assert(static_cast<uint8_t>(ClaimState::PENDING) !=
 
 static_assert(std::is_abstract<IRequestRepository>::value,
               "Repository behavior must be supplied by a concrete adapter.");
+static_assert(!std::is_abstract<DurableRequestRepository<2>>::value,
+              "The durable repository must implement the complete repository port.");
+static_assert(!std::is_abstract<StationRequestLifecycle>::value,
+              "The station lifecycle must implement the domain contract.");
 static_assert(!HasGenericUpdate<IRequestRepository>::value,
               "Generic record updates must not bypass atomic state transitions.");
 static_assert(!HasAssignmentNoticeHandler<CartClaimClient>::value,
