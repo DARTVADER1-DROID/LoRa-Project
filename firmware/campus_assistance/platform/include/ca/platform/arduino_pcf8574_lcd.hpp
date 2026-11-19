@@ -43,6 +43,7 @@ public:
 #else
     Wire.begin();
 #endif
+    backlightMask_ = static_cast<uint8_t>(1U << backlightBit_);
     delay(50);
     writeExpander(backlightMask_);
     writeNibble(0x30, false);
@@ -70,7 +71,8 @@ public:
   }
 
   void setBacklight(bool enabled) {
-    backlightOn_ = enabled;
+    if (backlightBit_ > 7)
+      return;
     backlightMask_ = enabled ? static_cast<uint8_t>(1U << backlightBit_) : 0;
     if (initialized_)
       writeExpander(backlightMask_);
@@ -85,18 +87,7 @@ private:
   uint8_t backlightBit_;
   uint8_t backlightMask_;
   bool initialized_;
-  bool backlightOn_;
   char previous_[2][16];
-
-  uint8_t compose(uint8_t value, bool data, bool enable) const {
-    uint8_t output = backlightMask_;
-    if (data)
-      output |= static_cast<uint8_t>(1U << rsBit_);
-    if (enable)
-      output |= static_cast<uint8_t>(1U << enableBit_);
-    (void)value;
-    return output;
-  }
 
   void writeExpander(uint8_t value) {
     Wire.beginTransmission(address_);
