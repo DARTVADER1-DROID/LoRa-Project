@@ -17,6 +17,8 @@ public:
                       uint32_t stationNowMs,
                       AssignmentRecord& assignment) override;
   bool isAssigned(const RequestId& id) const override;
+  bool getAssignment(const RequestId& id,
+                     AssignmentRecord& assignment) const override;
 
 private:
   IRequestRepository& repository_;
