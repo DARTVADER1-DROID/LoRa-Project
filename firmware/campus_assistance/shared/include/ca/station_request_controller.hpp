@@ -4,6 +4,7 @@
 #include "ca/domain/request_lifecycle.hpp"
 #include "protocol.hpp"
 #include "ca/ports/runtime.hpp"
+#include "ca/domain/request_identity.hpp"
 
 namespace ca {
 
@@ -15,7 +16,8 @@ public:
   StationRequestController(DestinationCatalog& destinations,
                            RequestLifecycle& lifecycle,
                            IClock& clock,
-                           ProtocolEndpoint& protocol);
+                           ProtocolEndpoint& protocol,
+                           const DeviceConfig& config);
 
   Status selectDestination(DeviceId destinationId);
   Status submit(RequestId& createdRequestId);
@@ -26,6 +28,7 @@ private:
   RequestLifecycle& lifecycle_;
   IClock& clock_;
   ProtocolEndpoint& protocol_;
+  DeviceConfig config_;
   DeviceId selectedDestinationId_;
   RequestId currentRequestId_;
   bool hasSelection_;
