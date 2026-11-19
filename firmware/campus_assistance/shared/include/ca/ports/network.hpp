@@ -6,6 +6,12 @@ namespace ca {
 
 // Provisioned station-side recipient roster for reliable request broadcasts.
 // The registry is deliberately independent of MCU and radio implementation.
+class IStationRegistry {
+public:
+  virtual ~IStationRegistry() {}
+  virtual bool containsStation(DeviceId stationId) const = 0;
+};
+
 class ICartRegistry {
 public:
   virtual ~ICartRegistry() {}
