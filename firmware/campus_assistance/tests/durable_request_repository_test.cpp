@@ -9,8 +9,8 @@ class FakeAtomicPersistence : public IPersistence {
 public:
   FakeAtomicPersistence() : length_(0), present_(false), failNextStore_(false) {}
 
-  Status load(RecordKey, uint8_t* output, uint16_t capacity,
-              uint16_t& bytesRead) override {
+  Status
+  load(RecordKey, uint8_t* output, uint16_t capacity, uint16_t& bytesRead) override {
     if (!present_)
       return Status(ErrorCode::NOT_FOUND);
     bytesRead = length_;
@@ -20,8 +20,7 @@ public:
     return Status();
   }
 
-  Status storeAtomically(RecordKey, const uint8_t* data,
-                         uint16_t length) override {
+  Status storeAtomically(RecordKey, const uint8_t* data, uint16_t length) override {
     if (failNextStore_) {
       failNextStore_ = false;
       return Status(ErrorCode::STORAGE_FAILURE);
@@ -82,8 +81,7 @@ int main() {
 
     RequestRecord updated = {};
     assert(repository.beginClaimIfEligible(allocated, 9, 55, 200, updated).ok());
-    assert(repository.commitAssignmentIfClaimPending(
-               allocated, 9, 55, 1, 201, updated)
+    assert(repository.commitAssignmentIfClaimPending(allocated, 9, 55, 1, 201, updated)
                .ok());
   }
 

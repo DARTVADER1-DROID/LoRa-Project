@@ -70,11 +70,9 @@ int main() {
   RequestRecord assignedRequest = {};
   assert(lifecycle.create(input, assignedRequest).ok());
   RequestRecord updated = {};
-  assert(repository.beginClaimIfEligible(assignedRequest.id, 8, 80, 101,
-                                         updated)
-             .ok());
-  assert(repository.commitAssignmentIfClaimPending(assignedRequest.id, 8, 80,
-                                                   1, 102, updated)
+  assert(repository.beginClaimIfEligible(assignedRequest.id, 8, 80, 101, updated).ok());
+  assert(repository
+             .commitAssignmentIfClaimPending(assignedRequest.id, 8, 80, 1, 102, updated)
              .ok());
 
   clock.set(200);
@@ -91,8 +89,7 @@ int main() {
   // Expiry output capacity is checked before any mutation.
   FixedRequestRepository<2> smallRepository;
   assert(smallRepository.configure().ok());
-  StationRequestLifecycle smallLifecycle(smallRepository, destinations, clock,
-                                         2, 10);
+  StationRequestLifecycle smallLifecycle(smallRepository, destinations, clock, 2, 10);
   assert(smallLifecycle.configure().ok());
   clock.set(300);
   RequestRecord first = {};
