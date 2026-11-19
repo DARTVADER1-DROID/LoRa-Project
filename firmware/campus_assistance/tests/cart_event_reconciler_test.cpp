@@ -97,6 +97,13 @@ int main() {
   assert(!ownClaim.hasClaimInFlight());
   assert(claimAvailability.serviceState() == CartServiceState::IDLE);
 
+  // Release the first assignment before reconciling a different request.
+  assert(active.updateJourneyStatus(JourneyStatus::ON_THE_WAY, 1).ok());
+  assert(active.updateJourneyStatus(JourneyStatus::ARRIVED_AT_PICKUP, 2).ok());
+  assert(active.updateJourneyStatus(JourneyStatus::COMPLETED, 3).ok());
+  assert(availability.onJourneyCompleted().ok());
+  assert(active.clearAfterTerminal().ok());
+
   const RequestId third = {1, 3, 1};
   RequestSnapshot snapshot = {};
   snapshot.requestId = third;
