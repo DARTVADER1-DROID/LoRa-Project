@@ -13,7 +13,8 @@ class FixedRetryManager final : public RetryManager {
 
 public:
   explicit FixedRetryManager(const RetryPolicy& policy)
-      : policy_(policy), nowMs_(0), outcomeHead_(0), outcomeCount_(0) {
+      : policy_(policy), nowMs_(0), nextDueIndex_(0), outcomeHead_(0),
+        outcomeCount_(0) {
     for (uint16_t i = 0; i < StorageCapacity; ++i)
       entries_[i] = Entry();
   }
@@ -66,14 +67,18 @@ public:
   }
 
   bool pollDue(ProtocolMessage& message, uint8_t& attemptNumber) override {
-    for (uint16_t i = 0; i < StorageCapacity; ++i) {
-      Entry& entry = entries_[i];
+    for (uint16_t offset = 0; offset < StorageCapacity; ++offset) {
+      const uint16_t index = static_cast<uint16_t>(
+          (static_cast<uint32_t>(nextDueIndex_) + offset) % StorageCapacity);
+      Entry& entry = entries_[index];
       if (!entry.active || entry.awaitingAttempt || entry.terminalPending ||
           !hasElapsed(nowMs_, entry.dueAtMs, entry.nextDelayMs))
         continue;
       entry.awaitingAttempt = true;
       message = entry.message;
       attemptNumber = static_cast<uint8_t>(entry.attemptsUsed + 1U);
+      nextDueIndex_ = static_cast<uint16_t>(
+          (static_cast<uint32_t>(index) + 1U) % StorageCapacity);
       return true;
     }
     return false;
@@ -172,6 +177,7 @@ private:
 
   RetryPolicy policy_;
   uint32_t nowMs_;
+  uint16_t nextDueIndex_;
   Entry entries_[StorageCapacity];
   RetryOutcome outcomes_[kOutcomeCapacity];
   uint16_t outcomeHead_;
