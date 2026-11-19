@@ -8,12 +8,13 @@
 #include "ca/platform/arduino_byte_storage.hpp"
 #include "ca/storage/fixed_dual_slot_persistence.hpp"
 
-ArduinoUnoEepromByteStorage<352> byteStorage;
-FixedDualSlotPersistence<176> persistence(byteStorage, 1);
 #include "ca/platform/uno/uno_r3_profile.hpp"
 
 using namespace ca;
 using namespace ca::platform;
+
+ArduinoUnoEepromByteStorage<352> byteStorage;
+FixedDualSlotPersistence<176> persistence(byteStorage, 1);
 
 const BoardPinMap kBoardPins = ArduinoUnoR3Profile::pins();
 ArduinoSx1278Transport radio(kBoardPins, SPI);
