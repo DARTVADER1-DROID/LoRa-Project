@@ -5,3 +5,41 @@ Implement one adapter set per selected board. Keep Arduino/ESP-IDF headers confi
 Required adapters: IRadioTransport (RA-02/SX1278), IButtonInput (maximum two buttons, debounce and short/long events), IDisplay (16×2 LCD), IBuzzer, IClock, IPersistence and IDiagnostics.
 
 Do not freeze pin maps before exact ESP32 board selection. Uno-to-RA-02 logic-level translation and a suitable 3.3 V transient supply are hardware requirements. Verify exact radio band, antenna, EIRP and current Indian WPC requirements before transmission.
+
+
+## Reference pin profiles
+
+Pin maps are compile-time data, not part of shared domain/application code.
+
+### ESP32-WROOM-32 DevKit V1 reference
+
+| Function | GPIO |
+|---|---:|
+| RA-02 SPI SCK / MISO / MOSI | 18 / 19 / 23 |
+| RA-02 NSS / RESET / DIO0 | 17 / 14 / 26 |
+| 16×2 I2C LCD SDA / SCL | 21 / 22 |
+| Buttons 1 / 2 | 32 / 33 |
+| Buzzer | 27 |
+
+The profile avoids using GPIO 6–11 (module flash pins), input-only pins for outputs,
+and common boot-strapping pins for ordinary peripherals. This is a reference for
+ESP32-WROOM-32 DevKit V1 only; board revisions and clone layouts must be checked.
+
+### Arduino Uno R3 reference
+
+| Function | Arduino pin |
+|---|---:|
+| RA-02 SPI SCK / MISO / MOSI | 13 / 12 / 11 |
+| RA-02 NSS / RESET / DIO0 | 10 / 9 / 2 |
+| 16×2 I2C LCD SDA / SCL | A4 / A5 |
+| Buttons 1 / 2 | 4 / 5 |
+| Buzzer | 6 |
+
+Uno GPIO is 5 V while RA-02 is a 3.3 V device. Use a proper 3.3 V regulator with
+transient current headroom and 5 V-to-3.3 V level translation on Uno outputs to
+the radio. Never connect 5 V logic directly to RA-02 pins.
+
+The profiles are validated for pin collisions by a host test. They do not prove
+electrical compatibility, connector orientation, module breakout routing or
+regulatory compliance. The actual Arduino/ESP32 radio, LCD, button, buzzer and
+persistence adapters remain to be implemented.
