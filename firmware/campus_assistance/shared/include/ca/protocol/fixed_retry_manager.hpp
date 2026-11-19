@@ -20,8 +20,8 @@ public:
 
   Status schedule(const ProtocolMessage& message, uint32_t nowMs) override {
     if (message.header.transactionId == 0 ||
-        message.payloadLength > kMaxProtocolPayloadBytes ||
-        policy_.maxAttempts == 0 || policy_.initialBackoffMs == 0 ||
+        message.payloadLength > kMaxProtocolPayloadBytes || policy_.maxAttempts == 0 ||
+        policy_.initialBackoffMs == 0 ||
         policy_.maxBackoffMs < policy_.initialBackoffMs ||
         policy_.maxBackoffMs > 0x7FFFFFFFUL)
       return Status(ErrorCode::INVALID_ARGUMENT);
@@ -29,8 +29,7 @@ public:
     nowMs_ = nowMs;
     for (uint16_t i = 0; i < StorageCapacity; ++i) {
       if (!entries_[i].active ||
-          entries_[i].message.header.transactionId !=
-              message.header.transactionId)
+          entries_[i].message.header.transactionId != message.header.transactionId)
         continue;
       return sameMessage(entries_[i].message, message)
                  ? Status()
@@ -59,7 +58,8 @@ public:
       Entry& entry = entries_[i];
       if (entry.active && entry.terminalPending && !outcomesFull()) {
         pushOutcome(entry.message.header.transactionId,
-                    entry.terminalOutcome, entry.attemptsUsed);
+                    entry.terminalOutcome,
+                    entry.attemptsUsed);
         entry = Entry();
       }
     }
@@ -79,7 +79,8 @@ public:
     return false;
   }
 
-  Status onTransmissionAttempt(TransactionId transactionId, bool accepted,
+  Status onTransmissionAttempt(TransactionId transactionId,
+                               bool accepted,
                                uint32_t nowMs) override {
     (void)accepted; // A rejected transport submission still consumes an attempt.
     Entry* entry = find(transactionId);
@@ -129,8 +130,7 @@ public:
     if (outcomeCount_ == 0)
       return false;
     outcome = outcomes_[outcomeHead_];
-    outcomeHead_ = static_cast<uint16_t>(
-        (outcomeHead_ + 1U) % kOutcomeCapacity);
+    outcomeHead_ = static_cast<uint16_t>((outcomeHead_ + 1U) % kOutcomeCapacity);
     --outcomeCount_;
     return true;
   }
@@ -144,8 +144,7 @@ public:
   }
 
 private:
-  static const uint16_t kOutcomeCapacity =
-      static_cast<uint16_t>(StorageCapacity * 2U);
+  static const uint16_t kOutcomeCapacity = static_cast<uint16_t>(StorageCapacity * 2U);
 
   struct Entry {
     bool active;
@@ -158,8 +157,8 @@ private:
     RetryOutcomeCode terminalOutcome;
 
     Entry()
-        : active(false), awaitingAttempt(false), terminalPending(false),
-          message(), attemptsUsed(0), nextDelayMs(0), dueAtMs(0),
+        : active(false), awaitingAttempt(false), terminalPending(false), message(),
+          attemptsUsed(0), nextDelayMs(0), dueAtMs(0),
           terminalOutcome(RetryOutcomeCode::CANCELLED) {}
   };
 
@@ -172,10 +171,10 @@ private:
 
   bool outcomesFull() const { return outcomeCount_ >= kOutcomeCapacity; }
 
-  void pushOutcome(TransactionId transactionId, RetryOutcomeCode code,
-                   uint8_t attempts) {
-    const uint16_t tail = static_cast<uint16_t>(
-        (outcomeHead_ + outcomeCount_) % kOutcomeCapacity);
+  void
+  pushOutcome(TransactionId transactionId, RetryOutcomeCode code, uint8_t attempts) {
+    const uint16_t tail =
+        static_cast<uint16_t>((outcomeHead_ + outcomeCount_) % kOutcomeCapacity);
     outcomes_[tail].transactionId = transactionId;
     outcomes_[tail].outcome = code;
     outcomes_[tail].attemptsUsed = attempts;
@@ -201,8 +200,7 @@ private:
     return 0;
   }
 
-  static bool sameMessage(const ProtocolMessage& left,
-                          const ProtocolMessage& right) {
+  static bool sameMessage(const ProtocolMessage& left, const ProtocolMessage& right) {
     if (left.header.protocolVersion != right.header.protocolVersion ||
         left.header.networkId != right.header.networkId ||
         left.header.messageType != right.header.messageType ||
