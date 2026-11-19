@@ -5,7 +5,7 @@ All declarations are conceptual C++-like contracts. They are not implementation.
 ## 1. Shared types
 
     enum class DeviceRole { STATION, CART };
-    enum class DriverMode { NOT_ACCEPTING, ACCEPTING_IDLE, CLAIMING, SERVING };
+    enum class AcceptanceMode { NOT_ACCEPTING, ACCEPTING };\n    enum class CartServiceState { IDLE, CLAIM_PENDING, SERVING, UNCERTAIN };
     enum class RequestState {
       CREATED, PENDING_UNASSIGNED, CLAIM_PENDING, ASSIGNED,
       ON_THE_WAY, ARRIVED_AT_PICKUP, COMPLETED,
