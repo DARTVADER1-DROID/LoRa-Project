@@ -211,6 +211,10 @@ private:
   }
 
   Status sendMessage(const ProtocolMessage& message) {
+    const RadioHealth radioHealth = transport_.health();
+    if (!radioHealth.initialized || radioHealth.faulted)
+      return Status(ErrorCode::RADIO_UNAVAILABLE);
+
     uint8_t bytes[kMaxFrameBytes] = {};
     MutableFrameView output = {bytes, kMaxFrameBytes};
     const EncodeResult encoded = codec_.encode(message, output);
