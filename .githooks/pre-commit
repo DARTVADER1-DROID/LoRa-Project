@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+set -eu
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+cd "$ROOT_DIR"
+
+if ! command -v clang-format >/dev/null 2>&1; then
+  echo "clang-format is required to commit firmware changes." >&2
+  echo "Install it, then run firmware/campus_assistance/scripts/format.sh." >&2
+  exit 1
+fi
+
+STAGED_FILES="$(git diff --cached --name-only --diff-filter=ACM | grep -E '^firmware/campus_assistance/.*\.(h|hpp|cpp|ino)$' || true)"
+if [ -n "$STAGED_FILES" ]; then
+  # shellcheck disable=SC2086
+  clang-format -i $STAGED_FILES
+  # Re-stage formatted files so the commit contains the formatted result.
+  # shellcheck disable=SC2086
+  git add $STAGED_FILES
+fi
