@@ -192,8 +192,7 @@ private:
           blank = false;
           break;
         }
-      return blank ? Status(ErrorCode::NOT_FOUND)
-                   : Status(ErrorCode::CORRUPT_DATA);
+      return blank ? Status(ErrorCode::NOT_FOUND) : Status(ErrorCode::CORRUPT_DATA);
     }
 
     uint16_t offset = 0;
