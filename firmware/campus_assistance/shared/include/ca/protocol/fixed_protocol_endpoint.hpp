@@ -56,14 +56,16 @@ public:
     retries_.service(nowMs_);
     scheduleBroadcasts();
 
-    for (uint8_t sent = 0; sent < EventCapacity; ++sent) {
+    const RadioHealth radioHealth = transport_.health();
+    if (radioHealth.receiving || radioHealth.faulted) {
       ProtocolMessage message = {};
       uint8_t attemptNumber = 0;
-      if (!retries_.pollDue(message, attemptNumber))
-        break;
-      (void)attemptNumber;
-      const Status status = sendMessage(message);
-      retries_.onTransmissionAttempt(message.header.transactionId, status.ok(), nowMs_);
+      if (retries_.pollDue(message, attemptNumber)) {
+        (void)attemptNumber;
+        const Status status = sendMessage(message);
+        retries_.onTransmissionAttempt(message.header.transactionId, status.ok(),
+                                       nowMs_);
+      }
     }
 
     for (uint8_t received = 0; received < EventCapacity; ++received) {
