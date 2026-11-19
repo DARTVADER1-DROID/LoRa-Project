@@ -29,9 +29,9 @@ Creation postconditions: full identity tuple; destination is valid; station reco
 | enableAcceptance(action) | Explicit driver action; allowed only with no active assignment or unresolved claim |
 | disableAcceptance(action) | Set NOT_ACCEPTING and clear this cart's current local pending list |
 | CartClaimClient::requestClaim(id,cartId) | Start one bounded claim transaction; does not imply ownership |
-| onAssignmentNotice(notice) | All carts remove matching pending entry; only matching winner activates |
+| EventReconciler::applyAssignmentNotice(notice) | Reconcile the validated station notice; all carts remove the matching pending item and only the named winner activates |
 | ActiveAssignment::activate(record) | Require station-confirmed assignment; reject if already occupied |
-| JourneyProgressController::advance(status,action) | Permit only the next valid driver-reported stage |
+| JourneyProgressController::validateTransition(current,next,action) | Validate the next driver-reported stage without owning journey state |
 | ActiveAssignment::complete(evidence) | Mark terminal and force driver mode to NOT_ACCEPTING |
 | EventReconciler::applyExpiryNotice(notice) | Remove only matching local pending request |
 
@@ -52,22 +52,24 @@ The receive pipeline runs regardless of driver mode. Driver mode gates claiming,
 
 ## 5. Cart state machine
 
-    NOT_ACCEPTING --driver ENABLE--> ACCEPTING_IDLE
-    ACCEPTING_IDLE --oldest eligible--> CLAIMING
-    CLAIMING --station rejects/timeout--> ACCEPTING_IDLE or UNCERTAIN
-    CLAIMING --matching station ASSIGN--> SERVING
-    ACCEPTING_IDLE --driver DISABLE--> NOT_ACCEPTING
-    CLAIMING --driver DISABLE--> DISABLE/CLAIM-RESOLUTION (see open item)
-    SERVING --driver confirms completion--> NOT_ACCEPTING
+Acceptance and cart service state are independent dimensions:
 
-Invariants:
-- NOT_ACCEPTING: receiver active; may queue new requests; cannot claim.
-- ACCEPTING_IDLE: may claim oldest eligible request.
-- CLAIMING: exactly one in-flight claim; cannot start another.
-- SERVING: exactly one active assignment; cannot claim another.
-- Completion always returns to NOT_ACCEPTING.
-- Reboot defaults to NOT_ACCEPTING and must reconcile any possible active assignment before another claim.
-- Driver disable clears the local pending list only. It does not send global cancellation.
+    AcceptanceMode: NOT_ACCEPTING <-> ACCEPTING
+    CartServiceState: IDLE -> CLAIM_PENDING -> SERVING
+                                  |             |
+                                  v             v
+                              UNCERTAIN      IDLE (after terminal clear)
+
+- Boot starts NOT_ACCEPTING. Service state starts IDLE unless reboot reconciliation identifies a possible active assignment.
+- Driver ENABLE changes acceptance to ACCEPTING only when no active assignment and no unresolved claim exists.
+- Driver DISABLE immediately changes acceptance to NOT_ACCEPTING and clears only the local pending FIFO.
+- If a claim is unresolved, DISABLE also sends CLAIM_WITHDRAW with the exact RequestId, cart ID and transaction ID. The cart retains the transaction until station resolution.
+- If withdrawal wins, the claim closes and service state returns to IDLE. If assignment commit wins, the cart processes the station ASSIGN, retains the assignment and raises a driver-facing conflict; it does not silently discard ownership.
+- SERVING means exactly one station-confirmed active assignment. It is independent of acceptance intent; a cart can be NOT_ACCEPTING while still serving its already committed assignment.
+- Completion clears the active assignment and forces NOT_ACCEPTING. Manual re-enable is required.
+- The receiver remains active and may repopulate the local pending FIFO while NOT_ACCEPTING.
+
+The station serializes claim start, withdrawal, assignment commit, cancellation and expiry against the same authoritative request record. A delayed withdrawal cannot reverse a committed assignment.
 
 ## 6. Pending list operations
 
