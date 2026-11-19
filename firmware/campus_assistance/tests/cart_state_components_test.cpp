@@ -19,6 +19,7 @@ int main() {
   assert(driver.acceptanceMode() == AcceptanceMode::NOT_ACCEPTING);
   assert(driver.onClaimWithdrawnByStation().ok());
   assert(driver.serviceState() == CartServiceState::IDLE);
+  assert(driver.onJourneyCompleted().ok());
 
   AssignmentRecord assignment = {};
   assignment.requestId.originStationId = 1;
@@ -43,6 +44,9 @@ int main() {
 
   DriverAction complete = {DriverActionType::CONFIRM_COMPLETION, 3};
   assert(active.complete(complete).ok());
+  assert(active.updateJourneyStatus(JourneyStatus::COMPLETED, 3).ok());
+  assert(active.updateJourneyStatus(JourneyStatus::COMPLETED, 3).code ==
+         ErrorCode::STALE_EVENT);
   assert(active.clearAfterTerminal().ok());
   assert(!active.isOccupied());
 
