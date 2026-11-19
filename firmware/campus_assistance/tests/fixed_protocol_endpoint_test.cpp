@@ -1,6 +1,7 @@
 #include "ca/protocol/fixed_protocol_endpoint.hpp"
 #include "ca/protocol/fixed_retry_manager.hpp"
 #include "ca/storage/fixed_cart_registry.hpp"
+#include "ca/storage/fixed_station_registry.hpp"
 
 #include <assert.h>
 
