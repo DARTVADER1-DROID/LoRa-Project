@@ -4,7 +4,8 @@ namespace ca {
 
 FixedButtonDebouncer::FixedButtonDebouncer()
     : config_(), buttons_(), events_(), eventHead_(0), eventCount_(0),
-      configured_(false) {}
+      configured_(false) {
+}
 
 Status FixedButtonDebouncer::configure(const ButtonConfig& config) {
   if (config.buttonCount == 0 || config.buttonCount > kMaxPhysicalButtons ||
@@ -22,8 +23,8 @@ Status FixedButtonDebouncer::configure(const ButtonConfig& config) {
   return Status();
 }
 
-Status FixedButtonDebouncer::update(const bool* pressed, uint8_t count,
-                                    uint32_t nowMs) {
+Status
+FixedButtonDebouncer::update(const bool* pressed, uint8_t count, uint32_t nowMs) {
   if (!configured_)
     return Status(ErrorCode::INVALID_STATE);
   if (pressed == 0 || count != config_.buttonCount)
@@ -46,9 +47,12 @@ bool FixedButtonDebouncer::pollEvent(ButtonEvent& event) {
   return true;
 }
 
-bool FixedButtonDebouncer::isConfigured() const { return configured_; }
+bool FixedButtonDebouncer::isConfigured() const {
+  return configured_;
+}
 
-Status FixedButtonDebouncer::enqueue(uint8_t buttonIndex, ButtonEventType type,
+Status FixedButtonDebouncer::enqueue(uint8_t buttonIndex,
+                                     ButtonEventType type,
                                      uint32_t nowMs) {
   if (eventCount_ >= kEventCapacity)
     return Status(ErrorCode::BUFFER_FULL);
@@ -61,8 +65,7 @@ Status FixedButtonDebouncer::enqueue(uint8_t buttonIndex, ButtonEventType type,
   return Status();
 }
 
-Status FixedButtonDebouncer::updateButton(uint8_t index, bool pressed,
-                                          uint32_t nowMs) {
+Status FixedButtonDebouncer::updateButton(uint8_t index, bool pressed, uint32_t nowMs) {
   ButtonState& state = buttons_[index];
   if (!state.initialized) {
     state.initialized = true;
