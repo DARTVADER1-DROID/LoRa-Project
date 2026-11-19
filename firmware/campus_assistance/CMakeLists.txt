@@ -70,6 +70,10 @@ add_executable(fixed_retry_manager_test
   tests/fixed_retry_manager_test.cpp)
 target_link_libraries(fixed_retry_manager_test PRIVATE campus_assistance_contracts)
 
+add_executable(fixed_protocol_endpoint_test
+  tests/fixed_protocol_endpoint_test.cpp)
+target_link_libraries(fixed_protocol_endpoint_test PRIVATE campus_assistance_contracts)
+
 add_executable(station_claim_coordinator_test
   tests/station_claim_coordinator_test.cpp)
 target_link_libraries(station_claim_coordinator_test PRIVATE campus_assistance_contracts)
@@ -115,6 +119,7 @@ add_test(NAME station_request_lifecycle_test COMMAND station_request_lifecycle_t
 add_test(NAME protocol_codec_test COMMAND protocol_codec_test)
 add_test(NAME protocol_payload_codec_test COMMAND protocol_payload_codec_test)
 add_test(NAME fixed_retry_manager_test COMMAND fixed_retry_manager_test)
+add_test(NAME fixed_protocol_endpoint_test COMMAND fixed_protocol_endpoint_test)
 add_test(NAME station_claim_coordinator_test COMMAND station_claim_coordinator_test)
 add_test(NAME cart_claim_client_test COMMAND cart_claim_client_test)
 add_test(NAME cart_event_reconciler_test COMMAND cart_event_reconciler_test)
