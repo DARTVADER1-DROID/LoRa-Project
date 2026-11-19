@@ -9,7 +9,7 @@ static_assert(kDefaultRequestLifetimeMs == 600000UL,
               "The default unassigned-request lifetime is 10 minutes.");
 static_assert(kMaxPhysicalButtons == 2,
               "The physical interface is limited to two buttons.");
-static_assert(sizeof(UiViewModel::line1) == 17,
+static_assert(sizeof(((UiViewModel*)0)->line1) == 17,
               "The LCD line buffer includes 16 characters and a terminator.");
 static_assert(static_cast<uint8_t>(AcceptanceMode::NOT_ACCEPTING) !=
                   static_cast<uint8_t>(AcceptanceMode::ACCEPTING),
