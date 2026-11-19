@@ -11,21 +11,18 @@ if ! command -v clang-format >/dev/null 2>&1; then
 fi
 
 while IFS= read -r -d '' file; do
-  # Formatting the worktree file would mix unstaged hunks into a partial commit.
-  # Refuse instead; the developer can stage or stash the remaining edits first.
   if ! git diff --quiet -- "$file"; then
     echo "Refusing to format '$file': it has unstaged changes." >&2
     echo "Stage all changes to this file or stash the unstaged hunks, then retry." >&2
     exit 1
   fi
-
   clang-format -i -- "$file"
   git add -- "$file"
 done < <(
   git diff --cached --name-only --diff-filter=ACM -z |
     while IFS= read -r -d '' file; do
       case "$file" in
-        firmware/campus_assistance/*.h|firmware/campus_assistance/*.hpp|firmware/campus_assistance/*.cpp|firmware/campus_assistance/*.ino|firmware/campus_assistance/*/*.h|firmware/campus_assistance/*/*.hpp|firmware/campus_assistance/*/*.cpp|firmware/campus_assistance/*/*.ino|firmware/campus_assistance/*/*/*.h|firmware/campus_assistance/*/*/*.hpp|firmware/campus_assistance/*/*/*.cpp|firmware/campus_assistance/*/*/*.ino)
+        firmware/campus_assistance/*.h|firmware/campus_assistance/*.hpp|firmware/campus_assistance/*.cpp|firmware/campus_assistance/*.ino)
           printf '%s\0' "$file"
           ;;
       esac
