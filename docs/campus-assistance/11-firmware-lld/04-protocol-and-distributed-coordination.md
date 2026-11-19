@@ -261,3 +261,19 @@ Station request, cancellation, assignment and expiry deliveries also use distinc
 transaction IDs derived from the complete RequestId and a message-phase discriminator.
 A transport ACK therefore cannot accidentally acknowledge a different phase of the
 same request. These encodings remain provisional until the wire schema is frozen.
+
+
+## 18. Reliable broadcast fan-out and ACK ownership
+
+A single ACK from an arbitrary cart must never complete a station broadcast. The
+reference endpoint therefore expands a reliable broadcast (destination ID zero)
+into one unicast retry entry per enabled cart in the provisioned station cart
+registry. Each recipient gets a derived delivery transaction ID while the payload
+continues to carry the same RequestId and domain data. ACK processing verifies that
+the ACK source matches the unicast destination recorded by the retry entry. A
+broadcast without a non-empty, validated cart roster fails closed.
+
+The cart registry is provisioning data, not an inferred list of RF peers. A cart
+must be present in the station roster to receive reliable fan-out. Roster updates
+and their persistence/recovery policy still need to be integrated into target
+provisioning.
