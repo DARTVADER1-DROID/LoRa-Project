@@ -187,3 +187,24 @@ deploying radio nodes, review and freeze one protocol schema covering message ID
 payload field layouts, maximum lengths, sequence/replay rules, ACK correlation,
 arbitration windows, retry/backoff and airtime. The current application-level request
 and cancellation payload assembly is likewise provisional.
+
+
+## 16. Current station claim arbitration policy
+
+The current application reference policy is first-valid-claim-to-station wins:
+the station evaluates a claim and immediately attempts the repository's atomic
+commit using the current station uptime. A successful commit is followed by a
+station-originated ASSIGN broadcast. CLAIM_RESULT communicates rejection,
+withdrawal, or committed outcome; it never independently activates the cart.
+
+This policy deliberately has no collection/arbitration delay. It is deterministic
+under the station's serialized event loop, but it does not guarantee fairness
+between carts whose RF transmissions collide or arrive at different times. A
+future fairness window would require an explicit timing/airtime policy and must
+retain commit-time expiry and withdrawal-versus-commit atomicity.
+
+The portable cart application now starts a claim from the oldest local FIFO entry
+when the configured UI interpreter emits CONFIRM and the driver is ACCEPTING.
+Journey progression emits sequenced JOURNEY_UPDATE messages. The local cart
+updates its state only after the outbound message is accepted by the protocol
+endpoint; station confirmation/reconciliation remains authoritative for recovery.
