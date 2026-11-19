@@ -277,3 +277,13 @@ The cart registry is provisioning data, not an inferred list of RF peers. A cart
 must be present in the station roster to receive reliable fan-out. Roster updates
 and their persistence/recovery policy still need to be integrated into target
 provisioning.
+
+
+## 19. Snapshot claim reconciliation fields
+
+The provisional SNAPSHOT payload includes both lifecycle/assignment state and the
+claim tuple: claim state, claimant cart ID and original claim transaction ID. This
+lets a rebooting or communication-uncertain cart distinguish its own still-pending
+claim from another cart's claim, a withdrawn claim, an unassigned request, or an
+authoritative assignment. A cart preserves a matching in-flight claim; a mismatched
+claim is resolved locally without treating CLAIM_PENDING as assignment ownership.
