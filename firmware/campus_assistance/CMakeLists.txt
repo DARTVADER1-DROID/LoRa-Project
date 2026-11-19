@@ -5,6 +5,7 @@ project(campus_assistance_contracts LANGUAGES CXX)
 add_library(campus_assistance_contracts STATIC
   shared/src/application.cpp
   shared/src/input/fixed_button_debouncer.cpp
+  shared/src/input/debounced_button_input.cpp
   shared/src/cart/basic_driver_availability_controller.cpp
   shared/src/cart/cart_event_reconciler.cpp
   shared/src/cart/default_journey_progress_controller.cpp
@@ -86,6 +87,10 @@ add_executable(fixed_button_debouncer_test
   tests/fixed_button_debouncer_test.cpp)
 target_link_libraries(fixed_button_debouncer_test PRIVATE campus_assistance_contracts)
 
+add_executable(debounced_button_input_test
+  tests/debounced_button_input_test.cpp)
+target_link_libraries(debounced_button_input_test PRIVATE campus_assistance_contracts)
+
 enable_testing()
 add_test(NAME contract_compile COMMAND contract_compile)
 add_test(NAME repository_transition_test COMMAND repository_transition_test)
@@ -106,3 +111,4 @@ add_test(NAME fixed_destination_catalog_test COMMAND fixed_destination_catalog_t
 add_test(NAME station_request_controller_test COMMAND station_request_controller_test)
 add_test(NAME board_profile_test COMMAND board_profile_test)
 add_test(NAME fixed_button_debouncer_test COMMAND fixed_button_debouncer_test)
+add_test(NAME debounced_button_input_test COMMAND debounced_button_input_test)
