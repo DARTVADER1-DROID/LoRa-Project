@@ -104,8 +104,7 @@ public:
       return Status(ErrorCode::EXPIRED);
     }
     if (record->state == RequestState::CLAIM_PENDING &&
-        record->claimState == ClaimState::PENDING &&
-        record->claimCartId == cartId &&
+        record->claimState == ClaimState::PENDING && record->claimCartId == cartId &&
         record->claimTransactionId == transactionId) {
       updated = *record;
       return Status();

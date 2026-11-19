@@ -21,7 +21,9 @@ void put32(uint8_t* out, uint16_t& offset, uint32_t value) {
   put8(out, offset, static_cast<uint8_t>(value >> 8));
   put8(out, offset, static_cast<uint8_t>(value));
 }
-uint8_t get8(const uint8_t* in, uint16_t& offset) { return in[offset++]; }
+uint8_t get8(const uint8_t* in, uint16_t& offset) {
+  return in[offset++];
+}
 uint16_t get16(const uint8_t* in, uint16_t& offset) {
   const uint16_t high = get8(in, offset);
   return static_cast<uint16_t>((high << 8) | get8(in, offset));
@@ -96,9 +98,8 @@ DecodeResult BinaryFrameCodec::decode(FrameView input, ProtocolMessage& message)
     return result;
   }
 
-  const uint16_t payloadLength =
-      static_cast<uint16_t>((static_cast<uint16_t>(input.data[18]) << 8) |
-                            input.data[19]);
+  const uint16_t payloadLength = static_cast<uint16_t>(
+      (static_cast<uint16_t>(input.data[18]) << 8) | input.data[19]);
   const uint16_t expectedLength =
       static_cast<uint16_t>(kHeaderBytes + payloadLength + kChecksumBytes);
   if (payloadLength > kMaxProtocolPayloadBytes || input.length != expectedLength) {
@@ -155,9 +156,9 @@ Status DefaultMessageValidator::validate(const ProtocolMessage& message,
   return Status();
 }
 
-Status DefaultMessageValidator::authorizeSender(
-    const ProtocolHeader& envelope, const DeviceConfig& localConfig,
-    SenderValidation& validation) const {
+Status DefaultMessageValidator::authorizeSender(const ProtocolHeader& envelope,
+                                                const DeviceConfig& localConfig,
+                                                SenderValidation& validation) const {
   validation = SenderValidation::UNVALIDATED;
   if (localConfig.deviceId == 0 || localConfig.networkId == 0 ||
       localConfig.protocolVersion == 0 || envelope.sourceDeviceId == 0 ||

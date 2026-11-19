@@ -5,22 +5,22 @@ namespace ca {
 
 RepositoryStationClaimCoordinator::RepositoryStationClaimCoordinator(
     IRequestRepository& repository)
-    : repository_(repository) {}
+    : repository_(repository) {
+}
 
 Status RepositoryStationClaimCoordinator::evaluate(const ClaimRequest& claim,
-                                                    uint32_t stationNowMs) {
+                                                   uint32_t stationNowMs) {
   if (!RequestIdentity::isValid(claim.requestId) || claim.cartId == 0 ||
       claim.transactionId == 0)
     return Status(ErrorCode::INVALID_ARGUMENT);
 
   RequestRecord updated = {};
-  return repository_.beginClaimIfEligible(claim.requestId, claim.cartId,
-                                          claim.transactionId, stationNowMs,
-                                          updated);
+  return repository_.beginClaimIfEligible(
+      claim.requestId, claim.cartId, claim.transactionId, stationNowMs, updated);
 }
 
-Status RepositoryStationClaimCoordinator::withdrawClaim(
-    const ClaimWithdraw& withdrawal) {
+Status
+RepositoryStationClaimCoordinator::withdrawClaim(const ClaimWithdraw& withdrawal) {
   if (!RequestIdentity::isValid(withdrawal.requestId) || withdrawal.cartId == 0 ||
       withdrawal.transactionId == 0)
     return Status(ErrorCode::INVALID_ARGUMENT);
@@ -30,9 +30,9 @@ Status RepositoryStationClaimCoordinator::withdrawClaim(
       withdrawal.requestId, withdrawal.cartId, withdrawal.transactionId, updated);
 }
 
-Status RepositoryStationClaimCoordinator::commitWinner(
-    const ClaimRequest& claim, uint32_t stationNowMs,
-    AssignmentRecord& assignment) {
+Status RepositoryStationClaimCoordinator::commitWinner(const ClaimRequest& claim,
+                                                       uint32_t stationNowMs,
+                                                       AssignmentRecord& assignment) {
   if (!RequestIdentity::isValid(claim.requestId) || claim.cartId == 0 ||
       claim.transactionId == 0)
     return Status(ErrorCode::INVALID_ARGUMENT);

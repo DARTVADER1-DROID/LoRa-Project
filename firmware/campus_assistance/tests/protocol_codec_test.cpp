@@ -47,9 +47,9 @@ int main() {
   uint8_t trailing[kMaxFrameBytes] = {};
   memcpy(trailing, bytes, encoded.bytesWritten);
   trailing[encoded.bytesWritten] = 0;
-  assert(codec.decode({trailing, static_cast<uint16_t>(encoded.bytesWritten + 1)},
-                      decoded)
-             .status.code == ErrorCode::PROTOCOL_MISMATCH);
+  assert(
+      codec.decode({trailing, static_cast<uint16_t>(encoded.bytesWritten + 1)}, decoded)
+          .status.code == ErrorCode::PROTOCOL_MISMATCH);
 
   DefaultMessageValidator validator;
   DeviceConfig local = {};
