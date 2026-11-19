@@ -157,7 +157,9 @@ Invariants: zero or one active assignment; activation requires matching station 
 
     class IRequestRepository {
     public:
+      Status reserveNextRequestId(DeviceId stationId, RequestId&);
       Status insertNew(const RequestRecord&);
+      bool recordAt(uint16_t index, RequestRecord&) const;
       bool find(const RequestId&, RequestRecord&) const;
       Status beginClaimIfEligible(const RequestId&, DeviceId, TransactionId,
                                   uint32_t stationNowMs, RequestRecord&);
@@ -183,6 +185,13 @@ Invariants: zero or one active assignment; activation requires matching station 
     };
 
 There is no generic repository update. Every mutation is a conditional atomic transition against the same authoritative RequestId. RequestLifecycle owns request creation, cancellation, expiry and journey update policy; StationClaimCoordinator alone commits assignment.
+
+Concrete implementations:
+- `FixedRequestRepository<Capacity>` is a bounded volatile reference implementation.
+- `DurableRequestRepository<Capacity>` persists a versioned CRC32-protected snapshot through `IPersistence`. Its adapter must guarantee old-or-new visibility across power loss.
+- `StationRequestLifecycle` validates enabled destinations, allocates the station's complete RequestId, records creation/expiry basis, and delegates cancellation, expiry and journey transitions to the repository.
+
+The current clock is uptime millis, not a persistent RTC. On durable recovery, pending and claim-pending requests are expired fail-closed; committed assignments are retained. A persistent wall clock is required to preserve exact remaining expiry time across a power-off interval.
 
 ## 6. Protocol components
 
@@ -335,3 +344,12 @@ This section supersedes earlier declarations in this catalogue where they confli
 ### 12.1 Assignment commit time input
 
 StationClaimCoordinator::commitWinner receives stationNowMs explicitly. It passes that station-authoritative time to the repository's atomic commit guard; a preliminary evaluate() result is never sufficient to commit because expiry/cancellation may win between evaluation and commit.
+
+
+## 13. Durable storage and lifecycle implementations
+
+`DurableRequestRepository<StorageCapacity>` uses a fixed-size canonical byte snapshot (magic, schema version, count, station ID, next request sequence/generation, exhaustion flag, fixed-width records and CRC32). It rejects corrupt, unsupported, oversized and wrong-station snapshots. Each conditional state transition is staged in a candidate fixed repository, serialized and committed with `IPersistence::storeAtomically()` before the in-memory state is replaced.
+
+`IPersistence::storeAtomically()` is a strict adapter contract, not an assumption about raw EEPROM writes. A production implementation must use a dual-slot/journal or equivalent scheme, document erase/program and endurance behavior, and pass power-cut tests. The host fake tests restart and failed-store rollback but does not prove physical flash atomicity.
+
+`StationRequestLifecycle` is a separate use-case implementation. It accepts only enabled destinations, allocates complete identities through the repository, stores the station clock's creation/expiry basis, and expires only PENDING_UNASSIGNED / CLAIM_PENDING requests. Assigned journeys are never subject to the unassigned-request expiry timer. Expiry output is caller-owned bounded memory; insufficient capacity returns BUFFER_FULL before any expiry mutation.
