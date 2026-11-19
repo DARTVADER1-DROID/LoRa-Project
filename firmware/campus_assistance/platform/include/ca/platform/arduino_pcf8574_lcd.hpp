@@ -17,29 +17,30 @@ namespace platform {
 // backpacks vary. This adapter never allocates memory.
 class ArduinoPcf8574Lcd final : public IDisplay {
 public:
-  ArduinoPcf8574Lcd(const BoardPinMap& pins, uint8_t address,
-                    uint8_t rsBit = 0, uint8_t rwBit = 1,
-                    uint8_t enableBit = 2, uint8_t backlightBit = 3)
+  ArduinoPcf8574Lcd(const BoardPinMap& pins,
+                    uint8_t address,
+                    uint8_t rsBit = 0,
+                    uint8_t rwBit = 1,
+                    uint8_t enableBit = 2,
+                    uint8_t backlightBit = 3)
       : pins_(pins), address_(address), rsBit_(rsBit), rwBit_(rwBit),
         enableBit_(enableBit), backlightBit_(backlightBit),
-        backlightMask_(static_cast<uint8_t>(1U << backlightBit)),
-        initialized_(false), backlightOn_(true) {
+        backlightMask_(static_cast<uint8_t>(1U << backlightBit)), initialized_(false),
+        backlightOn_(true) {
     for (uint8_t row = 0; row < 2; ++row)
       for (uint8_t column = 0; column < 16; ++column)
         previous_[row][column] = '\0';
   }
 
   Status begin() override {
-    if (initialized_ || !isValidPinMap(pins_) || address_ < 0x08 ||
-        address_ > 0x77 || rsBit_ > 7 || rwBit_ > 7 || enableBit_ > 7 ||
-        backlightBit_ > 7 || rsBit_ == rwBit_ || rsBit_ == enableBit_ ||
-        rsBit_ == backlightBit_ || rwBit_ == enableBit_ ||
-        rwBit_ == backlightBit_ || enableBit_ == backlightBit_)
+    if (initialized_ || !isValidPinMap(pins_) || address_ < 0x08 || address_ > 0x77 ||
+        rsBit_ > 7 || rwBit_ > 7 || enableBit_ > 7 || backlightBit_ > 7 ||
+        rsBit_ == rwBit_ || rsBit_ == enableBit_ || rsBit_ == backlightBit_ ||
+        rwBit_ == enableBit_ || rwBit_ == backlightBit_ || enableBit_ == backlightBit_)
       return Status(ErrorCode::CONFIGURATION_INVALID);
 
 #if defined(ESP32)
-    Wire.begin(static_cast<int>(pins_.displaySda),
-               static_cast<int>(pins_.displayScl));
+    Wire.begin(static_cast<int>(pins_.displaySda), static_cast<int>(pins_.displayScl));
 #else
     Wire.begin();
 #endif
@@ -106,10 +107,9 @@ private:
 
   void send(uint8_t value, bool data) {
     const uint8_t mode = data ? static_cast<uint8_t>(1U << rsBit_) : 0U;
-    const uint8_t high = static_cast<uint8_t>(
-        (value & 0xF0U) | mode | backlightMask_);
-    const uint8_t low = static_cast<uint8_t>(
-        ((value << 4) & 0xF0U) | mode | backlightMask_);
+    const uint8_t high = static_cast<uint8_t>((value & 0xF0U) | mode | backlightMask_);
+    const uint8_t low =
+        static_cast<uint8_t>(((value << 4) & 0xF0U) | mode | backlightMask_);
     Wire.beginTransmission(address_);
     Wire.write(static_cast<uint8_t>(high | (1U << enableBit_)));
     Wire.write(high);
