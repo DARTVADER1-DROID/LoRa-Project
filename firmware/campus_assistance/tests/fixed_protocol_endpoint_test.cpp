@@ -50,8 +50,7 @@ public:
     const EncodeResult encoded = codec.encode(message, output);
     if (!encoded.status.ok())
       return false;
-    const uint8_t tail =
-        static_cast<uint8_t>((receivedHead + receivedCount) % 2U);
+    const uint8_t tail = static_cast<uint8_t>((receivedHead + receivedCount) % 2U);
     received_[tail].length = encoded.bytesWritten;
     for (uint16_t i = 0; i < encoded.bytesWritten; ++i)
       received_[tail].bytes[i] = bytes[i];
@@ -88,8 +87,8 @@ int main() {
   FakeRadioTransport transport;
   const RetryPolicy policy = {3, 100, 400};
   FixedRetryManager<4> retries(policy);
-  FixedProtocolEndpoint<4> endpoint(codec, validator, transport, retries,
-                                    config, radio);
+  FixedProtocolEndpoint<4> endpoint(
+      codec, validator, transport, retries, config, radio);
   assert(endpoint.begin().ok());
 
   ProtocolEvent claim = {};
