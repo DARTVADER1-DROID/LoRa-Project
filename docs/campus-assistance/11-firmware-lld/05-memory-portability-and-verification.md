@@ -212,3 +212,15 @@ The present default-NVS blob implementation is therefore a prototype adapter:
 measure update frequency, NVS partition headroom, latency and battery brownout
 behavior before relying on it. A dedicated application NVS partition and
 hardware power-cut testing remain production gates.
+
+
+### 12.2 Terminal request retention
+
+The station lifecycle now compacts terminal records using a configurable retention
+window (default seven days). The current record schema has no terminal timestamp,
+so this initial policy measures age from request creation, not from the moment of
+completion/cancellation/expiry. The cleanup runs with the station expiry service,
+uses wrap-safe 32-bit time ordering, and never removes non-terminal or ambiguous-age
+records. A future schema revision may add terminalAtMs if testing shows creation-
+based retention is insufficient. The durable repository persists compaction only
+when the candidate state actually changes.
