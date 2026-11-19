@@ -161,6 +161,7 @@ struct AssignmentRecord {
   DeviceId assignedCartId;
   AssignmentEpoch epoch;
   RequestState state;
+  EventSequence lastEventSequence;
 };
 
 struct ClaimRequest {
