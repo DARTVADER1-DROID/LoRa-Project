@@ -73,7 +73,7 @@ bool RepositoryStationClaimCoordinator::getAssignment(
   assignment.assignedCartId = record.assignedCartId;
   assignment.epoch = record.assignmentEpoch;
   assignment.state = RequestState::ASSIGNED;
-  assignment.lastEventSequence = record.lastJourneyEventSequence;
+  assignment.lastEventSequence = 0;
   return true;
 }
 
