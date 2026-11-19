@@ -75,6 +75,17 @@ Status StationRequestLifecycle::expireDue(uint32_t stationNowMs,
   if (expired.capacity > 0 && expired.items == 0)
     return Status(ErrorCode::INVALID_ARGUMENT);
 
+  if (!retentionScanInitialized_ ||
+      hasElapsed(stationNowMs, lastRetentionScanMs_, 60000UL)) {
+    lastRetentionScanMs_ = stationNowMs;
+    retentionScanInitialized_ = true;
+    const uint32_t retentionBoundary = stationNowMs - terminalRetentionMs_;
+    const Status retentionStatus =
+        repository_.removeTerminalBefore(retentionBoundary);
+    if (!retentionStatus.ok())
+      return retentionStatus;
+  }
+
   uint16_t dueCount = 0;
   for (uint16_t i = 0; i < repository_.size(); ++i) {
     RequestRecord record = {};
@@ -114,14 +125,7 @@ Status StationRequestLifecycle::expireDue(uint32_t stationNowMs,
   }
 
   expired.count = written;
-  if (!retentionScanInitialized_ ||
-      hasElapsed(stationNowMs, lastRetentionScanMs_, 60000UL)) {
-    lastRetentionScanMs_ = stationNowMs;
-    retentionScanInitialized_ = true;
-    const uint32_t retentionBoundary = stationNowMs - terminalRetentionMs_;
-    return repository_.removeTerminalBefore(retentionBoundary);
-  }
-  return Status();
+
 }
 
 Status StationRequestLifecycle::applyJourneyUpdate(const JourneyUpdate& update) {
