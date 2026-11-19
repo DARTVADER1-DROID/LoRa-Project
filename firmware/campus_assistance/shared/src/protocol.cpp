@@ -1,4 +1,5 @@
 #include "ca/protocol.hpp"
+#include "ca/ports/network.hpp"
 
 namespace ca {
 namespace {
@@ -141,6 +142,11 @@ DecodeResult BinaryFrameCodec::decode(FrameView input, ProtocolMessage& message)
   return result;
 }
 
+DefaultMessageValidator::DefaultMessageValidator(const IStationRegistry& stations,
+                                                       const ICartRegistry& carts)
+    : stations_(stations), carts_(carts) {
+}
+
 Status DefaultMessageValidator::validate(const ProtocolMessage& message,
                                          const DeviceConfig& localConfig) const {
   if (localConfig.deviceId == 0 || localConfig.networkId == 0 ||
@@ -170,7 +176,18 @@ Status DefaultMessageValidator::authorizeSender(const ProtocolHeader& envelope,
        envelope.destinationDeviceId != localConfig.deviceId))
     return Status(ErrorCode::PROTOCOL_MISMATCH);
 
-  // Network ID and envelope checks are not cryptographic authentication.
+  bool registeredPeer = false;
+  if (localConfig.role == DeviceRole::CART) {
+    registeredPeer = stations_.containsStation(envelope.sourceDeviceId);
+  } else if (localConfig.role == DeviceRole::STATION) {
+    registeredPeer = carts_.containsCart(envelope.sourceDeviceId);
+  } else {
+    return Status(ErrorCode::CONFIGURATION_INVALID);
+  }
+  if (!registeredPeer)
+    return Status(ErrorCode::INVALID_ARGUMENT);
+
+  // Registry membership is not cryptographic authentication.
   validation = SenderValidation::NETWORK_MEMBER_VALIDATED;
   return Status();
 }
