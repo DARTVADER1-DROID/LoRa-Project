@@ -23,7 +23,9 @@ inline bool isValidPinMap(const BoardPinMap& pins) {
   if (pins.radioSck < 0 || pins.radioMiso < 0 || pins.radioMosi < 0 ||
       pins.radioChipSelect < 0 || pins.radioReset < 0 || pins.radioDio0 < 0 ||
       pins.displaySda < 0 || pins.displayScl < 0 || pins.buzzerPin < 0 ||
-      pins.buttonCount == 0 || pins.buttonCount > 2)
+      pins.buttonCount == 0 || pins.buttonCount > 2 ||
+      pins.buttonPins[0] < 0 ||
+      (pins.buttonCount > 1 && pins.buttonPins[1] < 0))
     return false;
 
   const int8_t activePins[11] = {
