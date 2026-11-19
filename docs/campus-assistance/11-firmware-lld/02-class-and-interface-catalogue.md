@@ -281,3 +281,24 @@ Exact two-button mapping is not frozen. UI emits intents; application/domain con
 ## 10. Ownership
 
 One application root owns its collaborators. Request records, queues, frame buffers and retry tables use bounded storage. No decoded-message reference may outlive its receive buffer. Avoid repeated heap allocation.
+
+
+## 11. Implementation-facing contract corrections
+
+The following C++ headers are authoritative for the current interface scaffold. This section supersedes any older pseudocode above where names or signatures differ.
+
+- `RequestIdentity::hash` returns a 32-bit hash; equality and validity always use the full three-field RequestId.
+- `PendingRequestStore::insertIfAbsent` returns `Status`; storage remains bounded and duplicate insertion does not reorder.
+- `RequestLifecycle` exposes create, cancel, expiry, sequenced journey update and find. It does **not** commit assignments.
+- `RequestLedger` implements `IRequestRepository` and stores full RequestRecord values, not only RequestId values.
+- `IRequestRepository::assignIfUnassigned` is the atomic persistence guard used by the sole assignment writer, `StationClaimCoordinator`.
+- `StationClaimCoordinator::evaluate` returns explicit `Status`; `commitWinner` is the only operation allowed to commit a winner.
+- `CartClaimClient::onClaimResult` consumes ClaimResult; `onAssignmentNotice` returns Status and only a matching station assignment can activate the cart.
+- `FrameCodec` accepts byte-oriented FrameView/MutableFrameView. `IRadioTransport` never sends domain ProtocolMessage objects.
+- `ProtocolEndpoint::enqueue` requires DeliveryClass and emits a tagged ProtocolEvent with a bounded typed payload.
+- `RetryManager` schedules a ProtocolMessage with an explicit timestamp; retry capacity and attempt limits are configured and bounded.
+- Role applications use StationDependencies/CartDependencies composition structs and explicit collaborator references. Station and cart dependencies are intentionally different.
+- `StationRequestController` is separate from ConfigValidator; configuration validation does not submit or cancel requests.
+- Driver disable while CLAIMING follows the CLAIM_WITHDRAW race policy in document 06; it is not an unresolved state-machine item.
+
+The scaffold is interface-only. Concrete implementations must satisfy these contracts and the LSP guarantees in document 06.
