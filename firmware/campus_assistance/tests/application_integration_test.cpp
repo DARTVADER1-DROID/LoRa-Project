@@ -10,6 +10,7 @@ public:
   FakeClock() : now_(100) {}
   uint32_t millisNow() const override { return now_; }
   void set(uint32_t value) { now_ = value; }
+
 private:
   uint32_t now_;
 };
@@ -17,7 +18,10 @@ private:
 class FakeButtons : public IButtonInput {
 public:
   FakeButtons() : begun_(false), services_(0) {}
-  Status begin(const ButtonConfig&) override { begun_ = true; return Status(); }
+  Status begin(const ButtonConfig&) override {
+    begun_ = true;
+    return Status();
+  }
   void service(uint32_t) override { ++services_; }
   bool pollEvent(ButtonEvent&) override { return false; }
   bool begun_;
@@ -27,8 +31,14 @@ public:
 class FakeDisplay : public IDisplay {
 public:
   FakeDisplay() : begun_(false), renders_(0) { memset(&last_, 0, sizeof(last_)); }
-  Status begin() override { begun_ = true; return Status(); }
-  void render(const UiViewModel& view) override { last_ = view; ++renders_; }
+  Status begin() override {
+    begun_ = true;
+    return Status();
+  }
+  void render(const UiViewModel& view) override {
+    last_ = view;
+    ++renders_;
+  }
   bool begun_;
   uint16_t renders_;
   UiViewModel last_;
@@ -37,7 +47,10 @@ public:
 class FakeBuzzer : public IBuzzer {
 public:
   FakeBuzzer() : begun_(false), cues_(0), services_(0) {}
-  Status begin(const BuzzerConfig&) override { begun_ = true; return Status(); }
+  Status begin(const BuzzerConfig&) override {
+    begun_ = true;
+    return Status();
+  }
   void playCue(uint8_t) override { ++cues_; }
   void service(uint32_t) override { ++services_; }
   bool begun_;
@@ -48,7 +61,10 @@ public:
 class FakeDiagnostics : public IDiagnostics {
 public:
   FakeDiagnostics() : records_(0), increments_(0), lastError_(ErrorCode::NONE) {}
-  void record(uint16_t, ErrorCode error) override { ++records_; lastError_ = error; }
+  void record(uint16_t, ErrorCode error) override {
+    ++records_;
+    lastError_ = error;
+  }
   void increment(uint16_t) override { ++increments_; }
   uint16_t records_;
   uint16_t increments_;
@@ -58,7 +74,10 @@ public:
 class FakeProtocol : public ProtocolEndpoint {
 public:
   FakeProtocol() : begun_(false), count_(0) {}
-  Status begin() override { begun_ = true; return Status(); }
+  Status begin() override {
+    begun_ = true;
+    return Status();
+  }
   void service(uint32_t) override {}
   Status enqueue(const ProtocolMessage& message, DeliveryClass) override {
     if (count_ >= 16)
@@ -68,9 +87,13 @@ public:
   }
   bool pollEvent(ProtocolEvent&) override { return false; }
   bool pollRetryOutcome(RetryOutcome&) override { return false; }
-  const ProtocolMessage& last() const { assert(count_ > 0); return messages_[count_ - 1]; }
+  const ProtocolMessage& last() const {
+    assert(count_ > 0);
+    return messages_[count_ - 1];
+  }
   uint8_t count() const { return count_; }
   bool begun_;
+
 private:
   ProtocolMessage messages_[16];
   uint8_t count_;
@@ -129,16 +152,27 @@ int main() {
   RequestId expiryItems[8] = {};
   ExpiredRequestSet expiryBuffer = {0, expiryItems, 8};
 
-  StationDependencies stationDependencies = {
-      buttonConfig, buzzerConfig, clock, stationButtons, stationDisplay,
-      stationBuzzer, stationDiagnostics, stationValidator, stationInterpreter,
-      stationProtocol, lifecycle, expiryBuffer, requestController, claims, stationUi};
+  StationDependencies stationDependencies = {buttonConfig,
+                                             buzzerConfig,
+                                             clock,
+                                             stationButtons,
+                                             stationDisplay,
+                                             stationBuzzer,
+                                             stationDiagnostics,
+                                             stationValidator,
+                                             stationInterpreter,
+                                             stationProtocol,
+                                             lifecycle,
+                                             expiryBuffer,
+                                             requestController,
+                                             claims,
+                                             stationUi};
   StationApplication station(stationDependencies);
   const DeviceConfig stationConfig = makeConfig(DeviceRole::STATION, 1);
   assert(station.begin(stationConfig).ok());
   assert(station.isHealthy());
-  assert(stationButtons.begun_ && stationDisplay.begun_ &&
-         stationBuzzer.begun_ && stationProtocol.begun_);
+  assert(stationButtons.begun_ && stationDisplay.begun_ && stationBuzzer.begun_ &&
+         stationProtocol.begun_);
 
   // Driver/station button event creates one station-owned request.
   ButtonEvent confirmDestination = {1, ButtonEventType::SHORT_PRESS, 110};
@@ -164,15 +198,28 @@ int main() {
   CartEventReconciler reconciler(7, pending, active, availability, claimClient);
   BasicCartUserInterface cartUi;
 
-  CartDependencies cartDependencies = {
-      buttonConfig, buzzerConfig, clock, cartButtons, cartDisplay, cartBuzzer,
-      cartDiagnostics, cartValidator, cartInterpreter, cartProtocol, pending,
-      active, availability, journeyProgress, claimClient, reconciler, cartUi};
+  CartDependencies cartDependencies = {buttonConfig,
+                                       buzzerConfig,
+                                       clock,
+                                       cartButtons,
+                                       cartDisplay,
+                                       cartBuzzer,
+                                       cartDiagnostics,
+                                       cartValidator,
+                                       cartInterpreter,
+                                       cartProtocol,
+                                       pending,
+                                       active,
+                                       availability,
+                                       journeyProgress,
+                                       claimClient,
+                                       reconciler,
+                                       cartUi};
   CartApplication cart(cartDependencies);
   const DeviceConfig cartConfig = makeConfig(DeviceRole::CART, 7);
   assert(cart.begin(cartConfig).ok());
-  assert(cartButtons.begun_ && cartDisplay.begun_ &&
-         cartBuzzer.begun_ && cartProtocol.begun_);
+  assert(cartButtons.begun_ && cartDisplay.begun_ && cartBuzzer.begun_ &&
+         cartProtocol.begun_);
 
   ProtocolEvent request = validatedEvent(ProtocolEventType::REQUEST_RECEIVED, 1);
   request.payload.request.id = created.id;
@@ -253,7 +300,8 @@ int main() {
   update.assignedCartId = 7;
   update.status = JourneyStatus::ON_THE_WAY;
   update.eventSequence = 1;
-  ProtocolEvent journeyEvent = validatedEvent(ProtocolEventType::JOURNEY_UPDATE_RECEIVED, 7);
+  ProtocolEvent journeyEvent =
+      validatedEvent(ProtocolEventType::JOURNEY_UPDATE_RECEIVED, 7);
   journeyEvent.payload.journeyUpdate = update;
   station.onProtocolEvent(journeyEvent);
   RequestRecord stationRecord = {};

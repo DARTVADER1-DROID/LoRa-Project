@@ -166,11 +166,11 @@ int main() {
   assert(cancelWins.configure().ok());
   assert(cancelWins.insertNew(cancelRace).ok());
   assert(cancelWins.beginClaimIfEligible(cancelRace.id, 21, 210, 101, out).ok());
-  assert(cancelWins.cancelIfUnassigned(
-             cancelRace.id, CancellationSource::STUDENT, out).ok());
+  assert(cancelWins.cancelIfUnassigned(cancelRace.id, CancellationSource::STUDENT, out)
+             .ok());
   assert(out.state == RequestState::CANCELLED);
-  assert(cancelWins.commitAssignmentIfClaimPending(
-             cancelRace.id, 21, 210, 1, 102, out).code == ErrorCode::CANCELLED);
+  assert(cancelWins.commitAssignmentIfClaimPending(cancelRace.id, 21, 210, 1, 102, out)
+             .code == ErrorCode::CANCELLED);
   assert(cancelWins.find(cancelRace.id, out));
   assert(out.state == RequestState::CANCELLED);
 
@@ -180,12 +180,14 @@ int main() {
   RequestRecord assignmentRace = makeRecord();
   assert(assignmentWins.configure().ok());
   assert(assignmentWins.insertNew(assignmentRace).ok());
-  assert(assignmentWins.beginClaimIfEligible(assignmentRace.id, 22, 220, 101, out).ok());
-  assert(assignmentWins.commitAssignmentIfClaimPending(
-             assignmentRace.id, 22, 220, 1, 102, out).ok());
-  assert(assignmentWins.cancelIfUnassigned(
-             assignmentRace.id, CancellationSource::STUDENT, out).code ==
-         ErrorCode::ALREADY_ASSIGNED);
+  assert(
+      assignmentWins.beginClaimIfEligible(assignmentRace.id, 22, 220, 101, out).ok());
+  assert(assignmentWins
+             .commitAssignmentIfClaimPending(assignmentRace.id, 22, 220, 1, 102, out)
+             .ok());
+  assert(assignmentWins
+             .cancelIfUnassigned(assignmentRace.id, CancellationSource::STUDENT, out)
+             .code == ErrorCode::ALREADY_ASSIGNED);
   assert(assignmentWins.find(assignmentRace.id, out));
   assert(out.state == RequestState::ASSIGNED);
   return 0;
