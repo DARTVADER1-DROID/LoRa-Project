@@ -310,3 +310,24 @@ persists a WITHDRAWN tombstone containing the cart ID and original claim transac
 ID. A later CLAIM with that exact tuple is rejected as stale; another cart with a
 different transaction may still claim the request. Repeated identical withdrawals
 are idempotent. This tombstone is part of the durable RequestRecord snapshot.
+
+
+## 19. ACK correlation and bounded duplicate suppression
+
+A transport ACK is accepted only when its transaction ID, source device ID,
+destination mapping, and acknowledged message sequence match an outstanding
+unicast retry entry. An ACK with the right transaction ID but a different
+message sequence is stale and cannot complete delivery.
+
+The reference endpoint retains a bounded recent-message window. An identical
+frame retransmission is ACKed again but is not delivered to the application
+twice. Reuse of the same source/transaction/sequence/type identity with different
+frame content is rejected. This is bounded in-memory duplicate suppression, not
+durable replay protection: after eviction or reboot, an old frame can be seen
+again. Domain-level RequestId/epoch/event-sequence checks and station-authoritative
+state transitions remain mandatory.
+
+The endpoint refuses physical sends when the radio reports uninitialized or
+faulted. Retry entries remain pending while the endpoint is faulted; transport
+submission failures once attempted still consume an attempt according to the
+current retry policy.
