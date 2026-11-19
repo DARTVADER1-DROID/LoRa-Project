@@ -127,6 +127,7 @@ Applications and use cases receive interfaces/references through composition str
 4. Each `service()` call performs bounded work and returns; process at most a configured number of RX/TX/events/retries per iteration.
 5. Use wrap-safe elapsed-time comparisons for millisecond timers. Station time is authoritative for request expiry.
 6. Request identity is the complete tuple `(originStationId, sequence, generation)`; never key by sequence alone.
+   `RequestIdentity::isValid` rejects `originStationId == 0`. Sequence and generation value zero are not reserved by the current contract; equality and hashing always include all three fields.
 7. Journey updates carry monotonically increasing event sequence values; stale/duplicate updates are idempotently rejected or acknowledged without state regression.
 8. Terminal states cannot be overwritten by delayed REQUEST/CLAIM/JOURNEY_UPDATE messages.
 9. Rebooted carts start `NOT_ACCEPTING`, reconcile snapshots and any possible active assignment before claiming.
