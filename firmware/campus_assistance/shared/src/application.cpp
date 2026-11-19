@@ -40,6 +40,27 @@ bool eventBelongsToStation(const ProtocolEvent& event, const RequestId& requestI
          event.envelope.sourceDeviceId == requestId.originStationId;
 }
 
+Status enqueueClaimResult(ProtocolEndpoint& protocol, const DeviceConfig& config,
+                          const ClaimRequest& claim, ErrorCode result,
+                          ClaimState finalState) {
+  ProtocolMessage message = {};
+  message.header.protocolVersion = config.protocolVersion;
+  message.header.networkId = config.networkId;
+  message.header.messageType = MessageType::CLAIM_RESULT;
+  message.header.sourceDeviceId = config.deviceId;
+  message.header.destinationDeviceId = claim.cartId;
+  message.header.transactionId = claim.transactionId;
+  message.header.messageSequence = claim.requestId.sequence;
+  uint16_t offset = 0;
+  put16(message.payload, offset, claim.requestId.originStationId);
+  put32(message.payload, offset, claim.requestId.sequence);
+  put16(message.payload, offset, claim.requestId.generation);
+  message.payload[offset++] = static_cast<uint8_t>(result);
+  message.payload[offset++] = static_cast<uint8_t>(finalState);
+  message.payloadLength = offset;
+  return protocol.enqueue(message, DeliveryClass::RETRY_UNTIL_ACK);
+}
+
 } // namespace
 
 StationApplication::StationApplication(StationDependencies dependencies)
@@ -156,6 +177,18 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
       break;
     }
     status = dependencies_.claims.evaluate(claim, dependencies_.clock.millisNow());
+    {
+      const ClaimState finalState =
+          status.ok() ? ClaimState::PENDING
+                      : (dependencies_.claims.isAssigned(claim.requestId)
+                             ? ClaimState::COMMITTED
+                             : ClaimState::IDLE);
+      const Status response = enqueueClaimResult(
+          dependencies_.protocol, config_, claim, status.code, finalState);
+      if (!response.ok())
+        dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected,
+                                         response.code);
+    }
     break;
   }
   case ProtocolEventType::CLAIM_WITHDRAW_RECEIVED: {
@@ -165,6 +198,21 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
       break;
     }
     status = dependencies_.claims.withdrawClaim(withdrawal);
+    {
+      const ClaimState finalState =
+          dependencies_.claims.isAssigned(withdrawal.requestId)
+              ? ClaimState::COMMITTED
+              : (status.ok() ? ClaimState::WITHDRAWN : ClaimState::IDLE);
+      ClaimRequest claim = {};
+      claim.requestId = withdrawal.requestId;
+      claim.cartId = withdrawal.cartId;
+      claim.transactionId = withdrawal.transactionId;
+      const Status response = enqueueClaimResult(
+          dependencies_.protocol, config_, claim, status.code, finalState);
+      if (!response.ok())
+        dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected,
+                                         response.code);
+    }
     break;
   }
   case ProtocolEventType::JOURNEY_UPDATE_RECEIVED: {
