@@ -1,7 +1,10 @@
 #pragma once
 
 #include "ca/types.hpp"
-#include "ca/ports.hpp"
+#include "ca/ports/hardware.hpp"
+#include "ca/ports/runtime.hpp"
+#include "ca/ports/persistence.hpp"
+#include "ca/ports/request_repository.hpp"
 #include "ca/domain.hpp"
 #include "ca/storage/fixed_pending_request_store.hpp"
 #include "ca/storage/fixed_request_repository.hpp"
