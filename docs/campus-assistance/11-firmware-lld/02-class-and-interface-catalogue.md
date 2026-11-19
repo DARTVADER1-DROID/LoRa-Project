@@ -302,3 +302,19 @@ The following C++ headers are authoritative for the current interface scaffold. 
 - Driver disable while CLAIMING follows the CLAIM_WITHDRAW race policy in document 06; it is not an unresolved state-machine item.
 
 The scaffold is interface-only. Concrete implementations must satisfy these contracts and the LSP guarantees in document 06.
+
+## 12. Review corrections — authoritative contract
+
+This section supersedes earlier declarations in this catalogue where they conflict.
+
+- IRequestRepository is the repository abstraction. The empty RequestLedger subclass has been removed; a future concrete ledger must implement the repository contract.
+- Generic update(RequestRecord) is forbidden. Repository mutations are conditional atomic operations: insertNew, beginClaimIfEligible, withdrawClaimIfPending, commitAssignmentIfClaimPending, cancelIfUnassigned, expireIfDue and applyJourneyUpdateIfCurrent. Each operation must serialize against every competing transition on the same RequestId.
+- A claim transaction is identified by the complete tuple (RequestId, cartId, transactionId). A station may commit an assignment only if that exact transaction is still PENDING, the request is still unassigned/non-terminal and the station-authoritative expiry check passes in the same atomic operation.
+- StationClaimCoordinator::withdrawClaim and CartClaimClient::withdrawClaim are explicit. Duplicate withdrawal is idempotent; delayed withdrawal cannot undo a committed assignment.
+- CartClaimClient owns only the outstanding claim transaction. It does not consume ASSIGN notices or activate assignments.
+- ActiveAssignment is the sole cart-side owner of active assignment and journey state. JourneyProgressController::validateTransition(current,next,action) is stateless policy. EventReconciler orchestrates notices into domain owners and stores no duplicate state.
+- DriverAvailabilityController exposes AcceptanceMode separately from CartServiceState; acceptance intent is not overloaded with claim/serving/reconciliation state.
+- ProtocolEvent retains the full ProtocolHeader and SenderValidation alongside the typed payload. Network membership validation is not cryptographic authentication.
+- RetryManager::pollOutcome reports ACKNOWLEDGED, EXHAUSTED, CANCELLED or STORAGE_FAILURE with transaction identity and attempts used.
+- IPersistence::load reports the exact or required output length through bytesRead; BUFFER_FULL must not write beyond capacity.
+- Destination and station registries are bounded, non-owning configuration views. ExpiredRequestSet is caller-owned storage: items remains valid for the call, capacity is the actual element capacity, and count is output-only.
