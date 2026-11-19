@@ -138,9 +138,11 @@ Invariants: bounded FIFO; full-identity deduplication; duplicate insert does not
       Status onAssignmentConfirmed(const AssignmentRecord&);
       Status onJourneyCompleted();
       bool mayClaim() const;
+      Status onClaimStarted();
+      Status onClaimWithdrawnByStation();
     };
 
-Invariants: zero or one active assignment; activation requires matching station confirmation; disable clears the local pending list via application orchestration; completion forces NOT_ACCEPTING; no automatic re-enable.
+Invariants: zero or one active assignment; activation requires matching station confirmation; disable clears the local pending list via application orchestration; completion forces NOT_ACCEPTING; no automatic re-enable. CartClaimClient owns the transaction identity; DriverAvailabilityController receives only lifecycle notifications and does not duplicate that identity.
 
 ## 5. Station request authority
 
