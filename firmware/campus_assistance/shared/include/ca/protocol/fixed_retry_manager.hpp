@@ -110,10 +110,15 @@ public:
     return Status();
   }
 
-  Status onAcknowledgement(TransactionId transactionId) override {
+  Status onAcknowledgement(TransactionId transactionId,
+                           DeviceId acknowledgingDeviceId) override {
     Entry* entry = find(transactionId);
     if (entry == 0)
       return Status(ErrorCode::NOT_FOUND);
+    if (entry->message.header.destinationDeviceId == 0 ||
+        entry->message.header.destinationDeviceId != acknowledgingDeviceId ||
+        entry->attemptsUsed == 0)
+      return Status(ErrorCode::STALE_EVENT);
     finish(*entry, RetryOutcomeCode::ACKNOWLEDGED);
     return Status();
   }
