@@ -7,7 +7,7 @@ UseTab: Never
 ColumnLimit: 88
 BreakBeforeBraces: Attach
 AllowShortBlocksOnASingleLine: Never
-AllowShortFunctionsOnASingleLine: None
+AllowShortFunctionsOnASingleLine: InlineOnly
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
 BinPackArguments: false
@@ -18,7 +18,7 @@ AlignConsecutiveDeclarations: false
 PointerAlignment: Left
 ReferenceAlignment: Left
 DerivePointerAlignment: false
-SortIncludes: CaseSensitive
-IncludeBlocks: Regroup
+SortIncludes: false
+IncludeBlocks: Preserve
 SpaceAfterCStyleCast: false
 SpacesInParentheses: false
