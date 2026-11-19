@@ -340,3 +340,12 @@ PRIORITY delivery. Such frames are decoded and delivered but are not ACKed and
 are not entered into the duplicate/replay window. RETRY_UNTIL_ACK always requires
 a nonzero transaction ID. ACK frames themselves require a nonzero transaction
 ID and an empty payload.
+
+
+### 19.2 Retry correlation key
+
+The retry scheduler indexes an entry by the pair (transactionId, messageSequence),
+not transactionId alone. ACK acceptance additionally checks the acknowledging
+device against the unicast destination. This prevents two different message
+sequences that happen to share a 32-bit transaction ID from completing or
+advancing each other's retry state.
