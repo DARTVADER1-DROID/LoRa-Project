@@ -84,11 +84,14 @@ int main() {
   assert(protocol.lastDelivery_ == DeliveryClass::RETRY_UNTIL_ACK);
   assert(protocol.lastMessage_.header.messageType == MessageType::REQUEST);
   assert(protocol.lastMessage_.payloadLength == 14);
+  const TransactionId requestTransaction =
+      protocol.lastMessage_.header.transactionId;
   assert(controller.submit(created).code == ErrorCode::BUSY);
   protocol.enqueueStatus_ = Status(ErrorCode::QUEUE_FULL);
   assert(controller.cancelCurrentRequest().code == ErrorCode::QUEUE_FULL);
   assert(protocol.lastMessage_.header.messageType == MessageType::CANCEL);
   assert(protocol.lastMessage_.payloadLength == 9);
+  assert(protocol.lastMessage_.header.transactionId != requestTransaction);
   assert(lifecycle.cancelCount_ == 1);
   assert(controller.hasCurrentRequest());
   assert(lifecycle.lastSource_ == CancellationSource::STUDENT);
