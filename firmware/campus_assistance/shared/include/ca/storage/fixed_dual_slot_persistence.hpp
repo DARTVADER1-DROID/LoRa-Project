@@ -87,15 +87,6 @@ public:
       generation = 1;
 
     const uint16_t base = static_cast<uint16_t>(targetIndex * SlotBytes);
-    const uint8_t invalidMarker = 0;
-    Status status =
-        storage_.write(static_cast<uint16_t>(base + SlotBytes - 1U), &invalidMarker, 1);
-    if (!status.ok())
-      return status;
-    status = storage_.sync();
-    if (!status.ok())
-      return status;
-
     for (uint16_t i = 0; i < SlotBytes; ++i)
       scratch_[i] = 0xFF;
     uint16_t offset = 0;
@@ -107,18 +98,11 @@ public:
       scratch_[offset++] = data[i];
     const uint32_t checksum = crc32(scratch_, offset);
     put32(scratch_, offset, checksum);
-    scratch_[SlotBytes - 1U] = invalidMarker;
+    scratch_[SlotBytes - 1U] = kCommitMarker;
 
-    status = storage_.write(base, scratch_, SlotBytes - 1U);
-    if (!status.ok())
-      return status;
-    status = storage_.sync();
-    if (!status.ok())
-      return status;
-
-    const uint8_t commitMarker = kCommitMarker;
-    status =
-        storage_.write(static_cast<uint16_t>(base + SlotBytes - 1U), &commitMarker, 1);
+    // The target is always the older/inactive slot. The byte-store contract
+    // preserves write order, so the commit marker is the final byte programmed.
+    const Status status = storage_.write(base, scratch_, SlotBytes);
     if (!status.ok())
       return status;
     return storage_.sync();
