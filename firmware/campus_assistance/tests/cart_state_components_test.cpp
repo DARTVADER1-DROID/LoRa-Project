@@ -14,11 +14,9 @@ int main() {
   assert(driver.enableAcceptance(enable).ok());
   assert(driver.mayClaim());
   assert(driver.setClaimOutstanding(true).ok());
-  assert(driver.disableAcceptance(disable).code ==
-         ErrorCode::COMMUNICATION_UNCERTAIN);
+  assert(driver.disableAcceptance(disable).code == ErrorCode::COMMUNICATION_UNCERTAIN);
   assert(driver.acceptanceMode() == AcceptanceMode::NOT_ACCEPTING);
-  assert(driver.setClaimOutstanding(false).code ==
-         ErrorCode::COMMUNICATION_UNCERTAIN);
+  assert(driver.setClaimOutstanding(false).code == ErrorCode::COMMUNICATION_UNCERTAIN);
   assert(driver.onClaimWithdrawnByStation().ok());
   assert(driver.serviceState() == CartServiceState::IDLE);
 
@@ -50,11 +48,13 @@ int main() {
 
   DefaultJourneyProgressController policy;
   DriverAction advance = {DriverActionType::ADVANCE_JOURNEY, 4};
-  assert(policy.validateTransition(JourneyStatus::RECEIVED,
-                                   JourneyStatus::ON_THE_WAY, advance)
+  assert(policy
+             .validateTransition(
+                 JourneyStatus::RECEIVED, JourneyStatus::ON_THE_WAY, advance)
              .ok());
-  assert(policy.validateTransition(JourneyStatus::RECEIVED,
-                                   JourneyStatus::COMPLETED, complete)
+  assert(policy
+             .validateTransition(
+                 JourneyStatus::RECEIVED, JourneyStatus::COMPLETED, complete)
              .code == ErrorCode::INVALID_STATE);
   return 0;
 }
