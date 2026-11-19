@@ -5,7 +5,9 @@ Add host-side tests before hardware integration.
 Fakes: radio (drop/duplicate/reorder/delay/corrupt), clock (expiry and rollover), persistence (reboot/torn write/failure), buttons (bounce/short/long), display and buzzer.
 
 Required suites:
-1. Full RequestId validation/equality and generation rollover.
+1. Shared type semantics: serial-number ordering, half-range ambiguity, millis rollover,
+   terminal-state classification and journey-status validation.
+2. Full RequestId validation/equality and generation rollover.
 2. Pending FIFO, deduplication, capacity, local-only clear and exact removal.
 3. Driver state: boot NOT_ACCEPTING, no claim while disabled, explicit enable, completion forces disabled.
 4. Competing claims: exactly one station winner; CLAIM alone never activates.
