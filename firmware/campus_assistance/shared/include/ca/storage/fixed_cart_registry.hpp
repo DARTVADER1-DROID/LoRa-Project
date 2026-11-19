@@ -43,6 +43,15 @@ public:
     return loaded_ && index < count_ ? cartIds_[index] : 0;
   }
 
+  bool containsCart(DeviceId cartId) const override {
+    if (!loaded_ || cartId == 0)
+      return false;
+    for (uint16_t i = 0; i < count_; ++i)
+      if (cartIds_[i] == cartId)
+        return true;
+    return false;
+  }
+
 private:
   DeviceId cartIds_[StorageCapacity];
   uint16_t count_;
