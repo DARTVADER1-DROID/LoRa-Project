@@ -7,6 +7,7 @@ add_library(campus_assistance_contracts STATIC
   shared/src/cart/default_journey_progress_controller.cpp
   shared/src/cart/fixed_active_assignment.cpp
   shared/src/config.cpp
+  shared/src/protocol.cpp
   shared/src/request_identity.cpp
   shared/src/station/station_request_lifecycle.cpp
   shared/src/types.cpp)
@@ -49,6 +50,9 @@ add_executable(station_request_lifecycle_test
   tests/station_request_lifecycle_test.cpp)
 target_link_libraries(station_request_lifecycle_test PRIVATE campus_assistance_contracts)
 
+add_executable(protocol_codec_test tests/protocol_codec_test.cpp)
+target_link_libraries(protocol_codec_test PRIVATE campus_assistance_contracts)
+
 enable_testing()
 add_test(NAME contract_compile COMMAND contract_compile)
 add_test(NAME repository_transition_test COMMAND repository_transition_test)
@@ -61,3 +65,4 @@ add_test(NAME cart_state_components_test COMMAND cart_state_components_test)
 add_test(NAME durable_request_repository_test
   COMMAND durable_request_repository_test)
 add_test(NAME station_request_lifecycle_test COMMAND station_request_lifecycle_test)
+add_test(NAME protocol_codec_test COMMAND protocol_codec_test)
