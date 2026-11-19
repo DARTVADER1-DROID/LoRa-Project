@@ -55,13 +55,12 @@ private:
 int main() {
   const RecordKey key = 9;
   FakeByteStorage<256> interruptedFirstWriteStorage;
-  FixedDualSlotPersistence<128> interruptedFirstWrite(
-      interruptedFirstWriteStorage, key);
+  FixedDualSlotPersistence<128> interruptedFirstWrite(interruptedFirstWriteStorage,
+                                                      key);
   assert(interruptedFirstWrite.begin().ok());
   const uint8_t initialValue[] = {4, 5, 6};
   interruptedFirstWriteStorage.failAfterWrites(20);
-  assert(interruptedFirstWrite
-             .storeAtomically(key, initialValue, sizeof(initialValue))
+  assert(interruptedFirstWrite.storeAtomically(key, initialValue, sizeof(initialValue))
              .code == ErrorCode::STORAGE_FAILURE);
   interruptedFirstWriteStorage.failAfterWrites(-1);
   uint8_t initialOutput[8] = {};

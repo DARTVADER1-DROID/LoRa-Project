@@ -88,8 +88,8 @@ public:
 
     const uint16_t base = static_cast<uint16_t>(targetIndex * SlotBytes);
     const uint8_t invalidMarker = 0;
-    Status status = storage_.write(
-        static_cast<uint16_t>(base + SlotBytes - 1U), &invalidMarker, 1);
+    Status status =
+        storage_.write(static_cast<uint16_t>(base + SlotBytes - 1U), &invalidMarker, 1);
     if (!status.ok())
       return status;
     status = storage_.sync();
@@ -117,8 +117,8 @@ public:
       return status;
 
     const uint8_t commitMarker = kCommitMarker;
-    status = storage_.write(
-        static_cast<uint16_t>(base + SlotBytes - 1U), &commitMarker, 1);
+    status =
+        storage_.write(static_cast<uint16_t>(base + SlotBytes - 1U), &commitMarker, 1);
     if (!status.ok())
       return status;
     return storage_.sync();
