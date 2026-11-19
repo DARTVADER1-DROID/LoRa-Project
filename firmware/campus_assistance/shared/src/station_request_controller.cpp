@@ -55,8 +55,12 @@ Status StationRequestController::submit(RequestId& createdRequestId) {
   if (!creation.ok())
     return creation;
 
-  if (created.id.originStationId != config_.deviceId) {
-    lifecycle_.cancel(created.id, CancellationSource::SYSTEM);
+  if (!RequestIdentity::isValid(created.id) ||
+      created.id.originStationId != config_.deviceId ||
+      created.destinationId != selectedDestinationId_ ||
+      created.state != RequestState::PENDING_UNASSIGNED) {
+    if (RequestIdentity::isValid(created.id))
+      lifecycle_.cancel(created.id, CancellationSource::SYSTEM);
     return Status(ErrorCode::CONFIGURATION_INVALID);
   }
 
