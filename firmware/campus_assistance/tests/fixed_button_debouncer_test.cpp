@@ -81,7 +81,8 @@ int main() {
   assert(fullQueue.update(oneState, 1, time).ok());
   assert(fullQueue.update(oneState, 1, time + 10).ok());
   oneState[0] = false;
-  assert(fullQueue.update(oneState, 1, time + 20).code == ErrorCode::BUFFER_FULL);
+  assert(fullQueue.update(oneState, 1, time + 20).ok());
+  assert(fullQueue.update(oneState, 1, time + 30).code == ErrorCode::BUFFER_FULL);
   while (fullQueue.pollEvent(event)) {
   }
   assert(fullQueue.update(oneState, 1, time + 30).ok());
