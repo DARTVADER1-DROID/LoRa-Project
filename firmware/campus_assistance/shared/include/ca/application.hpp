@@ -5,6 +5,8 @@
 #include "protocol.hpp"
 #include "station_request_controller.hpp"
 #include "ui.hpp"
+#include "ca/ports/hardware.hpp"
+#include "ca/ports/runtime.hpp"
 
 namespace ca {
 
