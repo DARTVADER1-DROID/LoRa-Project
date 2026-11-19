@@ -57,6 +57,34 @@ bool validRequestState(RequestState value) {
          static_cast<uint8_t>(RequestState::COMMUNICATION_UNCERTAIN);
 }
 
+bool validSnapshot(const RequestSnapshot& snapshot) {
+  if (!RequestIdentity::isValid(snapshot.requestId) ||
+      !validRequestState(snapshot.state) || !validClaimState(snapshot.claimState))
+    return false;
+
+  const bool assigned =
+      snapshot.state == RequestState::ASSIGNED ||
+      snapshot.state == RequestState::ON_THE_WAY ||
+      snapshot.state == RequestState::ARRIVED_AT_PICKUP ||
+      snapshot.state == RequestState::COMPLETED;
+  if (assigned)
+    return snapshot.assignedCartId != 0 && snapshot.assignmentEpoch != 0 &&
+           snapshot.claimState == ClaimState::COMMITTED &&
+           snapshot.claimCartId == snapshot.assignedCartId &&
+           snapshot.claimTransactionId != 0;
+
+  if (snapshot.assignedCartId != 0 || snapshot.assignmentEpoch != 0)
+    return false;
+  if (snapshot.state == RequestState::CLAIM_PENDING)
+    return snapshot.claimState == ClaimState::PENDING &&
+           snapshot.claimCartId != 0 && snapshot.claimTransactionId != 0;
+  if (snapshot.claimState == ClaimState::IDLE)
+    return snapshot.claimCartId == 0 && snapshot.claimTransactionId == 0;
+  if (snapshot.claimState == ClaimState::WITHDRAWN)
+    return snapshot.claimCartId != 0 && snapshot.claimTransactionId != 0;
+  return false;
+}
+
 bool validJourneyStatus(JourneyStatus value) {
   return static_cast<uint8_t>(value) <= static_cast<uint8_t>(JourneyStatus::COMPLETED);
 }
@@ -239,17 +267,19 @@ Status MessagePayloadCodec::decode(const ProtocolMessage& message,
                : Status(ErrorCode::INVALID_ARGUMENT);
 
   case MessageType::SNAPSHOT:
-    if (message.payloadLength != 17)
+    if (message.payloadLength != 24)
       return Status(ErrorCode::PROTOCOL_MISMATCH);
     event.payload.snapshot.requestId = getRequestId(input, offset);
     event.payload.snapshot.state = static_cast<RequestState>(input[offset++]);
     event.payload.snapshot.assignedCartId = get16(input, offset);
     event.payload.snapshot.assignmentEpoch = get16(input, offset);
     event.payload.snapshot.lastEventSequence = get32(input, offset);
-    if (!RequestIdentity::isValid(event.payload.snapshot.requestId) ||
-        !validRequestState(event.payload.snapshot.state))
-      return Status(ErrorCode::INVALID_ARGUMENT);
-    return Status();
+    event.payload.snapshot.claimState = static_cast<ClaimState>(input[offset++]);
+    event.payload.snapshot.claimCartId = get16(input, offset);
+    event.payload.snapshot.claimTransactionId = get32(input, offset);
+    return validSnapshot(event.payload.snapshot)
+               ? Status()
+               : Status(ErrorCode::INVALID_ARGUMENT);
 
   case MessageType::ACKNOWLEDGEMENT:
     if (message.payloadLength != 0)
@@ -356,14 +386,16 @@ Status MessagePayloadCodec::encode(const ProtocolEvent& event,
     break;
 
   case ProtocolEventType::SNAPSHOT_RECEIVED:
-    if (!RequestIdentity::isValid(event.payload.snapshot.requestId) ||
-        !validRequestState(event.payload.snapshot.state))
+    if (!validSnapshot(event.payload.snapshot))
       return Status(ErrorCode::INVALID_ARGUMENT);
     putRequestId(message.payload, offset, event.payload.snapshot.requestId);
     message.payload[offset++] = static_cast<uint8_t>(event.payload.snapshot.state);
     put16(message.payload, offset, event.payload.snapshot.assignedCartId);
     put16(message.payload, offset, event.payload.snapshot.assignmentEpoch);
     put32(message.payload, offset, event.payload.snapshot.lastEventSequence);
+    message.payload[offset++] = static_cast<uint8_t>(event.payload.snapshot.claimState);
+    put16(message.payload, offset, event.payload.snapshot.claimCartId);
+    put32(message.payload, offset, event.payload.snapshot.claimTransactionId);
     break;
 
   case ProtocolEventType::ACKNOWLEDGEMENT_RECEIVED:
