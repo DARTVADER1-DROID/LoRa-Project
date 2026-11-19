@@ -92,6 +92,9 @@ int main() {
   // A newly constructed repository represents a reboot. It must recover both
   // the request state and the next identity without reusing the prior ID.
   DurableRequestRepository<4> recovered(persistence, 7, 1);
+  persistence.failNextStore();
+  assert(recovered.configure().code == ErrorCode::STORAGE_FAILURE);
+  // Boot recovery can be retried on the same object after storage recovers.
   assert(recovered.configure().ok());
   RequestRecord record = {};
   assert(recovered.find(allocated, record));
