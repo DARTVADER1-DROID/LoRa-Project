@@ -23,7 +23,7 @@ jobs:
       - name: Install clang-format
         run: sudo apt-get update && sudo apt-get install -y clang-format
       - name: Verify formatting
-        run: sh firmware/campus_assistance/scripts/check-format.sh
+        run: bash firmware/campus_assistance/scripts/check-format.sh
       - name: Configure host contract build
         run: cmake -S firmware/campus_assistance -B build/campus-assistance
       - name: Compile public C++11 contracts
