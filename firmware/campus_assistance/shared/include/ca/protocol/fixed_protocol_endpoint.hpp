@@ -22,7 +22,8 @@ public:
                         const RadioProfile& radioProfile)
       : codec_(codec), validator_(validator), transport_(transport), retries_(retries),
         config_(config), radioProfile_(radioProfile), cartRegistry_(0), eventHead_(0),
-        eventCount_(0), broadcastHead_(0), broadcastCount_(0), nowMs_(0),
+        eventCount_(0), broadcastHead_(0), broadcastCount_(0), recentHead_(0),
+        recentCount_(0), nowMs_(0),
         initialized_(false) {}
 
   FixedProtocolEndpoint(FrameCodec& codec,
@@ -137,6 +138,18 @@ private:
   BroadcastJob broadcasts_[EventCapacity];
   uint8_t broadcastHead_;
   uint8_t broadcastCount_;
+  struct RecentMessage {
+    DeviceId sourceDeviceId;
+    TransactionId transactionId;
+    uint32_t messageSequence;
+    MessageType messageType;
+    uint32_t frameChecksum;
+  };
+  static const uint16_t kRecentCapacity =
+      static_cast<uint16_t>(EventCapacity * 2U);
+  RecentMessage recent_[kRecentCapacity];
+  uint16_t recentHead_;
+  uint16_t recentCount_;
   uint32_t nowMs_;
   bool initialized_;
 
@@ -206,6 +219,56 @@ private:
     return transport_.send(frame);
   }
 
+  bool isDuplicate(const ProtocolHeader& header,
+                   uint32_t frameChecksum) const {
+    for (uint16_t i = 0; i < recentCount_; ++i) {
+      const uint16_t index = static_cast<uint16_t>(
+          (static_cast<uint32_t>(recentHead_) + i) % kRecentCapacity);
+      const RecentMessage& recent = recent_[index];
+      if (recent.sourceDeviceId != header.sourceDeviceId ||
+          recent.transactionId != header.transactionId ||
+          recent.messageSequence != header.messageSequence ||
+          recent.messageType != header.messageType)
+        continue;
+      return recent.frameChecksum == frameChecksum;
+    }
+    return false;
+  }
+
+  bool conflictsWithRecent(const ProtocolHeader& header,
+                           uint32_t frameChecksum) const {
+    for (uint16_t i = 0; i < recentCount_; ++i) {
+      const uint16_t index = static_cast<uint16_t>(
+          (static_cast<uint32_t>(recentHead_) + i) % kRecentCapacity);
+      const RecentMessage& recent = recent_[index];
+      if (recent.sourceDeviceId == header.sourceDeviceId &&
+          recent.transactionId == header.transactionId &&
+          recent.messageSequence == header.messageSequence &&
+          recent.messageType == header.messageType)
+        return recent.frameChecksum != frameChecksum;
+    }
+    return false;
+  }
+
+  void remember(const ProtocolHeader& header, uint32_t frameChecksum) {
+    uint16_t tail = static_cast<uint16_t>(
+        (static_cast<uint32_t>(recentHead_) + recentCount_) % kRecentCapacity);
+    if (recentCount_ == kRecentCapacity) {
+      recentHead_ = static_cast<uint16_t>(
+          (static_cast<uint32_t>(recentHead_) + 1U) % kRecentCapacity);
+      tail = static_cast<uint16_t>(
+          (static_cast<uint32_t>(recentHead_) + recentCount_ - 1U) %
+          kRecentCapacity);
+    } else {
+      ++recentCount_;
+    }
+    recent_[tail].sourceDeviceId = header.sourceDeviceId;
+    recent_[tail].transactionId = header.transactionId;
+    recent_[tail].messageSequence = header.messageSequence;
+    recent_[tail].messageType = header.messageType;
+    recent_[tail].frameChecksum = frameChecksum;
+  }
+
   void processFrame(const ReceivedFrame& frame) {
     if (frame.length == 0 || frame.length > kMaxFrameBytes)
       return;
@@ -232,13 +295,31 @@ private:
       return;
     event.senderValidation = senderValidation;
 
+    const uint16_t checksumOffset = static_cast<uint16_t>(frame.length - 4U);
+    const uint32_t frameChecksum =
+        (static_cast<uint32_t>(frame.bytes[checksumOffset]) << 24) |
+        (static_cast<uint32_t>(frame.bytes[checksumOffset + 1U]) << 16) |
+        (static_cast<uint32_t>(frame.bytes[checksumOffset + 2U]) << 8) |
+        static_cast<uint32_t>(frame.bytes[checksumOffset + 3U]);
+
+    if (message.header.transactionId != 0) {
+      if (conflictsWithRecent(message.header, frameChecksum))
+        return;
+      if (isDuplicate(message.header, frameChecksum)) {
+        sendAcknowledgement(message.header);
+        return;
+      }
+    }
+
     const uint8_t tail =
         static_cast<uint8_t>((eventHead_ + eventCount_) % EventCapacity);
     events_[tail] = event;
     ++eventCount_;
 
-    if (message.header.transactionId != 0)
+    if (message.header.transactionId != 0) {
+      remember(message.header, frameChecksum);
       sendAcknowledgement(message.header);
+    }
   }
 
   void sendAcknowledgement(const ProtocolHeader& received) {
