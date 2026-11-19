@@ -9,10 +9,20 @@ and separate Arduino Uno / ESP32 station / cart entry points.
 
 - `shared/include/ca/`: portable value types, ports, domain contracts, protocol,
   configuration, station use case, UI and role application contracts.
+- `shared/include/ca/cart/`: focused declarations for concrete cart-side policies
+  and assignment state.
+- `shared/include/ca/storage/`: fixed-capacity storage templates; template bodies
+  remain in headers because C++11 requires visible definitions at instantiation.
+- `shared/src/cart/`: one implementation file per concrete cart component.
 - `shared/include/CampusAssistance.h`: public umbrella include.
 - `shared/src/config.cpp`: portable validation for provisioned device, station, destination and RA-02/SX1278 radio settings.
 - `shared/src/types.cpp`: shared serial-number ordering, wrap-safe elapsed-time checks and request/journey-state predicates.
-- `shared/include/ca/fixed_pending_request_store.hpp`: allocation-free, compile-time-bounded cart-local FIFO implementation.
+- `shared/include/ca/storage/fixed_pending_request_store.hpp`: allocation-free,
+  compile-time-bounded cart-local FIFO implementation.
+- `shared/include/ca/storage/fixed_request_repository.hpp`: bounded volatile
+  station repository template; it is not a durable production ledger.
+- `shared/src/cart/`: separate implementations for driver availability, active
+  assignment and journey transition policy.
 - `shared/src/README.md`: implementation boundary and layering rule.
 - `targets/uno/{station,cart}/`: Arduino Uno entry points.
 - `targets/esp32/{station,cart}/`: ESP32 entry points; exact board remains TBD.
@@ -33,8 +43,9 @@ cmake --build build/campus-assistance
 ctest --test-dir build/campus-assistance --output-on-failure
 ```
 
-This compiles the public contracts and shared configuration validator, then runs
-configuration, request-identity, pending-FIFO and reference transition tests. The fake repository is not a production implementation. It is not an Arduino IDE or PlatformIO
+This compiles the public contracts, shared configuration validator and concrete
+cart-state components, then runs configuration, request-identity, pending-FIFO,
+repository and cart-state transition tests. The fake repository is not a production implementation. It is not an Arduino IDE or PlatformIO
 build, and does not verify target memory, timing, radio behavior, flash atomicity,
 reboot recovery or hardware adapters.
 
