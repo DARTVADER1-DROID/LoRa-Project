@@ -40,8 +40,10 @@ bool eventBelongsToStation(const ProtocolEvent& event, const RequestId& requestI
          event.envelope.sourceDeviceId == requestId.originStationId;
 }
 
-Status enqueueClaimResult(ProtocolEndpoint& protocol, const DeviceConfig& config,
-                          const ClaimRequest& claim, ErrorCode result,
+Status enqueueClaimResult(ProtocolEndpoint& protocol,
+                          const DeviceConfig& config,
+                          const ClaimRequest& claim,
+                          ErrorCode result,
                           ClaimState finalState) {
   ProtocolMessage message = {};
   message.header.protocolVersion = config.protocolVersion;
