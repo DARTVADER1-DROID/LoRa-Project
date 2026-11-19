@@ -142,9 +142,17 @@ DecodeResult BinaryFrameCodec::decode(FrameView input, ProtocolMessage& message)
   return result;
 }
 
+DefaultMessageValidator::DefaultMessageValidator(const IStationRegistry& stations)
+    : stations_(&stations), carts_(0) {
+}
+
+DefaultMessageValidator::DefaultMessageValidator(const ICartRegistry& carts)
+    : stations_(0), carts_(&carts) {
+}
+
 DefaultMessageValidator::DefaultMessageValidator(const IStationRegistry& stations,
                                                  const ICartRegistry& carts)
-    : stations_(stations), carts_(carts) {
+    : stations_(&stations), carts_(&carts) {
 }
 
 Status DefaultMessageValidator::validate(const ProtocolMessage& message,
@@ -178,9 +186,11 @@ Status DefaultMessageValidator::authorizeSender(const ProtocolHeader& envelope,
 
   bool registeredPeer = false;
   if (localConfig.role == DeviceRole::CART) {
-    registeredPeer = stations_.containsStation(envelope.sourceDeviceId);
+    registeredPeer = stations_ != 0 &&
+                     stations_->containsStation(envelope.sourceDeviceId);
   } else if (localConfig.role == DeviceRole::STATION) {
-    registeredPeer = carts_.containsCart(envelope.sourceDeviceId);
+    registeredPeer = carts_ != 0 &&
+                     carts_->containsCart(envelope.sourceDeviceId);
   } else {
     return Status(ErrorCode::CONFIGURATION_INVALID);
   }
