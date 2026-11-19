@@ -19,8 +19,11 @@ TransactionId transactionFor(const RequestId& id) {
 }
 
 TransactionId cancellationTransactionFor(const RequestId& id) {
-  const TransactionId value = RequestIdentity::hash(id) ^ 0x40000000UL;
-  return value == 0 ? 0x40000000UL : value;
+  const TransactionId base = RequestIdentity::hash(id);
+  const TransactionId value = base ^ 0x40000000UL;
+  if (value != 0)
+    return value;
+  return base == 0xFFFFFFFFUL ? 1 : base + 1U;
 }
 } // namespace
 
