@@ -212,3 +212,26 @@ The portable clock currently exposes uptime milliseconds only. It cannot determi
 - Expired records remain in the ledger for application-level notice/reconciliation; retention/compaction is not implemented.
 
 A real IPersistence adapter must make storeAtomically() old-or-new across power loss (for example, dual slots with generation and CRC), and must be verified with hardware power-cut and endurance tests. The host fake proves only that the repository honors the adapter contract.
+
+
+## 14. Default two-button interaction mapping
+
+The reference TwoButtonEventInterpreter provides a role-aware mapping without
+binding the domain to GPIO numbers:
+
+| Role | Button | Short press | Long press |
+|---|---:|---|---|
+| Station | 0 | Next destination | Cancel current request |
+| Station | 1 | Confirm / submit | No action |
+| Cart | 0 | No action | Toggle request acceptance |
+| Cart | 1 | Claim oldest request | Advance journey stage |
+
+For the cart, the long-press journey action advances RECEIVED to ON_THE_WAY,
+then ON_THE_WAY to ARRIVED_AT_PICKUP, and a further deliberate long press confirms
+COMPLETED. The application selects the completion action from the authoritative
+local journey stage and still validates it through JourneyProgressController.
+
+The mapping is a replaceable reference policy, not a usability finding. Button
+labels, accessibility trials and user testing must validate the final interaction.
+A board profile supplies physical pins; the interpreter consumes logical button
+indices only.
