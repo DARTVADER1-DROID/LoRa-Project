@@ -31,6 +31,7 @@ struct StationDependencies {
   ButtonEventInterpreter& buttonInterpreter;
   ProtocolEndpoint& protocol;
   RequestLifecycle& requestLifecycle;
+  ExpiredRequestSet expiryBuffer;
   StationRequestController& requestController;
   StationClaimCoordinator& claims;
   StationUserInterface& ui;
