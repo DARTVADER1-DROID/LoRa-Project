@@ -124,12 +124,7 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
       status = Status(ErrorCode::INVALID_ARGUMENT);
       break;
     }
-    status = dependencies_.requestController.cancelCurrentRequest().code ==
-                     ErrorCode::NOT_IMPLEMENTED
-                 ? Status(ErrorCode::INVALID_STATE)
-                 : Status(ErrorCode::NOT_IMPLEMENTED);
-    // Journey updates are applied by the station lifecycle owner. The current
-    // application dependency exposes the request controller, not that owner.
+    status = dependencies_.requestLifecycle.applyJourneyUpdate(update);
     break;
   }
   case ProtocolEventType::ACKNOWLEDGEMENT_RECEIVED:
@@ -252,7 +247,7 @@ void CartApplication::onButtonEvent(const ButtonEvent& event) {
       message.header.destinationDeviceId = claim.requestId.originStationId;
       message.header.transactionId = claim.transactionId;
       message.header.messageSequence = claim.requestId.sequence;
-      message.payloadLength = 12;
+      message.payloadLength = 10;
       uint16_t offset = 0;
       message.payload[offset++] = static_cast<uint8_t>(claim.requestId.originStationId >> 8);
       message.payload[offset++] = static_cast<uint8_t>(claim.requestId.originStationId);
@@ -262,7 +257,11 @@ void CartApplication::onButtonEvent(const ButtonEvent& event) {
       message.payload[offset++] = static_cast<uint8_t>(claim.requestId.generation);
       message.payload[offset++] = static_cast<uint8_t>(claim.cartId >> 8);
       message.payload[offset++] = static_cast<uint8_t>(claim.cartId);
-      dependencies_.protocol.enqueue(message, DeliveryClass::RETRY_UNTIL_ACK);
+      const Status withdrawalQueued =
+          dependencies_.protocol.enqueue(message, DeliveryClass::RETRY_UNTIL_ACK);
+      if (!withdrawalQueued.ok())
+        dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
+                                         withdrawalQueued.code);
     }
     return;
   }
@@ -332,6 +331,10 @@ void CartApplication::onProtocolEvent(const ProtocolEvent& event) {
     break;
   }
   case ProtocolEventType::CLAIM_RESULT_RECEIVED:
+    if (!eventBelongsToStation(event, event.payload.claimResult.requestId)) {
+      status = Status(ErrorCode::INVALID_ARGUMENT);
+      break;
+    }
     status = dependencies_.claimClient.onClaimResult(event.payload.claimResult);
     break;
   case ProtocolEventType::ACKNOWLEDGEMENT_RECEIVED:
