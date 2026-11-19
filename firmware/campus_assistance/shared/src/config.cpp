@@ -109,7 +109,7 @@ Status DefaultConfigValidator::validateRadioProfile(const RadioProfile& profile)
       profile.spreadingFactor < 6 || profile.spreadingFactor > 12 ||
       !isSupportedBandwidth(profile.bandwidthHz) || profile.codingRate < 1 ||
       profile.codingRate > 4 || profile.transmitPowerDbm < 2 ||
-      profile.transmitPowerDbm > 20) {
+      profile.transmitPowerDbm > 17) {
     return invalidConfiguration();
   }
 
