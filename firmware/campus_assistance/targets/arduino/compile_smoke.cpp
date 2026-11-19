@@ -1,3 +1,7 @@
+#include <Arduino.h>
+#include <SPI.h>
+#include <Wire.h>
+
 #include "ca/platform/arduino_core_adapters.hpp"
 #include "ca/platform/esp32/devkit_v1_profile.hpp"
 #include "ca/platform/uno/uno_r3_profile.hpp"
