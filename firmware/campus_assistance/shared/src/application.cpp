@@ -224,6 +224,11 @@ void StationApplication::service() {
     }
   }
 
+  const Status cancellationStatus = dependencies_.requestController.service();
+  if (!cancellationStatus.ok())
+    dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected,
+                                     cancellationStatus.code);
+
   dependencies_.buttons.service(nowMs);
   dependencies_.buzzer.service(nowMs);
   dependencies_.protocol.service(nowMs);
