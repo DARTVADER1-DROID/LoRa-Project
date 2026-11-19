@@ -120,7 +120,7 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
   case ProtocolEventType::JOURNEY_UPDATE_RECEIVED: {
     const JourneyUpdate& update = event.payload.journeyUpdate;
     if (event.envelope.sourceDeviceId != update.assignedCartId ||
-        !eventBelongsToStation(event, update.requestId)) {
+        !RequestIdentity::isValid(update.requestId)) {
       status = Status(ErrorCode::INVALID_ARGUMENT);
       break;
     }
@@ -238,7 +238,13 @@ void CartApplication::onButtonEvent(const ButtonEvent& event) {
       withdrawal.requestId = claim.requestId;
       withdrawal.cartId = claim.cartId;
       withdrawal.transactionId = claim.transactionId;
-      dependencies_.claimClient.withdrawClaim(withdrawal);
+      const Status withdrawalStarted =
+          dependencies_.claimClient.withdrawClaim(withdrawal);
+      if (!withdrawalStarted.ok()) {
+        dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
+                                         withdrawalStarted.code);
+        return;
+      }
       ProtocolMessage message = {};
       message.header.protocolVersion = config_.protocolVersion;
       message.header.networkId = config_.networkId;
