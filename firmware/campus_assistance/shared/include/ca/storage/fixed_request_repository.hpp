@@ -13,13 +13,45 @@ class FixedRequestRepository final : public IRequestRepository {
   static_assert(StorageCapacity > 0, "StorageCapacity must be nonzero");
 
 public:
-  FixedRequestRepository() : count_(0), configured_(false) {}
+  FixedRequestRepository()
+      : count_(0), configured_(false), nextSequence_(1), nextGeneration_(1),
+        identifiersExhausted_(false) {}
 
   Status configure() {
     if (configured_)
       return count_ == 0 ? Status() : Status(ErrorCode::INVALID_STATE);
     count_ = 0;
+    nextSequence_ = 1;
+    nextGeneration_ = 1;
+    identifiersExhausted_ = false;
     configured_ = true;
+    return Status();
+  }
+
+  Status reserveNextRequestId(DeviceId stationId, RequestId& id) override {
+    if (!configured_)
+      return Status(ErrorCode::INVALID_STATE);
+    if (stationId == 0)
+      return Status(ErrorCode::INVALID_ARGUMENT);
+    if (identifiersExhausted_)
+      return Status(ErrorCode::CAPACITY_EXCEEDED);
+
+    RequestId reserved = {};
+    reserved.originStationId = stationId;
+    reserved.sequence = nextSequence_;
+    reserved.generation = nextGeneration_;
+
+    if (nextSequence_ == 0xFFFFFFFFUL) {
+      if (nextGeneration_ == 0xFFFFU) {
+        identifiersExhausted_ = true;
+      } else {
+        nextSequence_ = 0;
+        ++nextGeneration_;
+      }
+    } else {
+      ++nextSequence_;
+    }
+    id = reserved;
     return Status();
   }
 
@@ -223,10 +255,53 @@ public:
 
   uint16_t size() const override { return count_; }
 
+  bool recordAt(uint16_t index, RequestRecord& record) const override {
+    if (index >= count_)
+      return false;
+    record = records_[index];
+    return true;
+  }
+
+  // Recovery-only insertion. It validates the decoded record but does not
+  // require the initial PENDING_UNASSIGNED state used by insertNew().
+  Status restoreRecord(const RequestRecord& record) {
+    if (!configured_ || !RequestIdentity::isValid(record.id) ||
+        record.destinationId == 0 || record.expiresAtMs == record.createdAtMs ||
+        static_cast<uint32_t>(record.expiresAtMs - record.createdAtMs) > 0x7FFFFFFFUL ||
+        static_cast<uint8_t>(record.state) >
+            static_cast<uint8_t>(RequestState::COMMUNICATION_UNCERTAIN) ||
+        static_cast<uint8_t>(record.claimState) >
+            static_cast<uint8_t>(ClaimState::COMMITTED))
+      return Status(ErrorCode::INVALID_ARGUMENT);
+    if (findIndex(record.id) >= 0)
+      return Status(ErrorCode::DUPLICATE);
+    if (count_ >= StorageCapacity)
+      return Status(ErrorCode::CAPACITY_EXCEEDED);
+    records_[count_++] = record;
+    return Status();
+  }
+
+  uint32_t nextSequence() const { return nextSequence_; }
+  uint16_t nextGeneration() const { return nextGeneration_; }
+  bool identifiersExhausted() const { return identifiersExhausted_; }
+
+  Status restoreAllocatorState(uint32_t sequence, uint16_t generation,
+                               bool exhausted) {
+    if (!configured_)
+      return Status(ErrorCode::INVALID_STATE);
+    nextSequence_ = sequence;
+    nextGeneration_ = generation;
+    identifiersExhausted_ = exhausted;
+    return Status();
+  }
+
 private:
   RequestRecord records_[StorageCapacity];
   uint16_t count_;
   bool configured_;
+  uint32_t nextSequence_;
+  uint16_t nextGeneration_;
+  bool identifiersExhausted_;
 
   int16_t findIndex(const RequestId& id) const {
     for (uint16_t i = 0; i < count_; ++i)
