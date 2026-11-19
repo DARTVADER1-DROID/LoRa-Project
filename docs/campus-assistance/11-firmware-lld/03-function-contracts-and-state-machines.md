@@ -17,8 +17,11 @@ These are externally observable contracts, not method bodies. Implementations ma
 | RequestLifecycle::cancel(id,source) | Apply authoritative cancellation idempotently |
 | RequestLifecycle::expireDue(now,out) | Expire due unaccepted requests; never expire a committed active ride using this timer |
 | RequestLifecycle::applyJourneyUpdate(update) | Accept only the assigned cart and valid sequenced status |
+| StationRequestLifecycle::configure() | Validate station identity and bounded request lifetime; repository must already be recovered |
+| IRequestRepository::reserveNextRequestId(stationId,out) | Durably reserve the next complete identity before it can be used; gaps after power loss are acceptable |
+| IRequestRepository::recordAt(index,out) | Read a bounded ledger record for expiry/recovery iteration; no mutable reference escapes |
 
-Creation postconditions: full identity tuple; destination is valid; station records the expiry basis; default lifetime is 600,000 ms; outbound announcement is queued but remote receipt is not claimed without evidence.
+Creation postconditions: full identity tuple; destination is enabled; station records the expiry basis; default lifetime is 600,000 ms; outbound announcement is queued but remote receipt is not claimed without evidence. Request identity allocation is persisted before insertion; a power loss between those operations may leave a harmless sequence gap, never a reused identity.
 
 ## 3. Cart functions
 
@@ -29,9 +32,9 @@ Creation postconditions: full identity tuple; destination is valid; station reco
 | enableAcceptance(action) | Explicit driver action; allowed only with no active assignment or unresolved claim |
 | disableAcceptance(action) | Set NOT_ACCEPTING and clear this cart's current local pending list |
 | CartClaimClient::requestClaim(id,cartId) | Start one bounded claim transaction; does not imply ownership |
-| onAssignmentNotice(notice) | All carts remove matching pending entry; only matching winner activates |
+| EventReconciler::applyAssignmentNotice(notice) | Reconcile the validated station notice; all carts remove the matching pending item and only the named winner activates |
 | ActiveAssignment::activate(record) | Require station-confirmed assignment; reject if already occupied |
-| JourneyProgressController::advance(status,action) | Permit only the next valid driver-reported stage |
+| JourneyProgressController::validateTransition(current,next,action) | Validate the next driver-reported stage without owning journey state |
 | ActiveAssignment::complete(evidence) | Mark terminal and force driver mode to NOT_ACCEPTING |
 | EventReconciler::applyExpiryNotice(notice) | Remove only matching local pending request |
 
@@ -52,22 +55,24 @@ The receive pipeline runs regardless of driver mode. Driver mode gates claiming,
 
 ## 5. Cart state machine
 
-    NOT_ACCEPTING --driver ENABLE--> ACCEPTING_IDLE
-    ACCEPTING_IDLE --oldest eligible--> CLAIMING
-    CLAIMING --station rejects/timeout--> ACCEPTING_IDLE or UNCERTAIN
-    CLAIMING --matching station ASSIGN--> SERVING
-    ACCEPTING_IDLE --driver DISABLE--> NOT_ACCEPTING
-    CLAIMING --driver DISABLE--> DISABLE/CLAIM-RESOLUTION (see open item)
-    SERVING --driver confirms completion--> NOT_ACCEPTING
+Acceptance and cart service state are independent dimensions:
 
-Invariants:
-- NOT_ACCEPTING: receiver active; may queue new requests; cannot claim.
-- ACCEPTING_IDLE: may claim oldest eligible request.
-- CLAIMING: exactly one in-flight claim; cannot start another.
-- SERVING: exactly one active assignment; cannot claim another.
-- Completion always returns to NOT_ACCEPTING.
-- Reboot defaults to NOT_ACCEPTING and must reconcile any possible active assignment before another claim.
-- Driver disable clears the local pending list only. It does not send global cancellation.
+    AcceptanceMode: NOT_ACCEPTING <-> ACCEPTING
+    CartServiceState: IDLE -> CLAIM_PENDING -> SERVING
+                                  |             |
+                                  v             v
+                              UNCERTAIN      IDLE (after terminal clear)
+
+- Boot starts NOT_ACCEPTING. Service state starts IDLE unless reboot reconciliation identifies a possible active assignment.
+- Driver ENABLE changes acceptance to ACCEPTING only when no active assignment and no unresolved claim exists.
+- Driver DISABLE immediately changes acceptance to NOT_ACCEPTING and clears only the local pending FIFO.
+- If a claim is unresolved, DISABLE also sends CLAIM_WITHDRAW with the exact RequestId, cart ID and transaction ID. The cart retains the transaction until station resolution.
+- If withdrawal wins, the claim closes and service state returns to IDLE. If assignment commit wins, the cart processes the station ASSIGN, retains the assignment and raises a driver-facing conflict; it does not silently discard ownership.
+- SERVING means exactly one station-confirmed active assignment. It is independent of acceptance intent; a cart can be NOT_ACCEPTING while still serving its already committed assignment.
+- Completion clears the active assignment and forces NOT_ACCEPTING. Manual re-enable is required.
+- The receiver remains active and may repopulate the local pending FIFO while NOT_ACCEPTING.
+
+The station serializes claim start, withdrawal, assignment commit, cancellation and expiry against the same authoritative request record. A delayed withdrawal cannot reverse a committed assignment.
 
 ## 6. Pending list operations
 
@@ -125,3 +130,108 @@ Each invocation processes bounded work and returns. No waiting for remote ACKs, 
 - Clock rollover: wrap-safe elapsed-time arithmetic.
 - Storage failure: explicit degraded/recovery state.
 - Lost status ACK: bounded idempotent retry; show pending/uncertain, not physical success.
+
+
+## 11. Resolved CLAIMING disable transition
+
+The former open transition is resolved by the normative policy in [06 — SOLID Boundaries, Ownership and Scalability Contracts](06-solid-and-scalability-contracts.md):
+
+- Driver disable immediately makes the cart NOT_ACCEPTING and clears only its local pending FIFO.
+- If a claim is unresolved, send CLAIM_WITHDRAW for that transaction and keep tracking it until station resolution.
+- The station atomically orders CLAIM_WITHDRAW against assignment commit.
+- If withdrawal wins, no assignment is created. If ASSIGN already committed, it remains authoritative; the cart must process it and alert the driver rather than silently discard it.
+- New requests continue to be received and may repopulate the local queue while disabled.
+
+## 12. Authoritative implementation signatures
+
+The public header contracts supersede older shorthand signatures in this document:
+
+- `StationApplication::service()` and `CartApplication::service()` are bounded role service calls; they obtain time through injected IClock.
+- `RequestLifecycle::create(const NewRequest&, RequestRecord&)`.
+- `RequestLifecycle::cancel(const RequestId&, CancellationSource)`.
+- `RequestLifecycle::expireDue(uint32_t stationNowMs, ExpiredRequestSet&)`.
+- `RequestLifecycle::applyJourneyUpdate(const JourneyUpdate&)`.
+- `ActiveAssignment::complete(const DriverAction&)`.
+- `JourneyProgressController::validateTransition(current, next, const DriverAction&)` is stateless policy; ActiveAssignment owns journey state.
+- `ProtocolEndpoint::enqueue(const ProtocolMessage&, DeliveryClass)`.
+- `ProtocolEndpoint::pollEvent(ProtocolEvent&)`.
+
+No API may imply that a CLAIM, ACK or local UI action commits assignment or proves physical completion.
+
+## 10. Review corrections — atomic race and state ownership
+
+This section supersedes conflicting earlier shorthand in this document.
+
+### Claim transaction lifecycle
+
+A claim is a durable transaction, not merely a cart UI mode:
+
+    IDLE -> PENDING -> WITHDRAWN
+                   -> COMMITTED
+
+- beginClaimIfEligible atomically records the cart and transaction ID only if the request is live, unassigned and not already claimed by another unresolved transaction.
+- withdrawClaimIfPending changes only the matching RequestId/cartId/transactionId from PENDING to WITHDRAWN.
+- commitAssignmentIfClaimPending commits only that exact still-PENDING transaction. It atomically verifies the request remains live and unassigned, then stores assigned cart and assignment epoch.
+- The station serializes withdrawal, expiry, cancellation and assignment commit against the same record. Exactly one terminal/assignment transition wins.
+- Duplicate withdrawal is idempotent. A delayed withdrawal after COMMITTED returns the committed outcome and cannot clear the assignment.
+- Reboot recovery must restore claim transaction state from durable station storage or safely reject/reconcile unresolved transactions before accepting new claims.
+
+### Independent cart state dimensions
+
+- AcceptanceMode is NOT_ACCEPTING or ACCEPTING.
+- CartServiceState is IDLE, CLAIM_PENDING, SERVING or UNCERTAIN.
+- Disabling acceptance changes only acceptance intent and clears only the local pending FIFO. It sends CLAIM_WITHDRAW if a claim is unresolved; it never sends global request cancellation.
+- If assignment committed before withdrawal, process the authoritative ASSIGN and surface the driver conflict. Do not silently discard it.
+- Receiver operation and queue insertion continue while NOT_ACCEPTING.
+
+### Single ownership of journey state
+
+- ActiveAssignment owns the active assignment and current journey status.
+- JourneyProgressController validates a proposed transition and is stateless.
+- CartClaimClient tracks only the claim transaction.
+- EventReconciler is a stateless orchestration boundary; it delegates assignment activation and journey changes to the owning domain components.
+- No second current() journey-state cache is permitted.
+
+### Repository atomicity
+
+There is no generic repository update. Cancellation, expiry, claim start, withdrawal, assignment commit and journey update are conditional atomic transitions. A repository implementation must make each operation linearizable with respect to every other transition for the same full RequestId.
+
+### 10.1 Commit-time expiry check
+
+StationClaimCoordinator::commitWinner(claim, stationNowMs, assignment) must pass the current station clock value to commitAssignmentIfClaimPending. evaluate() is advisory only; the repository rechecks expiry and transaction state atomically at commit time.
+
+
+## 13. Durable repository recovery policy
+
+The portable clock currently exposes uptime milliseconds only. It cannot determine how long power was off, so a reboot cannot safely continue the original ten-minute wall-clock expiry window. Until a battery-backed RTC or persistent monotonic-time source is selected, durable repository recovery applies a fail-closed rule:
+
+- Pending unassigned and claim-pending requests are changed to EXPIRED and claim-pending transactions become WITHDRAWN.
+- Already committed assignments and journey state are retained; the unassigned-request expiry timer never expires an active ride.
+- Request sequence/generation allocation is restored from the same durable snapshot, preventing identity reuse.
+- A corrupt, unsupported-version, wrong-station or torn snapshot fails closed as STORAGE_FAILURE. It is never silently replaced with an empty ledger.
+- Expired records remain in the ledger for application-level notice/reconciliation; retention/compaction is not implemented.
+
+A real IPersistence adapter must make storeAtomically() old-or-new across power loss (for example, dual slots with generation and CRC), and must be verified with hardware power-cut and endurance tests. The host fake proves only that the repository honors the adapter contract.
+
+
+## 14. Default two-button interaction mapping
+
+The reference TwoButtonEventInterpreter provides a role-aware mapping without
+binding the domain to GPIO numbers:
+
+| Role | Button | Short press | Long press |
+|---|---:|---|---|
+| Station | 0 | Next destination | Cancel current request |
+| Station | 1 | Confirm / submit | No action |
+| Cart | 0 | No action | Toggle request acceptance |
+| Cart | 1 | Claim oldest request | Advance journey stage |
+
+For the cart, the long-press journey action advances RECEIVED to ON_THE_WAY,
+then ON_THE_WAY to ARRIVED_AT_PICKUP, and a further deliberate long press confirms
+COMPLETED. The application selects the completion action from the authoritative
+local journey stage and still validates it through JourneyProgressController.
+
+The mapping is a replaceable reference policy, not a usability finding. Button
+labels, accessibility trials and user testing must validate the final interaction.
+A board profile supplies physical pins; the interpreter consumes logical button
+indices only.

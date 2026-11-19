@@ -49,12 +49,19 @@ After exact board selection, document available RAM/flash, partitions, driver su
 
 ## 4. Persistence and reboot
 
-Before implementation decide:
-- station ledger persistence;
-- generation/session ID persistence;
-- cart active assignment recovery;
-- interrupted-write detection;
-- storage endurance and write frequency.
+Implemented at the portable host-contract layer:
+- bounded durable station snapshot with request records and next RequestId allocator state;
+- versioned schema, canonical fixed-width encoding and CRC32 corruption detection;
+- interrupted-store rollback under the IPersistence old-or-new contract;
+- station identity binding and fail-closed corrupt/unsupported snapshot handling;
+- reboot recovery retaining committed assignments and expiring unassigned/claim-pending requests.
+
+Still required before hardware deployment:
+- select the physical persistence medium and implement an adapter with dual-slot/journal atomicity;
+- measure flash/EEPROM endurance and write amplification;
+- verify hardware power-cut behavior;
+- decide whether a battery-backed RTC/persistent monotonic clock is justified to preserve remaining request lifetime across power-off;
+- cart active-assignment persistence and reconciliation.
 
 Safe defaults:
 - rebooted cart starts NOT_ACCEPTING;
@@ -139,18 +146,94 @@ Inject interfaces and provide:
 ## 9. Implementation order
 
 1. Freeze public value types, identity and configuration.
-2. Implement/test RequestIdentity and PendingRequestStore on host.
-3. Implement/test DriverAvailabilityController and ActiveAssignment.
-4. Implement station RequestLifecycle/RequestLedger.
-5. Freeze wire schema and golden vectors.
-6. Implement/test FrameCodec and MessageValidator on host.
-7. Simulate claim, assignment and reconciliation with fault injection.
-8. Implement button events and UI view models.
-9. Implement Uno adapters and measure memory.
-10. Resolve ESP32 board; implement its adapters.
-11. Run mixed-MCU interoperability.
-12. Conduct supervised RF, power, accessibility and fault-injection tests.
+2. Implement/test RequestIdentity and PendingRequestStore on host. [Implemented]
+3. Implement/test DriverAvailabilityController and ActiveAssignment. [Implemented as portable components]
+4. Implement durable station repository and StationRequestLifecycle; test reboot, CRC, failed-write and expiry policy. [Portable host layer implemented; hardware persistence adapter pending]
+5. Implement StationClaimCoordinator and test all competing claim/cancel/expiry transitions.
+6. Freeze wire schema and golden vectors.
+7. Implement/test FrameCodec and MessageValidator on host.
+8. Simulate claim, assignment and reconciliation with fault injection.
+9. Implement button events and UI view models.
+10. Implement Uno adapters and measure memory/stack.
+11. Resolve ESP32 board; implement its adapters.
+12. Run mixed-MCU interoperability.
+13. Conduct supervised RF, power, accessibility and hardware power-cut/endurance tests.
 
 ## 10. Module definition of done
 
 A module is integration-ready only when interfaces/invariants and errors are documented, tests cover normal/boundary/failure cases, memory/time bounds are measured, dependencies obey layers, both MCU targets retain protocol compatibility, and docs/test vectors identify the code revision.
+
+## 11. Review corrections — fixed-storage and rollover contracts
+
+- ExpiredRequestSet is a caller-owned output buffer. items points to writable storage for capacity RequestId values, count is reset to zero on entry and reports the number written, and capacity exhaustion returns an explicit error without writing out of bounds. No component retains the pointer.
+- DestinationConfig and StationRegistry are non-owning immutable views. count <= capacity is mandatory; a nonzero count requires a non-null entries pointer. The caller keeps backing storage alive for the full call.
+- Persistence load reports bytesRead. On BUFFER_FULL, it reports the required size and does not overrun the caller buffer.
+- Durable station snapshot schema is versioned, canonical big-endian and CRC32 checked. Unsupported/corrupt/wrong-station data fails closed; it is never silently reset.
+- Until a persistent RTC is selected, reboot recovery expires pending and claim-pending requests because uptime millis cannot measure power-off duration. Committed assignments are retained.
+- `storeAtomically` must expose the complete old or complete new record after power loss. The host fake cannot prove a physical adapter meets this contract.
+- RequestGeneration and AssignmentEpoch are finite 16-bit values. They must never wrap into a value that could collide with a live record, retained terminal record, unexpired frame/retry, or reboot-recovery snapshot. Before exhaustion, rotate the relevant persistent identity/session namespace or refuse new allocation and enter an explicit maintenance/error state. A wrap is not silently accepted.
+- RequestSequence and EventSequence are 32-bit monotonic counters within their identity namespace. Comparisons use a documented wrap-safe serial-number rule and never treat an ambiguous half-range difference as newer. A new persistent generation/session namespace is required before reuse.
+- Assignment epoch uniqueness is scoped to the station/request identity and retained assignment history. Reboot must restore the allocator state before committing new assignments.
+
+
+## 12. Reference persistence storage sizing
+
+The reference persistence adapter now separates the atomic record protocol from
+the physical byte store:
+
+- FixedDualSlotPersistence<SlotBytes> implements versioned, CRC-protected
+  old-or-new record replacement with two slots and a commit marker written last.
+- Uno uses AVR EEPROM byte updates with two 176-byte slots (352 bytes total).
+  This leaves a bounded DurableRequestRepository<4> snapshot within each slot.
+- ESP32 DevKit V1 uses Preferences/NVS with a 768-byte two-slot image and
+  384-byte slots, sized for a DurableRequestRepository<10> snapshot.
+- The AVR and ESP32 byte stores are target adapters; the shared dual-slot
+  algorithm is host-testable through IByteStorage.
+
+These are initial memory allocations, not proven endurance or power-fail claims.
+Verify the selected EEPROM/NVS behavior with power-cut tests, inspect linker RAM
+usage and stack high-water marks, and measure write frequency before increasing
+repository capacity. If the Uno's total SRAM budget is exceeded, reduce its
+repository and retry capacities or move durable storage to external FRAM.
+
+
+### 12.1 Storage adapter caveats
+
+The shared writer first invalidates the inactive slot marker, syncs, writes
+the body in ascending address order, syncs, then writes and syncs the commit
+marker as the final byte. On AVR, EEPROM byte updates are immediate; an
+interrupted body write leaves the previous slot intact and the target marked
+incomplete. On ESP32, Preferences stages the two-slot image in RAM and each
+sync submits the complete NVS blob. This currently means three blob updates per
+record write; measure latency and wear before deployment.
+
+An incomplete slot may fall back to the other committed slot. A slot with a
+valid commit marker but bad CRC is treated as committed-data corruption and
+fails closed; the firmware must not roll back a possibly newer request-ID
+allocator snapshot and silently reuse identifiers. A torn first-ever write
+also fails closed and requires explicit storage recovery rather than silently
+initializing an empty repository.
+
+Espressif documents NVS sudden-power-loss protection and atomic updates, but
+also warns that NVS is intended for small, relatively infrequent updates and
+cannot guarantee consistency under out-of-spec unstable power conditions.
+The present default-NVS blob implementation is therefore a prototype adapter:
+measure update frequency, NVS partition headroom, latency and battery brownout
+behavior before relying on it. A dedicated application NVS partition and
+hardware power-cut testing remain production gates.
+
+
+### 12.2 Terminal request retention
+
+The station has no persistent wall clock, so millis()-based terminal retention
+cannot safely run across reboot. The repository therefore uses capacity-driven
+compaction: when a new request arrives and the ledger is full, it evicts the
+oldest terminal record only. It never evicts a pending, claim-pending, assigned,
+or communication-uncertain record. If no terminal record is available, insertion
+fails with CAPACITY_EXCEEDED.
+
+The explicit removeTerminalBefore API remains available for a caller that has a
+trusted, reboot-safe time boundary. The normal station lifecycle does not invoke
+it automatically. DurableRequestRepository persists an eviction and the new
+request in one candidate snapshot, so a failed snapshot write leaves the old
+ledger intact.

@@ -1,0 +1,155 @@
+cmake_minimum_required(VERSION 3.16)
+
+project(campus_assistance_contracts LANGUAGES CXX)
+
+add_library(campus_assistance_contracts STATIC
+  shared/src/application.cpp
+  shared/src/input/fixed_button_debouncer.cpp
+  shared/src/input/debounced_button_input.cpp
+  shared/src/input/two_button_event_interpreter.cpp
+  shared/src/cart/basic_driver_availability_controller.cpp
+  shared/src/cart/cart_event_reconciler.cpp
+  shared/src/cart/default_journey_progress_controller.cpp
+  shared/src/cart/fixed_active_assignment.cpp
+  shared/src/cart/fixed_cart_claim_client.cpp
+  shared/src/config.cpp
+  shared/src/protocol.cpp
+  shared/src/protocol_payload_codec.cpp
+  shared/src/request_identity.cpp
+  shared/src/station_request_controller.cpp
+  shared/src/station/station_request_lifecycle.cpp
+  shared/src/station/repository_station_claim_coordinator.cpp
+  shared/src/types.cpp
+  shared/src/ui/basic_user_interfaces.cpp)
+target_include_directories(
+  campus_assistance_contracts
+  PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/platform/include
+)
+target_compile_features(campus_assistance_contracts PUBLIC cxx_std_11)
+
+add_executable(contract_compile tests/contract_compile.cpp)
+target_link_libraries(contract_compile PRIVATE campus_assistance_contracts)
+
+add_executable(application_integration_test tests/application_integration_test.cpp)
+target_link_libraries(application_integration_test PRIVATE campus_assistance_contracts)
+
+add_executable(repository_transition_test tests/repository_transition_test.cpp)
+target_link_libraries(repository_transition_test PRIVATE campus_assistance_contracts)
+
+add_executable(config_validator_test tests/config_validator_test.cpp)
+target_link_libraries(config_validator_test PRIVATE campus_assistance_contracts)
+
+add_executable(types_test tests/types_test.cpp)
+target_link_libraries(types_test PRIVATE campus_assistance_contracts)
+
+add_executable(request_identity_test tests/request_identity_test.cpp)
+target_link_libraries(request_identity_test PRIVATE campus_assistance_contracts)
+
+add_executable(pending_request_store_test tests/pending_request_store_test.cpp)
+target_link_libraries(pending_request_store_test PRIVATE campus_assistance_contracts)
+
+add_executable(fixed_request_repository_test tests/fixed_request_repository_test.cpp)
+target_link_libraries(fixed_request_repository_test PRIVATE campus_assistance_contracts)
+
+add_executable(cart_state_components_test tests/cart_state_components_test.cpp)
+target_link_libraries(cart_state_components_test PRIVATE campus_assistance_contracts)
+
+add_executable(durable_request_repository_test
+  tests/durable_request_repository_test.cpp)
+target_link_libraries(durable_request_repository_test PRIVATE campus_assistance_contracts)
+
+add_executable(station_request_lifecycle_test
+  tests/station_request_lifecycle_test.cpp)
+target_link_libraries(station_request_lifecycle_test PRIVATE campus_assistance_contracts)
+
+add_executable(protocol_codec_test tests/protocol_codec_test.cpp)
+target_link_libraries(protocol_codec_test PRIVATE campus_assistance_contracts)
+
+add_executable(protocol_payload_codec_test
+  tests/protocol_payload_codec_test.cpp)
+target_link_libraries(protocol_payload_codec_test PRIVATE campus_assistance_contracts)
+
+add_executable(fixed_retry_manager_test
+  tests/fixed_retry_manager_test.cpp)
+target_link_libraries(fixed_retry_manager_test PRIVATE campus_assistance_contracts)
+
+add_executable(exception_case_test tests/exception_case_test.cpp)
+target_link_libraries(exception_case_test PRIVATE campus_assistance_contracts)
+
+add_executable(fixed_protocol_endpoint_test
+  tests/fixed_protocol_endpoint_test.cpp)
+target_link_libraries(fixed_protocol_endpoint_test PRIVATE campus_assistance_contracts)
+
+add_executable(station_claim_coordinator_test
+  tests/station_claim_coordinator_test.cpp)
+target_link_libraries(station_claim_coordinator_test PRIVATE campus_assistance_contracts)
+
+add_executable(cart_claim_client_test tests/cart_claim_client_test.cpp)
+target_link_libraries(cart_claim_client_test PRIVATE campus_assistance_contracts)
+
+add_executable(cart_event_reconciler_test
+  tests/cart_event_reconciler_test.cpp)
+target_link_libraries(cart_event_reconciler_test PRIVATE campus_assistance_contracts)
+
+add_executable(fixed_destination_catalog_test
+  tests/fixed_destination_catalog_test.cpp)
+target_link_libraries(fixed_destination_catalog_test PRIVATE campus_assistance_contracts)
+
+add_executable(station_request_controller_test
+  tests/station_request_controller_test.cpp)
+target_link_libraries(station_request_controller_test PRIVATE campus_assistance_contracts)
+
+add_executable(board_profile_test tests/board_profile_test.cpp)
+target_link_libraries(board_profile_test PRIVATE campus_assistance_contracts)
+
+add_executable(fixed_button_debouncer_test
+  tests/fixed_button_debouncer_test.cpp)
+target_link_libraries(fixed_button_debouncer_test PRIVATE campus_assistance_contracts)
+
+add_executable(debounced_button_input_test
+  tests/debounced_button_input_test.cpp)
+target_link_libraries(debounced_button_input_test PRIVATE campus_assistance_contracts)
+
+add_executable(two_button_event_interpreter_test
+  tests/two_button_event_interpreter_test.cpp)
+target_link_libraries(two_button_event_interpreter_test PRIVATE campus_assistance_contracts)
+
+add_executable(basic_user_interfaces_test
+  tests/basic_user_interfaces_test.cpp)
+target_link_libraries(basic_user_interfaces_test PRIVATE campus_assistance_contracts)
+
+add_executable(fixed_dual_slot_persistence_test
+  tests/fixed_dual_slot_persistence_test.cpp)
+target_link_libraries(fixed_dual_slot_persistence_test PRIVATE campus_assistance_contracts)
+
+enable_testing()
+add_test(NAME contract_compile COMMAND contract_compile)
+add_test(NAME application_integration_test COMMAND application_integration_test)
+add_test(NAME repository_transition_test COMMAND repository_transition_test)
+add_test(NAME config_validator_test COMMAND config_validator_test)
+add_test(NAME types_test COMMAND types_test)
+add_test(NAME request_identity_test COMMAND request_identity_test)
+add_test(NAME pending_request_store_test COMMAND pending_request_store_test)
+add_test(NAME fixed_request_repository_test COMMAND fixed_request_repository_test)
+add_test(NAME cart_state_components_test COMMAND cart_state_components_test)
+add_test(NAME durable_request_repository_test
+  COMMAND durable_request_repository_test)
+add_test(NAME station_request_lifecycle_test COMMAND station_request_lifecycle_test)
+add_test(NAME protocol_codec_test COMMAND protocol_codec_test)
+add_test(NAME protocol_payload_codec_test COMMAND protocol_payload_codec_test)
+add_test(NAME fixed_retry_manager_test COMMAND fixed_retry_manager_test)
+add_test(NAME exception_case_test COMMAND exception_case_test)
+add_test(NAME fixed_protocol_endpoint_test COMMAND fixed_protocol_endpoint_test)
+add_test(NAME station_claim_coordinator_test COMMAND station_claim_coordinator_test)
+add_test(NAME cart_claim_client_test COMMAND cart_claim_client_test)
+add_test(NAME cart_event_reconciler_test COMMAND cart_event_reconciler_test)
+add_test(NAME fixed_destination_catalog_test COMMAND fixed_destination_catalog_test)
+add_test(NAME station_request_controller_test COMMAND station_request_controller_test)
+add_test(NAME board_profile_test COMMAND board_profile_test)
+add_test(NAME fixed_button_debouncer_test COMMAND fixed_button_debouncer_test)
+add_test(NAME debounced_button_input_test COMMAND debounced_button_input_test)
+add_test(NAME two_button_event_interpreter_test COMMAND two_button_event_interpreter_test)
+add_test(NAME basic_user_interfaces_test COMMAND basic_user_interfaces_test)
+add_test(NAME fixed_dual_slot_persistence_test COMMAND fixed_dual_slot_persistence_test)

@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+cd "$ROOT_DIR"
+
+if ! command -v clang-format >/dev/null 2>&1; then
+  echo "clang-format is required to commit firmware changes." >&2
+  echo "Install it, then run firmware/campus_assistance/scripts/format.sh." >&2
+  exit 1
+fi
+
+while IFS= read -r -d '' file; do
+  if ! git diff --quiet -- "$file"; then
+    echo "Refusing to format '$file': it has unstaged changes." >&2
+    echo "Stage all changes to this file or stash the unstaged hunks, then retry." >&2
+    exit 1
+  fi
+  clang-format -i -- "$file"
+  git add -- "$file"
+done < <(
+  git diff --cached --name-only --diff-filter=ACM -z |
+    while IFS= read -r -d '' file; do
+      case "$file" in
+        firmware/campus_assistance/*.h|firmware/campus_assistance/*.hpp|firmware/campus_assistance/*.cpp|firmware/campus_assistance/*.ino)
+          printf '%s\0' "$file"
+          ;;
+      esac
+    done
+)

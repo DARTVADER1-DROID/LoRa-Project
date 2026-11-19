@@ -1,6 +1,6 @@
 # Campus Assistance — LoRa-Based Campus Mobility Support
 
-This repository is now focused on the **Campus Assistance System for blind and visually impaired students**.
+This repository is focused on the **Campus Assistance System for blind and visually impaired students**.
 
 The active project specification is maintained in [docs/campus-assistance/](docs/campus-assistance/README.md). It defines the agreed target architecture, requirements, workflows, hardware constraints, LoRa protocol direction, firmware/data model, safety boundaries and verification plan.
 
@@ -19,16 +19,19 @@ The active project specification is maintained in [docs/campus-assistance/](docs
 
 ## Documentation
 
-Start with [the Campus Assistance documentation index](docs/campus-assistance/README.md), then follow its ten engineering documents and supporting diagrams.
+Start with [the Campus Assistance documentation index](docs/campus-assistance/README.md), then follow its engineering documents and supporting diagrams. The [Firmware LLD](docs/campus-assistance/11-firmware-lld/README.md) defines the implementation contracts.
 
 ## Repository structure
 
 - `docs/campus-assistance/` — active project specification and engineering documentation.
+- `firmware/campus_assistance/` — interface-only C++11 firmware contracts, target entry points, host compile smoke test and formatting tools.
 - `.gitignore` — repository-wide local build-artifact exclusions.
 
 ## Firmware development status
 
-**The active firmware implementation has intentionally been cleared.** The next implementation work will begin with a detailed Low-Level Design (LLD), based on the approved project requirements. No legacy firmware should be treated as compliant with the current target design.
+The Firmware LLD has been translated into an interface-only C++ contract scaffold. It now defines explicit dependency-injected role composition, separate use cases, a single station assignment-commit authority, a complete request-record repository contract, byte-oriented radio transport and typed protocol events. Runtime implementations and hardware adapters remain intentionally pending.
+
+A host CMake target and GitHub Actions checks are included for public-header compilation and formatting. These checks do not establish Arduino/ESP32 target buildability, radio functionality, memory/timing budgets or hardware correctness. No legacy firmware should be treated as compliant with the current target design.
 
 ## Safety and regulatory gates
 
