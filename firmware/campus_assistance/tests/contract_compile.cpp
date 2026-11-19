@@ -5,25 +5,20 @@
 
 using namespace ca;
 
-template <typename T>
-class HasGenericUpdate {
+template <typename T> class HasGenericUpdate {
 private:
-  template <typename U>
-  static auto test(int) -> decltype(&U::update, std::true_type());
-  template <typename>
-  static std::false_type test(...);
+  template <typename U> static auto test(int) -> decltype(&U::update, std::true_type());
+  template <typename> static std::false_type test(...);
 
 public:
   static const bool value = decltype(test<T>(0))::value;
 };
 
-template <typename T>
-class HasAssignmentNoticeHandler {
+template <typename T> class HasAssignmentNoticeHandler {
 private:
   template <typename U>
   static auto test(int) -> decltype(&U::onAssignmentNotice, std::true_type());
-  template <typename>
-  static std::false_type test(...);
+  template <typename> static std::false_type test(...);
 
 public:
   static const bool value = decltype(test<T>(0))::value;
