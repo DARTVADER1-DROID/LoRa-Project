@@ -8,6 +8,7 @@ static const uint32_t kDefaultRequestLifetimeMs = 600000UL;
 static const uint16_t kMaxProtocolPayloadBytes = 64;
 static const uint16_t kMaxFrameBytes = 96;
 static const uint8_t kMaxPhysicalButtons = 2;
+static const uint8_t kMaxDestinationLabelBytes = 16;
 
 typedef uint16_t DeviceId;
 typedef uint16_t NetworkId;
@@ -19,13 +20,14 @@ typedef uint32_t EventSequence;
 typedef uint16_t RecordKey;
 
 enum class DeviceRole : uint8_t { STATION, CART };
-enum class DriverMode : uint8_t {
-  NOT_ACCEPTING,
-  ACCEPTING_IDLE,
-  CLAIMING,
+enum class AcceptanceMode : uint8_t { NOT_ACCEPTING, ACCEPTING };
+enum class CartServiceState : uint8_t {
+  IDLE,
+  CLAIM_PENDING,
   SERVING,
   UNCERTAIN
 };
+enum class ClaimState : uint8_t { IDLE, PENDING, WITHDRAWN, COMMITTED };
 enum class RequestState : uint8_t {
   CREATED,
   PENDING_UNASSIGNED,
@@ -53,6 +55,17 @@ enum class DriverActionType : uint8_t {
 };
 enum class CancellationSource : uint8_t { STUDENT, STATION_OPERATOR, SYSTEM };
 enum class DeliveryClass : uint8_t { BEST_EFFORT, RETRY_UNTIL_ACK, PRIORITY };
+enum class RetryOutcomeCode : uint8_t {
+  ACKNOWLEDGED,
+  EXHAUSTED,
+  CANCELLED,
+  STORAGE_FAILURE
+};
+enum class SenderValidation : uint8_t {
+  UNVALIDATED,
+  NETWORK_MEMBER_VALIDATED,
+  AUTHENTICATED
+};
 enum class MessageType : uint8_t {
   REQUEST,
   CLAIM,
@@ -128,6 +141,9 @@ struct RequestRecord {
   DeviceId assignedCartId;
   AssignmentEpoch assignmentEpoch;
   EventSequence lastJourneyEventSequence;
+  ClaimState claimState;
+  DeviceId claimCartId;
+  TransactionId claimTransactionId;
 };
 
 struct RequestSummary {
@@ -149,10 +165,17 @@ struct ClaimRequest {
   TransactionId transactionId;
 };
 
+struct ClaimWithdraw {
+  RequestId requestId;
+  DeviceId cartId;
+  TransactionId transactionId;
+};
+
 struct ClaimResult {
   RequestId requestId;
   TransactionId transactionId;
   ErrorCode result;
+  ClaimState finalState;
 };
 
 struct AssignmentNotice {
@@ -273,8 +296,29 @@ struct ExpiredRequestSet {
   uint16_t capacity;
 };
 
-struct StationRegistry;
-struct DestinationConfig;
-struct Destination;
+struct Destination {
+  DeviceId id;
+  char label[kMaxDestinationLabelBytes + 1];
+  bool enabled;
+};
+
+// Non-owning, immutable configuration views. The caller retains storage for
+// the full duration of load()/validation; count must not exceed capacity.
+struct DestinationConfig {
+  uint16_t count;
+  const Destination* entries;
+  uint16_t capacity;
+};
+
+struct StationRegistryEntry {
+  DeviceId stationId;
+  bool enabled;
+};
+
+struct StationRegistry {
+  uint16_t count;
+  const StationRegistryEntry* entries;
+  uint16_t capacity;
+};
 
 } // namespace ca
