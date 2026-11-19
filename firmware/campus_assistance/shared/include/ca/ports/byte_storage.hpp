@@ -4,8 +4,9 @@
 
 namespace ca {
 
-// Random-access bounded byte store. sync() must make prior writes durable;
-// FixedDualSlotPersistence provides old-or-new record visibility above it.
+// Random-access bounded byte store. write() programs bytes in ascending offset
+// order; sync() makes prior writes durable. FixedDualSlotPersistence relies on
+// this ordering to program the slot's commit marker last.
 class IByteStorage {
 public:
   virtual ~IByteStorage() {}
