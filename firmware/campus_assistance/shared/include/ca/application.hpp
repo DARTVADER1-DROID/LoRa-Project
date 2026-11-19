@@ -20,6 +20,8 @@ struct ProtocolEndpointDependencies {
 };
 
 struct StationDependencies {
+  ButtonConfig buttonConfig;
+  BuzzerConfig buzzerConfig;
   IClock& clock;
   IButtonInput& buttons;
   IDisplay& display;
@@ -34,6 +36,8 @@ struct StationDependencies {
 };
 
 struct CartDependencies {
+  ButtonConfig buttonConfig;
+  BuzzerConfig buzzerConfig;
   IClock& clock;
   IButtonInput& buttons;
   IDisplay& display;
