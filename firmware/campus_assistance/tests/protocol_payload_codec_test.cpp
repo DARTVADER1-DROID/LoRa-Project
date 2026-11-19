@@ -113,8 +113,12 @@ int main() {
   snapshot.payload.snapshot.assignedCartId = 8;
   snapshot.payload.snapshot.assignmentEpoch = 1;
   snapshot.payload.snapshot.lastEventSequence = 7;
+  snapshot.payload.snapshot.claimState = ClaimState::COMMITTED;
+  snapshot.payload.snapshot.claimCartId = 8;
+  snapshot.payload.snapshot.claimTransactionId = 101;
   decoded = roundTrip(snapshot);
   assert(decoded.payload.snapshot.lastEventSequence == 7);
+  assert(decoded.payload.snapshot.claimTransactionId == 101);
 
   ProtocolEvent acknowledgement = baseEvent(ProtocolEventType::ACKNOWLEDGEMENT_RECEIVED,
                                             MessageType::ACKNOWLEDGEMENT);
