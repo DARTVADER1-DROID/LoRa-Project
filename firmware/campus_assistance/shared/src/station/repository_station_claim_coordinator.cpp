@@ -49,7 +49,7 @@ Status RepositoryStationClaimCoordinator::commitWinner(const ClaimRequest& claim
   assignment.requestId = updated.id;
   assignment.assignedCartId = updated.assignedCartId;
   assignment.epoch = updated.assignmentEpoch;
-  assignment.state = updated.state;
+  assignment.state = RequestState::ASSIGNED;
   return Status();
 }
 
