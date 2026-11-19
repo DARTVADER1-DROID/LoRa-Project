@@ -6,7 +6,8 @@ FixedCartClaimClient::FixedCartClaimClient(DeviceId cartId,
                                            TransactionId initialTransactionId)
     : cartId_(cartId), nextTransactionId_(initialTransactionId),
       exhausted_(initialTransactionId == 0), inFlight_(false),
-      withdrawalRequested_(false), outstanding_() {}
+      withdrawalRequested_(false), outstanding_() {
+}
 
 Status FixedCartClaimClient::requestClaim(const RequestId& id, DeviceId cartId) {
   if (!RequestIdentity::isValid(id) || cartId == 0 || cartId != cartId_)
@@ -51,8 +52,7 @@ Status FixedCartClaimClient::onClaimResult(const ClaimResult& result) {
       static_cast<uint8_t>(ClaimState::COMMITTED))
     return Status(ErrorCode::INVALID_ARGUMENT);
 
-  if (result.result != ErrorCode::NONE ||
-      result.finalState == ClaimState::WITHDRAWN ||
+  if (result.result != ErrorCode::NONE || result.finalState == ClaimState::WITHDRAWN ||
       result.finalState == ClaimState::COMMITTED) {
     clear();
     return Status();
@@ -62,8 +62,7 @@ Status FixedCartClaimClient::onClaimResult(const ClaimResult& result) {
   return Status();
 }
 
-Status FixedCartClaimClient::onAssignmentConfirmed(
-    const AssignmentRecord& assignment) {
+Status FixedCartClaimClient::onAssignmentConfirmed(const AssignmentRecord& assignment) {
   if (!inFlight_ ||
       !RequestIdentity::equals(assignment.requestId, outstanding_.requestId) ||
       assignment.assignedCartId != cartId_ || assignment.epoch == 0 ||
@@ -76,7 +75,9 @@ Status FixedCartClaimClient::onAssignmentConfirmed(
   return Status();
 }
 
-bool FixedCartClaimClient::hasClaimInFlight() const { return inFlight_; }
+bool FixedCartClaimClient::hasClaimInFlight() const {
+  return inFlight_;
+}
 
 bool FixedCartClaimClient::getOutstandingClaim(ClaimRequest& claim) const {
   if (!inFlight_)
