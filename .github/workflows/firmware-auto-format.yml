@@ -1,0 +1,37 @@
+name: Auto-format firmware
+
+on:
+  push:
+    branches:
+      - feature/campus-assistance-firmware-skeleton
+    paths:
+      - "firmware/campus_assistance/**"
+      - ".clang-format"
+      - ".github/workflows/firmware-auto-format.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
+      - name: Format firmware sources
+        run: sh firmware/campus_assistance/scripts/format.sh
+      - name: Commit formatting changes
+        run: |
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add firmware/campus_assistance
+            git commit -m "style: automatically format firmware sources"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          else
+            echo "Firmware sources are already formatted."
+          fi
