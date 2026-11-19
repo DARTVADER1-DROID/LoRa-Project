@@ -8,6 +8,7 @@ add_library(campus_assistance_contracts STATIC
   shared/src/cart/fixed_active_assignment.cpp
   shared/src/config.cpp
   shared/src/request_identity.cpp
+  shared/src/station/station_request_lifecycle.cpp
   shared/src/types.cpp)
 target_include_directories(
   campus_assistance_contracts
@@ -40,6 +41,14 @@ target_link_libraries(fixed_request_repository_test PRIVATE campus_assistance_co
 add_executable(cart_state_components_test tests/cart_state_components_test.cpp)
 target_link_libraries(cart_state_components_test PRIVATE campus_assistance_contracts)
 
+add_executable(durable_request_repository_test
+  tests/durable_request_repository_test.cpp)
+target_link_libraries(durable_request_repository_test PRIVATE campus_assistance_contracts)
+
+add_executable(station_request_lifecycle_test
+  tests/station_request_lifecycle_test.cpp)
+target_link_libraries(station_request_lifecycle_test PRIVATE campus_assistance_contracts)
+
 enable_testing()
 add_test(NAME contract_compile COMMAND contract_compile)
 add_test(NAME repository_transition_test COMMAND repository_transition_test)
@@ -49,3 +58,6 @@ add_test(NAME request_identity_test COMMAND request_identity_test)
 add_test(NAME pending_request_store_test COMMAND pending_request_store_test)
 add_test(NAME fixed_request_repository_test COMMAND fixed_request_repository_test)
 add_test(NAME cart_state_components_test COMMAND cart_state_components_test)
+add_test(NAME durable_request_repository_test
+  COMMAND durable_request_repository_test)
+add_test(NAME station_request_lifecycle_test COMMAND station_request_lifecycle_test)
