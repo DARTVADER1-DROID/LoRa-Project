@@ -31,8 +31,7 @@ public:
       if (!entries_[i].active ||
           entries_[i].message.header.transactionId != message.header.transactionId)
         continue;
-      if (!sameMessage(entries_[i].message, message) ||
-          entries_[i].terminalPending)
+      if (!sameMessage(entries_[i].message, message) || entries_[i].terminalPending)
         return Status(ErrorCode::INVALID_STATE);
       return Status();
     }
