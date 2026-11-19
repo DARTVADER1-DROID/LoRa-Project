@@ -54,9 +54,6 @@ Status BasicDriverAvailabilityController::onAssignmentConfirmed(
 }
 
 Status BasicDriverAvailabilityController::onJourneyCompleted() {
-  if (service_ == CartServiceState::IDLE &&
-      acceptance_ == AcceptanceMode::NOT_ACCEPTING)
-    return Status();
   if (service_ != CartServiceState::SERVING)
     return Status(ErrorCode::INVALID_STATE);
   service_ = CartServiceState::IDLE;
