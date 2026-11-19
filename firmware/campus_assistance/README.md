@@ -7,8 +7,10 @@ and separate Arduino Uno / ESP32 station / cart entry points.
 
 ## Layout
 
-- `shared/include/ca/`: portable value types, ports, domain contracts, protocol,
+- `shared/include/ca/`: portable value types, domain contracts, protocol,
   configuration, station use case, UI and role application contracts.
+- `shared/include/ca/ports/`: narrow hardware, runtime, persistence and request
+  repository abstractions. The root `ports.hpp` is only a convenience aggregate.
 - `shared/include/ca/cart/`: focused declarations for concrete cart-side policies
   and assignment state.
 - `shared/include/ca/storage/`: fixed-capacity storage templates; template bodies
