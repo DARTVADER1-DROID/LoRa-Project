@@ -112,7 +112,8 @@ enum class ErrorCode : uint8_t {
   CAPACITY_EXCEEDED,
   NOT_IMPLEMENTED,
   HARDWARE_UNAVAILABLE,
-  CORRUPT_DATA
+  CORRUPT_DATA,
+  INCOMPLETE_WRITE
 };
 
 // Shared value semantics. Sequence comparison follows the 32-bit serial-number
