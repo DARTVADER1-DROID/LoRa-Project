@@ -176,3 +176,14 @@ The byte transport boundary, typed event delivery, atomic repository guard and S
 - A ProtocolEvent carries the complete decoded ProtocolHeader (protocol version, network, message type, source, destination, transaction ID and message sequence) plus sender-validation result. This metadata survives decoding and event dispatch for authorization, replay filtering, deduplication and ACK correlation.
 - The validator must enforce role/address rules before an application event is emitted. NETWORK_MEMBER_VALIDATED means only that configured network/address rules passed; it is not cryptographic sender authentication. Authenticated status is available only after a real authentication mechanism is implemented and verified.
 - Message sequence/replay windows are scoped by sender identity and protocol version; transaction IDs correlate claim/withdraw/assignment and ACK outcomes. Duplicate and stale frames must be idempotent.
+
+
+## 15. Provisional host codec (not a frozen wire standard)
+
+The current `BinaryFrameCodec` is a host-testable reference implementation only. Its
+magic bytes, numeric field widths, big-endian encoding and CRC32 choice are provisional.
+They must not be treated as approved interoperability or security requirements. Before
+deploying radio nodes, review and freeze one protocol schema covering message IDs,
+payload field layouts, maximum lengths, sequence/replay rules, ACK correlation,
+arbitration windows, retry/backoff and airtime. The current application-level request
+and cancellation payload assembly is likewise provisional.
