@@ -56,10 +56,6 @@ Status StationRequestLifecycle::cancel(const RequestId& id, CancellationSource s
   if (!configured_)
     return Status(ErrorCode::INVALID_STATE);
 
-  RequestRecord current = {};
-  if (!repository_.find(id, current))
-    return Status(ErrorCode::NOT_FOUND);
-
   RequestRecord updated = {};
   return repository_.cancelIfUnassigned(id, source, updated);
 }
@@ -68,7 +64,8 @@ Status StationRequestLifecycle::expireDue(uint32_t stationNowMs,
                                           ExpiredRequestSet& expired) {
   if (!configured_)
     return Status(ErrorCode::INVALID_STATE);
-  if ((expired.capacity > 0 && expired.items == 0) || expired.count > expired.capacity)
+  expired.count = 0;
+  if (expired.capacity > 0 && expired.items == 0)
     return Status(ErrorCode::INVALID_ARGUMENT);
 
   uint16_t dueCount = 0;
@@ -84,8 +81,10 @@ Status StationRequestLifecycle::expireDue(uint32_t stationNowMs,
       ++dueCount;
   }
 
-  if (dueCount > expired.capacity)
+  if (dueCount > expired.capacity) {
+    expired.count = dueCount;
     return Status(ErrorCode::BUFFER_FULL);
+  }
 
   uint16_t written = 0;
   for (uint16_t i = 0; i < repository_.size(); ++i) {
