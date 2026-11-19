@@ -18,6 +18,7 @@
 #include "ca/cart/cart_event_reconciler.hpp"
 #include "ca/cart/default_journey_progress_controller.hpp"
 #include "ca/protocol.hpp"
+#include "ca/protocol/fixed_retry_manager.hpp"
 #include "ca/config.hpp"
 #include "ca/station_request_controller.hpp"
 #include "ca/ui.hpp"
