@@ -152,3 +152,41 @@ The public header contracts supersede older shorthand signatures in this documen
 - `ProtocolEndpoint::pollEvent(ProtocolEvent&)`.
 
 No API may imply that a CLAIM, ACK or local UI action commits assignment or proves physical completion.
+
+## 10. Review corrections — atomic race and state ownership
+
+This section supersedes conflicting earlier shorthand in this document.
+
+### Claim transaction lifecycle
+
+A claim is a durable transaction, not merely a cart UI mode:
+
+    IDLE -> PENDING -> WITHDRAWN
+                   -> COMMITTED
+
+- beginClaimIfEligible atomically records the cart and transaction ID only if the request is live, unassigned and not already claimed by another unresolved transaction.
+- withdrawClaimIfPending changes only the matching RequestId/cartId/transactionId from PENDING to WITHDRAWN.
+- commitAssignmentIfClaimPending commits only that exact still-PENDING transaction. It atomically verifies the request remains live and unassigned, then stores assigned cart and assignment epoch.
+- The station serializes withdrawal, expiry, cancellation and assignment commit against the same record. Exactly one terminal/assignment transition wins.
+- Duplicate withdrawal is idempotent. A delayed withdrawal after COMMITTED returns the committed outcome and cannot clear the assignment.
+- Reboot recovery must restore claim transaction state from durable station storage or safely reject/reconcile unresolved transactions before accepting new claims.
+
+### Independent cart state dimensions
+
+- AcceptanceMode is NOT_ACCEPTING or ACCEPTING.
+- CartServiceState is IDLE, CLAIM_PENDING, SERVING or UNCERTAIN.
+- Disabling acceptance changes only acceptance intent and clears only the local pending FIFO. It sends CLAIM_WITHDRAW if a claim is unresolved; it never sends global request cancellation.
+- If assignment committed before withdrawal, process the authoritative ASSIGN and surface the driver conflict. Do not silently discard it.
+- Receiver operation and queue insertion continue while NOT_ACCEPTING.
+
+### Single ownership of journey state
+
+- ActiveAssignment owns the active assignment and current journey status.
+- JourneyProgressController validates a proposed transition and is stateless.
+- CartClaimClient tracks only the claim transaction.
+- EventReconciler is a stateless orchestration boundary; it delegates assignment activation and journey changes to the owning domain components.
+- No second current() journey-state cache is permitted.
+
+### Repository atomicity
+
+There is no generic repository update. Cancellation, expiry, claim start, withdrawal, assignment commit and journey update are conditional atomic transitions. A repository implementation must make each operation linearizable with respect to every other transition for the same full RequestId.
