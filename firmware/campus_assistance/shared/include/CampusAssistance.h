@@ -23,3 +23,4 @@
 #include "ca/ui.hpp"
 #include "ca/application.hpp"
 #include "ca/input/fixed_button_debouncer.hpp"
+#include "ca/input/debounced_button_input.hpp"
