@@ -12,8 +12,9 @@ namespace ca {
 template <uint16_t StorageCapacity>
 class DurableRequestRepository final : public IRequestRepository {
   static_assert(StorageCapacity > 0, "StorageCapacity must be nonzero");
-  static_assert(StorageCapacity <= 1925,
-                "Encoded snapshot length must fit the persistence API uint16_t length.");
+  static_assert(
+      StorageCapacity <= 1925,
+      "Encoded snapshot length must fit the persistence API uint16_t length.");
 
   enum {
     kHeaderBytes = 17,
