@@ -273,6 +273,25 @@ public:
         static_cast<uint8_t>(record.claimState) >
             static_cast<uint8_t>(ClaimState::COMMITTED))
       return Status(ErrorCode::INVALID_ARGUMENT);
+    const bool assigned =
+        record.state == RequestState::ASSIGNED ||
+        record.state == RequestState::ON_THE_WAY ||
+        record.state == RequestState::ARRIVED_AT_PICKUP ||
+        record.state == RequestState::COMPLETED;
+    if (assigned &&
+        (record.assignedCartId == 0 || record.assignmentEpoch == 0 ||
+         record.claimState != ClaimState::COMMITTED))
+      return Status(ErrorCode::INVALID_ARGUMENT);
+    if (record.state == RequestState::CLAIM_PENDING &&
+        (record.claimState != ClaimState::PENDING || record.claimCartId == 0 ||
+         record.claimTransactionId == 0))
+      return Status(ErrorCode::INVALID_ARGUMENT);
+    if ((record.state == RequestState::PENDING_UNASSIGNED ||
+         record.state == RequestState::CANCELLED ||
+         record.state == RequestState::EXPIRED) &&
+        (record.assignedCartId != 0 || record.assignmentEpoch != 0 ||
+         record.claimState == ClaimState::PENDING))
+      return Status(ErrorCode::INVALID_ARGUMENT);
     if (findIndex(record.id) >= 0)
       return Status(ErrorCode::DUPLICATE);
     if (count_ >= StorageCapacity)
