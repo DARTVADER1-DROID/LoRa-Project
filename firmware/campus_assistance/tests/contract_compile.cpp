@@ -1,5 +1,7 @@
 #include "CampusAssistance.h"
 
+// Compile-time checks for repository, claim and assignment ownership boundaries.
+
 #include <stddef.h>
 #include <type_traits>
 
