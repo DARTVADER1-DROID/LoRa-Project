@@ -69,5 +69,12 @@ int main() {
              .validateTransition(
                  JourneyStatus::RECEIVED, JourneyStatus::COMPLETED, complete)
              .code == ErrorCode::INVALID_STATE);
+
+  FixedActiveAssignment recovered;
+  assert(recovered.activate(assignment).ok());
+  assert(recovered.reconcileSnapshot(JourneyStatus::ON_THE_WAY, 0xFFFFFFFFUL).ok());
+  assert(recovered.reconcileSnapshot(JourneyStatus::ARRIVED_AT_PICKUP, 0).ok());
+  assert(recovered.get(current));
+  assert(current.lastEventSequence == 0);
   return 0;
 }
