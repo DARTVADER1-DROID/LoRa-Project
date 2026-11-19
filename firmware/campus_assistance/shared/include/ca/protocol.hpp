@@ -99,8 +99,8 @@ public:
                          SenderValidation& validation) const override;
 
 private:
-  const IStationRegistry& stations_;
-  const ICartRegistry& carts_;
+  const IStationRegistry* stations_;
+  const ICartRegistry* carts_;
 };
 
 class ProtocolEndpoint {
