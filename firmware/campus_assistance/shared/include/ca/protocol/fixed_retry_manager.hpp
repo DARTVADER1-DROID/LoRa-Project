@@ -116,12 +116,14 @@ public:
   }
 
   Status onAcknowledgement(TransactionId transactionId,
-                           DeviceId acknowledgingDeviceId) override {
+                           DeviceId acknowledgingDeviceId,
+                           uint32_t acknowledgedMessageSequence) override {
     Entry* entry = find(transactionId);
     if (entry == 0)
       return Status(ErrorCode::NOT_FOUND);
     if (entry->message.header.destinationDeviceId == 0 ||
         entry->message.header.destinationDeviceId != acknowledgingDeviceId ||
+        entry->message.header.messageSequence != acknowledgedMessageSequence ||
         entry->attemptsUsed == 0)
       return Status(ErrorCode::STALE_EVENT);
     finish(*entry, RetryOutcomeCode::ACKNOWLEDGED);
