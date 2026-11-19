@@ -1,0 +1,33 @@
+name: Arduino target compile
+
+on:
+  pull_request:
+    paths:
+      - "firmware/campus_assistance/**"
+      - ".github/workflows/arduino-target-build.yml"
+  push:
+    paths:
+      - "firmware/campus_assistance/**"
+      - ".github/workflows/arduino-target-build.yml"
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - uno_station
+          - uno_cart
+          - esp32_station
+          - esp32_cart
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install PlatformIO
+        run: python -m pip install platformio
+      - name: Compile target
+        working-directory: firmware/campus_assistance
+        run: pio run -e ${{ matrix.environment }}
