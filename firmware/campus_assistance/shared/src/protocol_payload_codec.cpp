@@ -80,6 +80,10 @@ bool validSnapshot(const RequestSnapshot& snapshot) {
   if (snapshot.state == RequestState::CLAIM_PENDING)
     return snapshot.claimState == ClaimState::PENDING && snapshot.claimCartId != 0 &&
            snapshot.claimTransactionId != 0;
+  if (snapshot.state != RequestState::PENDING_UNASSIGNED &&
+      snapshot.state != RequestState::CANCELLED &&
+      snapshot.state != RequestState::EXPIRED)
+    return false;
   if (snapshot.claimState == ClaimState::IDLE)
     return snapshot.claimCartId == 0 && snapshot.claimTransactionId == 0;
   if (snapshot.claimState == ClaimState::WITHDRAWN)
