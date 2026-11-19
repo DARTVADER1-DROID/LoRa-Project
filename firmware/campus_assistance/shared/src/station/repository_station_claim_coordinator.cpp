@@ -1,4 +1,5 @@
 #include "ca/station/repository_station_claim_coordinator.hpp"
+#include "ca/domain/request_identity.hpp"
 
 namespace ca {
 
