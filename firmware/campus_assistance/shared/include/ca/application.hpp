@@ -88,6 +88,8 @@ public:
 private:
   CartDependencies dependencies_;
   DeviceConfig config_;
+  TransactionId completionTransactionId_;
+  bool completionAwaitingAcknowledgement_;
   bool initialized_;
 };
 
