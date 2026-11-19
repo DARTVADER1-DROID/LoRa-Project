@@ -147,8 +147,7 @@ private:
     MessageType messageType;
     uint32_t frameChecksum;
   };
-  static const uint16_t kRecentCapacity =
-      static_cast<uint16_t>(EventCapacity * 2U);
+  static const uint16_t kRecentCapacity = static_cast<uint16_t>(EventCapacity * 2U);
   RecentMessage recent_[kRecentCapacity];
   uint16_t recentHead_;
   uint16_t recentCount_;
@@ -221,8 +220,7 @@ private:
     return transport_.send(frame);
   }
 
-  bool isDuplicate(const ProtocolHeader& header,
-                   uint32_t frameChecksum) const {
+  bool isDuplicate(const ProtocolHeader& header, uint32_t frameChecksum) const {
     for (uint16_t i = 0; i < recentCount_; ++i) {
       const uint16_t index = static_cast<uint16_t>(
           (static_cast<uint32_t>(recentHead_) + i) % kRecentCapacity);
@@ -237,8 +235,7 @@ private:
     return false;
   }
 
-  bool conflictsWithRecent(const ProtocolHeader& header,
-                           uint32_t frameChecksum) const {
+  bool conflictsWithRecent(const ProtocolHeader& header, uint32_t frameChecksum) const {
     for (uint16_t i = 0; i < recentCount_; ++i) {
       const uint16_t index = static_cast<uint16_t>(
           (static_cast<uint32_t>(recentHead_) + i) % kRecentCapacity);
@@ -256,11 +253,10 @@ private:
     uint16_t tail = static_cast<uint16_t>(
         (static_cast<uint32_t>(recentHead_) + recentCount_) % kRecentCapacity);
     if (recentCount_ == kRecentCapacity) {
-      recentHead_ = static_cast<uint16_t>(
-          (static_cast<uint32_t>(recentHead_) + 1U) % kRecentCapacity);
+      recentHead_ = static_cast<uint16_t>((static_cast<uint32_t>(recentHead_) + 1U) %
+                                          kRecentCapacity);
       tail = static_cast<uint16_t>(
-          (static_cast<uint32_t>(recentHead_) + recentCount_ - 1U) %
-          kRecentCapacity);
+          (static_cast<uint32_t>(recentHead_) + recentCount_ - 1U) % kRecentCapacity);
     } else {
       ++recentCount_;
     }
