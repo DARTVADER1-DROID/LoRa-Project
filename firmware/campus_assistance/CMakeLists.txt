@@ -13,6 +13,7 @@ add_library(campus_assistance_contracts STATIC
   shared/src/cart/fixed_cart_claim_client.cpp
   shared/src/config.cpp
   shared/src/protocol.cpp
+  shared/src/protocol_payload_codec.cpp
   shared/src/request_identity.cpp
   shared/src/station_request_controller.cpp
   shared/src/station/station_request_lifecycle.cpp
