@@ -114,6 +114,10 @@ add_executable(basic_user_interfaces_test
   tests/basic_user_interfaces_test.cpp)
 target_link_libraries(basic_user_interfaces_test PRIVATE campus_assistance_contracts)
 
+add_executable(fixed_dual_slot_persistence_test
+  tests/fixed_dual_slot_persistence_test.cpp)
+target_link_libraries(fixed_dual_slot_persistence_test PRIVATE campus_assistance_contracts)
+
 enable_testing()
 add_test(NAME contract_compile COMMAND contract_compile)
 add_test(NAME repository_transition_test COMMAND repository_transition_test)
@@ -140,3 +144,4 @@ add_test(NAME fixed_button_debouncer_test COMMAND fixed_button_debouncer_test)
 add_test(NAME debounced_button_input_test COMMAND debounced_button_input_test)
 add_test(NAME two_button_event_interpreter_test COMMAND two_button_event_interpreter_test)
 add_test(NAME basic_user_interfaces_test COMMAND basic_user_interfaces_test)
+add_test(NAME fixed_dual_slot_persistence_test COMMAND fixed_dual_slot_persistence_test)
