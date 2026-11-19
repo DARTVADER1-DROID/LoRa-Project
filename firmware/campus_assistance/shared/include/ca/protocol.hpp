@@ -14,9 +14,23 @@ struct DecodeResult {
   uint16_t bytesRead;
 };
 
+// Payload is decoded into a bounded, typed event before role application
+// dispatch. The tag determines which union member is valid.
+union ProtocolEventPayload {
+  RequestSummary request;
+  ClaimRequest claim;
+  ClaimResult claimResult;
+  AssignmentNotice assignment;
+  CancellationNotice cancellation;
+  ExpiryNotice expiry;
+  JourneyUpdate journeyUpdate;
+  RequestSnapshot snapshot;
+  TransactionId acknowledgedTransaction;
+};
+
 struct ProtocolEvent {
   ProtocolEventType type;
-  ProtocolMessage message;
+  ProtocolEventPayload payload;
 };
 
 class FrameCodec {
