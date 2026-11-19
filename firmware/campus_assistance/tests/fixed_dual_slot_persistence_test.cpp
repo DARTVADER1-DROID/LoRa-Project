@@ -142,8 +142,7 @@ int main() {
     assert(writer.begin().ok());
     assert(writer.storeAtomically(key, oldValue, sizeof(oldValue)).ok());
     cutStorage.failAfterWrites(cut);
-    const Status updateStatus =
-        writer.storeAtomically(key, newValue, sizeof(newValue));
+    const Status updateStatus = writer.storeAtomically(key, newValue, sizeof(newValue));
     cutStorage.failAfterWrites(-1);
 
     FixedDualSlotPersistence<128> afterReset(cutStorage, key);
