@@ -84,12 +84,12 @@ void StationApplication::service() {
 
   const uint32_t nowMs = dependencies_.clock.millisNow();
 
-  Status expiryStatus =
-      dependencies_.requestLifecycle.expireDue(nowMs, dependencies_.expiryBuffer);
-  if (!expiryStatus.ok() && expiryStatus.code != ErrorCode::BUFFER_FULL) {
+  Status expiryStatus = dependencies_.requestLifecycle.expireDue(
+      nowMs, dependencies_.expiryBuffer);
+  if (!expiryStatus.ok()) {
     dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected,
                                      expiryStatus.code);
-  } else if (expiryStatus.ok()) {
+  } else {
     for (uint16_t i = 0; i < dependencies_.expiryBuffer.count; ++i) {
       const RequestId& id = dependencies_.expiryBuffer.items[i];
       ProtocolMessage message = {};
@@ -108,7 +108,8 @@ void StationApplication::service() {
       const Status queued =
           dependencies_.protocol.enqueue(message, DeliveryClass::RETRY_UNTIL_ACK);
       if (!queued.ok())
-        dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected, queued.code);
+        dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected,
+                                         queued.code);
     }
   }
 
