@@ -1,30 +1,71 @@
-# Campus Assistance Firmware Skeleton
+# Campus Assistance Firmware Contracts
 
-**Interface/stub scaffold only — no operational firmware is implemented.**
+**Interface-only architecture scaffold — no operational firmware is implemented.**
 
-This directory translates `docs/campus-assistance/11-firmware-lld/` into organized C++ contracts and Arduino sketch entry points.
+This directory translates the Firmware LLD into C++11-compatible public contracts
+and separate Arduino Uno / ESP32 station / cart entry points.
 
 ## Layout
-- `shared/include/ca/`: portable types, hardware ports, domain, protocol and application interfaces.
-- `shared/src/`: stub definitions; non-void methods explicitly return NOT_IMPLEMENTED.
-- `targets/uno/{station,cart}/`: Arduino Uno sketches.
-- `targets/esp32/{station,cart}/`: ESP32 sketches; exact board remains TBD.
-- `platform/`: board adapter boundary.
-- `tests/`: host-side verification plan.
 
-## Important
-This is not yet a complete Arduino IDE/PlatformIO build. No radio library, pin map, RF profile or final ESP32 board has been selected. Sketches are intentionally inert. The next implementation step is to wire the adapters and build system after board and library choices are frozen.
+- `shared/include/ca/`: portable value types, ports, domain contracts, protocol,
+  configuration, station use case, UI and role application contracts.
+- `shared/include/CampusAssistance.h`: public umbrella include.
+- `shared/src/README.md`: implementation boundary and layering rule.
+- `targets/uno/{station,cart}/`: Arduino Uno entry points.
+- `targets/esp32/{station,cart}/`: ESP32 entry points; exact board remains TBD.
+- `tests/contract_compile.cpp`: host compiler smoke test for public headers.
+- `CMakeLists.txt`: host-side C++11 contract compile target.
+- `scripts/`: formatting and format verification commands.
 
-## Non-negotiable behavior
-- All carts receive continuously, regardless of driver mode.
-- Driver acceptance gates CLAIM only, not receive/queue behavior.
-- CLAIM is not ownership; only matching station-originated ASSIGN activates a cart.
-- One active assignment maximum per cart.
-- Disabling acceptance clears only that cart's local pending list; it does not cancel station requests.
-- Requests received after clearing may populate a fresh pending list while disabled.
-- Completion forces NOT_ACCEPTING; manual driver re-enable is required.
-- Station owns request identity, assignment arbitration, cancellation and 600,000 ms default expiry.
-- At most two physical buttons, 16×2 LCD and buzzer.
-- No vehicle actuation/control interfaces.
+## Build the public contracts
 
-Keep domain independent of Arduino/ESP-IDF. Use bounded storage, non-blocking service loops, explicit errors and common protocol vectors across MCU targets. Follow the LLD implementation order and add host tests before hardware integration.
+```sh
+cmake -S firmware/campus_assistance -B build/campus-assistance
+cmake --build build/campus-assistance
+ctest --test-dir build/campus-assistance --output-on-failure
+```
+
+This checks header consistency only. It is not an Arduino IDE or PlatformIO build,
+and does not verify target memory, timing, radio behavior or hardware adapters.
+
+## Format code automatically
+
+See [FORMAT.md](FORMAT.md). Run:
+
+```sh
+sh firmware/campus_assistance/scripts/format.sh
+```
+
+Enable the local pre-commit hook once per clone:
+
+```sh
+git config core.hooksPath .githooks
+chmod +x .githooks/pre-commit
+```
+
+GitHub Actions independently checks formatting on pull requests.
+
+## Architecture rules
+
+- Both role applications use explicit dependency injection.
+- Domain and protocol layers contain no Arduino / ESP-IDF dependencies.
+- StationClaimCoordinator is the sole assignment-commit authority.
+- The request repository stores complete RequestRecord values and exposes an
+  atomic assign-if-unassigned guard.
+- Radio transport operates on encoded bytes; applications receive typed events.
+- All queues, frame buffers and retry tables must be bounded.
+- Cart receive and queue behavior is independent of driver acceptance.
+- CLAIM is not ownership; only a matching station-originated ASSIGN activates.
+- Disabling acceptance clears only that cart's local pending FIFO.
+- Completion forces NOT_ACCEPTING; manual re-enable is required.
+- No steering, braking, throttle or traction-control interfaces are permitted.
+
+See the [Firmware LLD](../../docs/campus-assistance/11-firmware-lld/README.md),
+especially [SOLID and scalability contracts](../../docs/campus-assistance/11-firmware-lld/06-solid-and-scalability-contracts.md).
+
+## Deliberate open items
+
+No radio library, pin map, final ESP32 board, legal RF profile, numeric wire-field
+encoding, queue capacity or persistence layout is frozen. RA-02/SX1278 integration
+must retain 3.3 V logic/power requirements and pass Indian WPC verification before
+transmission. Hardware adapters and runtime behavior remain future work.
