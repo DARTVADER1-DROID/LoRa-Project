@@ -6,21 +6,16 @@ StationRequestLifecycle::StationRequestLifecycle(IRequestRepository& repository,
                                                  const DestinationCatalog& destinations,
                                                  const IClock& clock,
                                                  DeviceId stationId,
-                                                 uint32_t requestLifetimeMs,
-                                                 uint32_t terminalRetentionMs)
+                                                 uint32_t requestLifetimeMs)
     : repository_(repository), destinations_(destinations), clock_(clock),
       stationId_(stationId), requestLifetimeMs_(requestLifetimeMs),
-      terminalRetentionMs_(terminalRetentionMs), lastRetentionScanMs_(0),
-      retentionScanInitialized_(false), configured_(false) {
+      configured_(false) {
 }
 
 Status StationRequestLifecycle::configure() {
-  if (stationId_ == 0 || requestLifetimeMs_ == 0 || requestLifetimeMs_ > 0x7FFFFFFFUL ||
-      terminalRetentionMs_ == 0 || terminalRetentionMs_ > 0x7FFFFFFFUL)
+  if (stationId_ == 0 || requestLifetimeMs_ == 0 ||
+      requestLifetimeMs_ > 0x7FFFFFFFUL)
     return Status(ErrorCode::INVALID_ARGUMENT);
-
-  lastRetentionScanMs_ = clock_.millisNow();
-  retentionScanInitialized_ = true;
   configured_ = true;
   return Status();
 }
@@ -74,16 +69,6 @@ Status StationRequestLifecycle::expireDue(uint32_t stationNowMs,
   if (expired.capacity > 0 && expired.items == 0)
     return Status(ErrorCode::INVALID_ARGUMENT);
 
-  if (!retentionScanInitialized_ ||
-      hasElapsed(stationNowMs, lastRetentionScanMs_, 60000UL)) {
-    lastRetentionScanMs_ = stationNowMs;
-    retentionScanInitialized_ = true;
-    const uint32_t retentionBoundary = stationNowMs - terminalRetentionMs_;
-    const Status retentionStatus = repository_.removeTerminalBefore(retentionBoundary);
-    if (!retentionStatus.ok())
-      return retentionStatus;
-  }
-
   uint16_t dueCount = 0;
   for (uint16_t i = 0; i < repository_.size(); ++i) {
     RequestRecord record = {};
@@ -123,6 +108,7 @@ Status StationRequestLifecycle::expireDue(uint32_t stationNowMs,
   }
 
   expired.count = written;
+  return Status();
 }
 
 Status StationRequestLifecycle::applyJourneyUpdate(const JourneyUpdate& update) {
