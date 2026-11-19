@@ -83,6 +83,28 @@ Status enqueueCartClaim(ProtocolEndpoint& protocol,
   return protocol.enqueue(message, DeliveryClass::RETRY_UNTIL_ACK);
 }
 
+Status enqueueAssignmentNotice(ProtocolEndpoint& protocol,
+                               const DeviceConfig& config,
+                               const AssignmentRecord& assignment) {
+  ProtocolMessage message = {};
+  message.header.protocolVersion = config.protocolVersion;
+  message.header.networkId = config.networkId;
+  message.header.messageType = MessageType::ASSIGN;
+  message.header.sourceDeviceId = config.deviceId;
+  message.header.destinationDeviceId = 0;
+  message.header.transactionId = transactionFor(assignment.requestId);
+  message.header.messageSequence = assignment.requestId.sequence;
+  uint16_t offset = 0;
+  put16(message.payload, offset, assignment.requestId.originStationId);
+  put32(message.payload, offset, assignment.requestId.sequence);
+  put16(message.payload, offset, assignment.requestId.generation);
+  put16(message.payload, offset, assignment.assignedCartId);
+  put16(message.payload, offset, assignment.epoch);
+  message.payload[offset++] = static_cast<uint8_t>(RequestState::ASSIGNED);
+  message.payloadLength = offset;
+  return protocol.enqueue(message, DeliveryClass::RETRY_UNTIL_ACK);
+}
+
 } // namespace
 
 StationApplication::StationApplication(StationDependencies dependencies)
@@ -204,11 +226,36 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
     }
     status = dependencies_.claims.evaluate(claim, dependencies_.clock.millisNow());
     {
+      AssignmentRecord assignment = {};
+      if (status.ok()) {
+        status = dependencies_.claims.commitWinner(
+            claim, dependencies_.clock.millisNow(), assignment);
+        if (!status.ok()) {
+          ClaimWithdraw withdrawal = {};
+          withdrawal.requestId = claim.requestId;
+          withdrawal.cartId = claim.cartId;
+          withdrawal.transactionId = claim.transactionId;
+          dependencies_.claims.withdrawClaim(withdrawal);
+        }
+      }
+      if (!dependencies_.claims.getAssignment(claim.requestId, assignment) &&
+          status.ok()) {
+        status = Status(ErrorCode.STORAGE_FAILURE);
+      }
+
+      const bool assigned =
+          dependencies_.claims.getAssignment(claim.requestId, assignment);
+      if (assigned) {
+        const Status notice =
+            enqueueAssignmentNotice(dependencies_.protocol, config_, assignment);
+        if (!notice.ok())
+          dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected,
+                                           notice.code);
+      }
+
       const ClaimState finalState =
-          status.ok() ? ClaimState::PENDING
-                      : (dependencies_.claims.isAssigned(claim.requestId)
-                             ? ClaimState::COMMITTED
-                             : ClaimState::IDLE);
+          assigned ? ClaimState::COMMITTED
+                   : (status.ok() ? ClaimState::PENDING : ClaimState::WITHDRAWN);
       const Status response = enqueueClaimResult(
           dependencies_.protocol, config_, claim, status.code, finalState);
       if (!response.ok())
@@ -225,10 +272,19 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
     }
     status = dependencies_.claims.withdrawClaim(withdrawal);
     {
+      AssignmentRecord assignment = {};
+      const bool assigned =
+          dependencies_.claims.getAssignment(withdrawal.requestId, assignment);
+      if (assigned) {
+        const Status notice =
+            enqueueAssignmentNotice(dependencies_.protocol, config_, assignment);
+        if (!notice.ok())
+          dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected,
+                                           notice.code);
+      }
       const ClaimState finalState =
-          dependencies_.claims.isAssigned(withdrawal.requestId)
-              ? ClaimState::COMMITTED
-              : (status.ok() ? ClaimState::WITHDRAWN : ClaimState::IDLE);
+          assigned ? ClaimState::COMMITTED
+                   : (status.ok() ? ClaimState::WITHDRAWN : ClaimState::IDLE);
       ClaimRequest claim = {};
       claim.requestId = withdrawal.requestId;
       claim.cartId = withdrawal.cartId;
