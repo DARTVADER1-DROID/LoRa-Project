@@ -8,6 +8,8 @@ BasicStationUserInterface::BasicStationUserInterface(
     : destinations_(destinations), requests_(requests), selectedIndex_(0),
       selectedDestinationId_(0), status_() {
   setStatus("Select destination");
+  if (destinations_.count() > 0)
+    selectedIndex_ = static_cast<uint16_t>(destinations_.count() - 1U);
   moveSelection(1);
 }
 
