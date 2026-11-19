@@ -11,8 +11,10 @@ class IRequestRepository {
 public:
   virtual ~IRequestRepository() {}
 
+  virtual Status reserveNextRequestId(DeviceId stationId, RequestId& id) = 0;
   virtual Status insertNew(const RequestRecord& record) = 0;
   virtual bool find(const RequestId& id, RequestRecord& record) const = 0;
+  virtual bool recordAt(uint16_t index, RequestRecord& record) const = 0;
   virtual Status beginClaimIfEligible(const RequestId& id,
                                       DeviceId cartId,
                                       TransactionId transactionId,
