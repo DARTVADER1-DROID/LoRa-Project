@@ -51,6 +51,22 @@ int main() {
   assert(!pending.contains(second));
   assert(!claims.hasClaimInFlight());
 
+  // A cart that loses an in-flight claim returns from CLAIM_PENDING to IDLE.
+  BasicDriverAvailabilityController losingAvailability;
+  assert(losingAvailability.enableAcceptance(enable).ok());
+  assert(losingAvailability.onClaimStarted().ok());
+  FixedCartClaimClient losingClaims(9, 200);
+  assert(losingClaims.requestClaim(second, 9).ok());
+  FixedPendingRequestStore<2> losingPending;
+  assert(losingPending.configure(2).ok());
+  FixedActiveAssignment losingActive;
+  CartEventReconciler losingReconciler(
+      9, losingPending, losingActive, losingAvailability, losingClaims);
+  assert(losingReconciler.applyAssignmentNotice(lost).ok());
+  assert(!losingClaims.hasClaimInFlight());
+  assert(losingAvailability.serviceState() == CartServiceState::IDLE);
+  assert(losingAvailability.acceptanceMode() == AcceptanceMode::ACCEPTING);
+
   const RequestId third = {1, 3, 1};
   RequestSnapshot snapshot = {};
   snapshot.requestId = third;
