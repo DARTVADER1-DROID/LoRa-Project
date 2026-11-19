@@ -108,7 +108,8 @@ Status DefaultConfigValidator::validateRadioProfile(const RadioProfile& profile)
   if (profile.frequencyHz < 410000000UL || profile.frequencyHz > 525000000UL ||
       profile.spreadingFactor < 6 || profile.spreadingFactor > 12 ||
       !isSupportedBandwidth(profile.bandwidthHz) || profile.codingRate < 1 ||
-      profile.codingRate > 4 || profile.transmitPowerDbm > 20) {
+      profile.codingRate > 4 || profile.transmitPowerDbm < 2 ||
+      profile.transmitPowerDbm > 20) {
     return invalidConfiguration();
   }
 
