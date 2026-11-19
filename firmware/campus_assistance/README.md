@@ -25,13 +25,17 @@ and separate Arduino Uno / ESP32 station / cart entry points.
   compile-time-bounded cart-local FIFO implementation.
 - `shared/include/ca/storage/fixed_request_repository.hpp`: bounded volatile
   station repository template for host/reference use.
+- `shared/include/ca/storage/fixed_destination_catalog.hpp`: bounded, allocation-free destination catalogue.
 - `shared/include/ca/storage/durable_request_repository.hpp`: bounded,
   versioned/CRC-checked snapshot repository over the atomic persistence port.
 - `shared/include/ca/station/station_request_lifecycle.hpp` and
   `shared/src/station/station_request_lifecycle.cpp`: station request creation,
   cancellation, expiry and journey-update use case.
 - `shared/src/cart/`: separate implementations for driver availability, active
-  assignment and journey transition policy.
+  assignment, claim ownership and authoritative event reconciliation.
+- `shared/src/protocol.cpp`: bounded binary frame codec and structural network validator.
+- `shared/src/station/repository_station_claim_coordinator.cpp`: repository-serialized claim/withdraw/assignment transitions.
+- `shared/src/station_request_controller.cpp`: station request submission/cancellation and retry-class enqueue.
 - `shared/src/README.md`: implementation boundary and layering rule.
 - `targets/uno/{station,cart}/`: Arduino Uno entry points.
 - `targets/esp32/{station,cart}/`: ESP32 entry points; exact board remains TBD.
@@ -54,7 +58,8 @@ ctest --test-dir build/campus-assistance --output-on-failure
 
 This compiles the public contracts, shared configuration validator and concrete
 cart-state components, then runs configuration, request-identity, pending-FIFO,
-repository, durable reboot-recovery and station-lifecycle tests. The host fake
+repository, durable reboot-recovery, station lifecycle, protocol framing,
+claim arbitration, cart reconciliation and destination-catalogue tests. The host fake
 persistence adapter models the atomic old-or-new contract; it does not prove a
 real flash/EEPROM adapter's power-loss behavior. It is not an Arduino IDE or PlatformIO
 build, and does not verify target memory, timing, radio behavior, flash atomicity,
@@ -138,4 +143,4 @@ system must preserve the exact remaining ten-minute expiry window across power-o
 The default radio validator accepts the RA-02/SX1278 tuning range and supported
 spreading-factor, bandwidth, coding-rate and PA output ranges. This is a module
 capability check only; it does not approve a frequency, transmit power or duty
-cycle under Indian WPC rules. No concrete flash, radio or MCU adapter exists yet.
+cycle under Indian WPC rules. The binary frame envelope is versioned and big-endian with CRC32; payload fields are still assembled by application code and need a single normative message-schema table before interoperability testing. No concrete flash, radio or MCU adapter exists yet.
