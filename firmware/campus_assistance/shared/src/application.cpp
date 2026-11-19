@@ -108,7 +108,8 @@ Status enqueueAssignmentNotice(ProtocolEndpoint& protocol,
 Status enqueueJourneyUpdate(ProtocolEndpoint& protocol,
                             const DeviceConfig& config,
                             const AssignmentRecord& assignment,
-                            JourneyStatus journey, EventSequence sequence) {
+                            JourneyStatus journey,
+                            EventSequence sequence) {
   ProtocolMessage message = {};
   message.header.protocolVersion = config.protocolVersion;
   message.header.networkId = config.networkId;
@@ -451,49 +452,40 @@ void CartApplication::onButtonEvent(const ButtonEvent& event) {
       return;
     }
 
-    const bool completing =
-        intent.type == UiIntentType::CONFIRM_COMPLETION;
-    const JourneyStatus next =
-        completing
-            ? JourneyStatus::COMPLETED
-            : (current == JourneyStatus::RECEIVED
-                   ? JourneyStatus::ON_THE_WAY
-                   : JourneyStatus::ARRIVED_AT_PICKUP);
-    const DriverAction action = {
-        completing ? DriverActionType::CONFIRM_COMPLETION
-                   : DriverActionType::ADVANCE_JOURNEY,
-        event.timestampMs};
+    const bool completing = intent.type == UiIntentType::CONFIRM_COMPLETION;
+    const JourneyStatus next = completing ? JourneyStatus::COMPLETED
+                                          : (current == JourneyStatus::RECEIVED
+                                                 ? JourneyStatus::ON_THE_WAY
+                                                 : JourneyStatus::ARRIVED_AT_PICKUP);
+    const DriverAction action = {completing ? DriverActionType::CONFIRM_COMPLETION
+                                            : DriverActionType::ADVANCE_JOURNEY,
+                                 event.timestampMs};
     Status status =
         dependencies_.journeyProgress.validateTransition(current, next, action);
     if (!status.ok()) {
-      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
-                                       status.code);
+      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected, status.code);
       return;
     }
 
     const EventSequence nextSequence = assignment.lastEventSequence + 1U;
-    status = enqueueJourneyUpdate(dependencies_.protocol, config_, assignment,
-                                  next, nextSequence);
+    status = enqueueJourneyUpdate(
+        dependencies_.protocol, config_, assignment, next, nextSequence);
     if (!status.ok()) {
-      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
-                                       status.code);
+      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected, status.code);
       return;
     }
 
     if (completing) {
       status = dependencies_.activeAssignment.complete(action);
       if (status.ok())
-        status = dependencies_.activeAssignment.updateJourneyStatus(
-            next, nextSequence);
+        status = dependencies_.activeAssignment.updateJourneyStatus(next, nextSequence);
       if (status.ok())
         status = dependencies_.driverAvailability.onJourneyCompleted();
     } else {
-      status = dependencies_.activeAssignment.updateJourneyStatus(
-          next, nextSequence);
+      status = dependencies_.activeAssignment.updateJourneyStatus(next, nextSequence);
     }
     if (!status.ok())
-      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
-                                       status.code);
+      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected, status.code);
     return;
   }
 
