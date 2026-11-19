@@ -1,6 +1,7 @@
 #pragma once
 
-#include "ca/domain.hpp"
+#include "ca/domain/active_assignment.hpp"
+#include "ca/domain/request_identity.hpp"
 
 namespace ca {
 
