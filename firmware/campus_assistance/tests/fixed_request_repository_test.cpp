@@ -85,5 +85,29 @@ int main() {
   assert(cancel.cancelIfUnassigned(c.id, CancellationSource::STUDENT, out).ok());
   assert(cancel.beginClaimIfEligible(c.id, 3, 3, 101, out).code ==
          ErrorCode::CANCELLED);
+
+  FixedRequestRepository<3> retention;
+  RequestRecord oldTerminal = makeRecord();
+  RequestRecord recentTerminal = makeRecord();
+  RequestRecord live = makeRecord();
+  recentTerminal.id.sequence = 2;
+  recentTerminal.createdAtMs = 300;
+  recentTerminal.expiresAtMs = 900;
+  live.id.sequence = 3;
+  live.createdAtMs = 400;
+  live.expiresAtMs = 1000;
+  assert(retention.configure().ok());
+  assert(retention.insertNew(oldTerminal).ok());
+  assert(retention.insertNew(recentTerminal).ok());
+  assert(retention.insertNew(live).ok());
+  assert(retention.cancelIfUnassigned(oldTerminal.id, CancellationSource::STUDENT, out)
+             .ok());
+  assert(retention.cancelIfUnassigned(recentTerminal.id, CancellationSource::STUDENT, out)
+             .ok());
+  assert(retention.removeTerminalBefore(200).ok());
+  assert(retention.size() == 2);
+  assert(!retention.find(oldTerminal.id, out));
+  assert(retention.find(recentTerminal.id, out));
+  assert(retention.find(live.id, out));
   return 0;
 }
