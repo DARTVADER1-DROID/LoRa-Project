@@ -1,13 +1,26 @@
 #include "ca/platform/arduino_core_adapters.hpp"
 #include "ca/platform/arduino_pcf8574_lcd.hpp"
 #include "ca/platform/arduino_sx127x_transport.hpp"
+#include "ca/platform/uno/uno_r3_profile.hpp"
 
-// Arduino Uno cart entry point. Receiver must run even while NOT_ACCEPTING.
+using namespace ca;
+using namespace ca::platform;
+
+const BoardPinMap kBoardPins = ArduinoUnoR3Profile::pins();
+ArduinoSx1278Transport radio(kBoardPins, SPI);
+ArduinoButtonPinReader buttonReader(kBoardPins);
+DebouncedButtonInput buttons(buttonReader);
+ArduinoPcf8574Lcd display(kBoardPins, 0x27);
+ArduinoBuzzer buzzer(kBoardPins.buzzerPin);
+
+// Hardware composition is not yet wired to the role application.
 void setup() {
-  // TODO: construct Uno adapters and CartApplication; boot NOT_ACCEPTING and
-  // reconcile state.
+  (void)radio;
+  (void)buttons;
+  (void)display;
+  (void)buzzer;
 }
+
 void loop() {
-  // TODO: service CartApplication using millis(); never use delay() for
-  // workflow timing.
+  // Cart reception must remain active even while NOT_ACCEPTING.
 }
