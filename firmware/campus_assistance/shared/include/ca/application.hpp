@@ -1,5 +1,6 @@
 #pragma once
 
+#include "config.hpp"
 #include "domain.hpp"
 #include "protocol.hpp"
 #include "station_request_controller.hpp"
