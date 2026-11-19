@@ -60,5 +60,29 @@ int main() {
   assert(buttons.update(state, 2, 709U).ok());
   assert(buttons.pollEvent(event));
   assert(event.type == ButtonEventType::LONG_PRESS);
+
+  // A full event queue must not consume a debounced release without reporting it.
+  FixedButtonDebouncer fullQueue;
+  const ButtonConfig oneButton = {1, 10, 500};
+  assert(fullQueue.configure(oneButton).ok());
+  bool oneState[1] = {false};
+  assert(fullQueue.update(oneState, 1, 0).ok());
+  uint32_t time = 10;
+  for (uint8_t i = 0; i < 4; ++i) {
+    oneState[0] = true;
+    assert(fullQueue.update(oneState, 1, time).ok());
+    assert(fullQueue.update(oneState, 1, time + 10).ok());
+    oneState[0] = false;
+    assert(fullQueue.update(oneState, 1, time + 20).ok());
+    assert(fullQueue.update(oneState, 1, time + 30).ok());
+    time += 40;
+  }
+  oneState[0] = true;
+  assert(fullQueue.update(oneState, 1, time).ok());
+  assert(fullQueue.update(oneState, 1, time + 10).ok());
+  oneState[0] = false;
+  assert(fullQueue.update(oneState, 1, time + 20).code == ErrorCode::BUFFER_FULL);
+  assert(fullQueue.pollEvent(event));
+  assert(fullQueue.update(oneState, 1, time + 21).ok());
   return 0;
 }
