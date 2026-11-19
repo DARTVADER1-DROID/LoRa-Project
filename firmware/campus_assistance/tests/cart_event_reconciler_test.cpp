@@ -74,6 +74,9 @@ int main() {
   snapshot.assignedCartId = 7;
   snapshot.assignmentEpoch = 2;
   snapshot.lastEventSequence = 1;
+  snapshot.claimState = ClaimState::COMMITTED;
+  snapshot.claimCartId = 7;
+  snapshot.claimTransactionId = 301;
   assert(reconciler.applySnapshot(snapshot).ok());
   AssignmentRecord current = {};
   assert(active.get(current));
@@ -95,6 +98,9 @@ int main() {
   snapshot.assignedCartId = 7;
   snapshot.assignmentEpoch = 3;
   snapshot.lastEventSequence = 3;
+  snapshot.claimState = ClaimState::COMMITTED;
+  snapshot.claimCartId = 7;
+  snapshot.claimTransactionId = 302;
   assert(reconciler.applySnapshot(snapshot).ok());
   assert(!active.isOccupied());
   assert(availability.serviceState() == CartServiceState::IDLE);
