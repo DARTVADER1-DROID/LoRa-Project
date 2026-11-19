@@ -25,8 +25,7 @@ public:
                     uint8_t backlightBit = 3)
       : pins_(pins), address_(address), rsBit_(rsBit), rwBit_(rwBit),
         enableBit_(enableBit), backlightBit_(backlightBit),
-        backlightMask_(static_cast<uint8_t>(1U << backlightBit)), initialized_(false),
-        backlightOn_(true) {
+        backlightMask_(0), initialized_(false) {
     for (uint8_t row = 0; row < 2; ++row)
       for (uint8_t column = 0; column < 16; ++column)
         previous_[row][column] = '\0';
