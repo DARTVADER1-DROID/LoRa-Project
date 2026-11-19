@@ -329,3 +329,7 @@ This section supersedes earlier declarations in this catalogue where they confli
 - RetryManager::pollOutcome reports ACKNOWLEDGED, EXHAUSTED, CANCELLED or STORAGE_FAILURE with transaction identity and attempts used.
 - IPersistence::load reports the exact or required output length through bytesRead; BUFFER_FULL must not write beyond capacity.
 - Destination and station registries are bounded, non-owning configuration views. ExpiredRequestSet is caller-owned storage: items remains valid for the call, capacity is the actual element capacity, and count is output-only.
+
+### 12.1 Assignment commit time input
+
+StationClaimCoordinator::commitWinner receives stationNowMs explicitly. It passes that station-authoritative time to the repository's atomic commit guard; a preliminary evaluate() result is never sufficient to commit because expiry/cancellation may win between evaluation and commit.
