@@ -10,8 +10,7 @@ class TwoButtonEventInterpreter final : public ButtonEventInterpreter {
 public:
   explicit TwoButtonEventInterpreter(DeviceRole role) : role_(role) {}
 
-  UiIntent interpret(const ButtonEvent& event,
-                     const UiContext& context) const override;
+  UiIntent interpret(const ButtonEvent& event, const UiContext& context) const override;
 
 private:
   DeviceRole role_;

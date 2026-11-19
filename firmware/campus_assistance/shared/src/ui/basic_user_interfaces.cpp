@@ -2,9 +2,8 @@
 
 namespace ca {
 
-BasicStationUserInterface::BasicStationUserInterface(
-    DestinationCatalog& destinations,
-    StationRequestController& requests)
+BasicStationUserInterface::BasicStationUserInterface(DestinationCatalog& destinations,
+                                                     StationRequestController& requests)
     : destinations_(destinations), requests_(requests), selectedIndex_(0),
       selectedDestinationId_(0), status_() {
   setStatus("Select destination");
@@ -54,8 +53,7 @@ UiViewModel BasicStationUserInterface::view() const {
     destinationLine[1] = ' ';
   }
   copyLine(result.line1, destinationLine);
-  copyLine(result.line2,
-           requests_.hasCurrentRequest() ? "Request active" : status_);
+  copyLine(result.line2, requests_.hasCurrentRequest() ? "Request active" : status_);
   return result;
 }
 
@@ -116,8 +114,9 @@ void BasicCartUserInterface::onIntent(const UiIntent& intent,
 }
 
 void BasicCartUserInterface::update(const CartUiContext& context) {
-  setLine(0, context.acceptanceMode == AcceptanceMode::ACCEPTING ? "Accept: ON"
-                                                                 : "Accept: OFF");
+  setLine(0,
+          context.acceptanceMode == AcceptanceMode::ACCEPTING ? "Accept: ON"
+                                                              : "Accept: OFF");
   switch (context.serviceState) {
   case CartServiceState::IDLE:
     setLine(1, context.activeAssignment ? "Reconciling" : "Ready / Claim");
@@ -135,7 +134,9 @@ void BasicCartUserInterface::update(const CartUiContext& context) {
   view_.screenId = static_cast<uint8_t>(context.serviceState);
 }
 
-UiViewModel BasicCartUserInterface::view() const { return view_; }
+UiViewModel BasicCartUserInterface::view() const {
+  return view_;
+}
 
 void BasicCartUserInterface::setLine(uint8_t row, const char* message) {
   if (row > 1)
