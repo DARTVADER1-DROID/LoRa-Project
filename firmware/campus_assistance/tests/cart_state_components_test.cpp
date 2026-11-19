@@ -15,6 +15,7 @@ int main() {
   assert(driver.mayClaim());
   assert(driver.onClaimStarted().ok());
   assert(driver.disableAcceptance(disable).code == ErrorCode::COMMUNICATION_UNCERTAIN);
+  assert(driver.disableAcceptance(disable).code == ErrorCode::COMMUNICATION_UNCERTAIN);
   assert(driver.acceptanceMode() == AcceptanceMode::NOT_ACCEPTING);
   assert(driver.onClaimWithdrawnByStation().ok());
   assert(driver.serviceState() == CartServiceState::IDLE);
