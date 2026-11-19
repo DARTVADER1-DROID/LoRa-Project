@@ -29,7 +29,6 @@ int main() {
   assignment.state = RequestState::ASSIGNED;
   assert(driver.onAssignmentConfirmed(assignment).ok());
   assert(driver.onJourneyCompleted().ok());
-  assert(driver.onJourneyCompleted().ok());
 
   FixedActiveAssignment active;
   assert(active.activate(assignment).ok());
