@@ -80,7 +80,8 @@ Status CartEventReconciler::applySnapshot(const RequestSnapshot& snapshot) {
     return Status();
   }
 
-  if (snapshot.assignedCartId == 0 || snapshot.assignmentEpoch == 0)
+  if (snapshot.assignedCartId == 0 || snapshot.assignmentEpoch == 0 ||
+      (snapshot.state != RequestState::ASSIGNED && snapshot.lastEventSequence == 0))
     return Status(ErrorCode::INVALID_ARGUMENT);
   pendingRequests_.removeAssigned(snapshot.requestId);
   if (snapshot.assignedCartId != cartId_) {
