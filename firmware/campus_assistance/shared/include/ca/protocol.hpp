@@ -49,6 +49,7 @@ struct RetryPolicy {
 
 struct RetryOutcome {
   TransactionId transactionId;
+  uint32_t messageSequence;
   RetryOutcomeCode outcome;
   uint8_t attemptsUsed;
 };
@@ -122,12 +123,15 @@ public:
   virtual Status schedule(const ProtocolMessage& message, uint32_t nowMs) = 0;
   virtual void service(uint32_t nowMs) = 0;
   virtual bool pollDue(ProtocolMessage& message, uint8_t& attemptNumber) = 0;
-  virtual Status
-  onTransmissionAttempt(TransactionId transactionId, bool accepted, uint32_t nowMs) = 0;
+  virtual Status onTransmissionAttempt(TransactionId transactionId,
+                                       uint32_t messageSequence,
+                                       bool accepted,
+                                       uint32_t nowMs) = 0;
   virtual Status onAcknowledgement(TransactionId transactionId,
                                    DeviceId acknowledgingDeviceId,
                                    uint32_t acknowledgedMessageSequence) = 0;
-  virtual Status cancel(TransactionId transactionId) = 0;
+  virtual Status cancel(TransactionId transactionId,
+                        uint32_t messageSequence) = 0;
   virtual bool pollOutcome(RetryOutcome& outcome) = 0;
   virtual uint16_t capacity() const = 0;
   virtual uint16_t pendingCount() const = 0;
