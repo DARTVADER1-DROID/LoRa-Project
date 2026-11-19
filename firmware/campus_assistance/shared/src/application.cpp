@@ -13,8 +13,7 @@ bool senderIsValidated(SenderValidation validation) {
          validation == SenderValidation::AUTHENTICATED;
 }
 
-bool eventBelongsToStation(const ProtocolEvent& event,
-                           const RequestId& requestId) {
+bool eventBelongsToStation(const ProtocolEvent& event, const RequestId& requestId) {
   return RequestIdentity::isValid(requestId) &&
          event.envelope.sourceDeviceId == requestId.originStationId;
 }
@@ -22,7 +21,8 @@ bool eventBelongsToStation(const ProtocolEvent& event,
 } // namespace
 
 StationApplication::StationApplication(StationDependencies dependencies)
-    : dependencies_(dependencies), config_(), initialized_(false) {}
+    : dependencies_(dependencies), config_(), initialized_(false) {
+}
 
 Status StationApplication::begin(const DeviceConfig& config) {
   if (initialized_)
@@ -46,8 +46,7 @@ Status StationApplication::begin(const DeviceConfig& config) {
     return status;
   status = dependencies_.protocol.begin();
   if (!status.ok()) {
-    dependencies_.diagnostics.record(kDiagnosticInitializationFailure,
-                                     status.code);
+    dependencies_.diagnostics.record(kDiagnosticInitializationFailure, status.code);
     return status;
   }
 
@@ -82,8 +81,7 @@ void StationApplication::onButtonEvent(const ButtonEvent& event) {
   UiContext context = {};
   context.screenId = dependencies_.ui.view().screenId;
   context.requestActive = false;
-  const UiIntent intent =
-      dependencies_.buttonInterpreter.interpret(event, context);
+  const UiIntent intent = dependencies_.buttonInterpreter.interpret(event, context);
   if (intent.type != UiIntentType::NONE)
     dependencies_.ui.onIntent(intent);
 }
@@ -104,8 +102,7 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
       status = Status(ErrorCode::INVALID_ARGUMENT);
       break;
     }
-    status = dependencies_.claims.evaluate(
-        claim, dependencies_.clock.millisNow());
+    status = dependencies_.claims.evaluate(claim, dependencies_.clock.millisNow());
     break;
   }
   case ProtocolEventType::CLAIM_WITHDRAW_RECEIVED: {
@@ -136,15 +133,17 @@ void StationApplication::onProtocolEvent(const ProtocolEvent& event) {
   }
 
   if (!status.ok()) {
-    dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected,
-                                     status.code);
+    dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected, status.code);
   }
 }
 
-bool StationApplication::isHealthy() const { return initialized_; }
+bool StationApplication::isHealthy() const {
+  return initialized_;
+}
 
 CartApplication::CartApplication(CartDependencies dependencies)
-    : dependencies_(dependencies), config_(), initialized_(false) {}
+    : dependencies_(dependencies), config_(), initialized_(false) {
+}
 
 Status CartApplication::begin(const DeviceConfig& config) {
   if (initialized_)
@@ -172,8 +171,7 @@ Status CartApplication::begin(const DeviceConfig& config) {
     return status;
   status = dependencies_.protocol.begin();
   if (!status.ok()) {
-    dependencies_.diagnostics.record(kDiagnosticInitializationFailure,
-                                     status.code);
+    dependencies_.diagnostics.record(kDiagnosticInitializationFailure, status.code);
     return status;
   }
 
@@ -211,26 +209,21 @@ void CartApplication::onButtonEvent(const ButtonEvent& event) {
   context.serviceState = dependencies_.driverAvailability.serviceState();
   context.activeAssignment = dependencies_.activeAssignment.isOccupied();
 
-  const UiIntent intent =
-      dependencies_.buttonInterpreter.interpret(
-          event, UiContext{context.screenId, context.activeAssignment});
+  const UiIntent intent = dependencies_.buttonInterpreter.interpret(
+      event, UiContext{context.screenId, context.activeAssignment});
   if (intent.type == UiIntentType::ENABLE_ACCEPTANCE) {
-    DriverAction action = {DriverActionType::ENABLE_ACCEPTANCE,
-                           event.timestampMs};
+    DriverAction action = {DriverActionType::ENABLE_ACCEPTANCE, event.timestampMs};
     const Status status = dependencies_.driverAvailability.enableAcceptance(action);
     if (!status.ok())
-      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
-                                       status.code);
+      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected, status.code);
     return;
   }
   if (intent.type == UiIntentType::DISABLE_ACCEPTANCE) {
-    DriverAction action = {DriverActionType::DISABLE_ACCEPTANCE,
-                           event.timestampMs};
+    DriverAction action = {DriverActionType::DISABLE_ACCEPTANCE, event.timestampMs};
     const Status status = dependencies_.driverAvailability.disableAcceptance(action);
     dependencies_.pendingRequests.clearLocal();
     if (!status.ok() && status.code != ErrorCode::COMMUNICATION_UNCERTAIN)
-      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected,
-                                       status.code);
+      dependencies_.diagnostics.record(kDiagnosticButtonEventRejected, status.code);
 
     ClaimRequest claim = {};
     if (dependencies_.claimClient.getOutstandingClaim(claim)) {
@@ -255,10 +248,12 @@ void CartApplication::onButtonEvent(const ButtonEvent& event) {
       message.header.messageSequence = claim.requestId.sequence;
       message.payloadLength = 10;
       uint16_t offset = 0;
-      message.payload[offset++] = static_cast<uint8_t>(claim.requestId.originStationId >> 8);
+      message.payload[offset++] =
+          static_cast<uint8_t>(claim.requestId.originStationId >> 8);
       message.payload[offset++] = static_cast<uint8_t>(claim.requestId.originStationId);
       for (int8_t shift = 24; shift >= 0; shift -= 8)
-        message.payload[offset++] = static_cast<uint8_t>(claim.requestId.sequence >> shift);
+        message.payload[offset++] =
+            static_cast<uint8_t>(claim.requestId.sequence >> shift);
       message.payload[offset++] = static_cast<uint8_t>(claim.requestId.generation >> 8);
       message.payload[offset++] = static_cast<uint8_t>(claim.requestId.generation);
       message.payload[offset++] = static_cast<uint8_t>(claim.cartId >> 8);
@@ -287,8 +282,7 @@ void CartApplication::onProtocolEvent(const ProtocolEvent& event) {
   switch (event.type) {
   case ProtocolEventType::REQUEST_RECEIVED: {
     const RequestSummary& request = event.payload.request;
-    if (!RequestIdentity::isValid(request.id) ||
-        request.destinationId == 0 ||
+    if (!RequestIdentity::isValid(request.id) || request.destinationId == 0 ||
         event.envelope.sourceDeviceId != request.id.originStationId) {
       status = Status(ErrorCode::INVALID_ARGUMENT);
       break;
@@ -353,8 +347,7 @@ void CartApplication::onProtocolEvent(const ProtocolEvent& event) {
 
   if (!status.ok() && status.code != ErrorCode::DUPLICATE &&
       status.code != ErrorCode::EXPIRED) {
-    dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected,
-                                     status.code);
+    dependencies_.diagnostics.record(kDiagnosticProtocolEventRejected, status.code);
   }
 }
 
