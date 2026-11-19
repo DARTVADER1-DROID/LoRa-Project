@@ -110,5 +110,27 @@ int main() {
   assert(!retention.find(oldTerminal.id, out));
   assert(retention.find(recentTerminal.id, out));
   assert(retention.find(live.id, out));
+
+  FixedRequestRepository<2> capacityCompaction;
+  RequestRecord terminalForEviction = makeRecord();
+  RequestRecord liveForEviction = makeRecord();
+  RequestRecord incoming = makeRecord();
+  RequestRecord overflow = makeRecord();
+  liveForEviction.id.sequence = 2;
+  incoming.id.sequence = 3;
+  overflow.id.sequence = 4;
+  assert(capacityCompaction.configure().ok());
+  assert(capacityCompaction.insertNew(terminalForEviction).ok());
+  assert(capacityCompaction.insertNew(liveForEviction).ok());
+  assert(capacityCompaction.cancelIfUnassigned(
+             terminalForEviction.id, CancellationSource::STUDENT, out)
+             .ok());
+  assert(capacityCompaction.insertNew(incoming).ok());
+  assert(capacityCompaction.size() == 2);
+  assert(!capacityCompaction.find(terminalForEviction.id, out));
+  assert(capacityCompaction.find(liveForEviction.id, out));
+  assert(capacityCompaction.find(incoming.id, out));
+  assert(capacityCompaction.insertNew(overflow).code ==
+         ErrorCode::CAPACITY_EXCEEDED);
   return 0;
 }
