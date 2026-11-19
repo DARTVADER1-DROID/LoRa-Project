@@ -111,8 +111,7 @@ public:
     }
     if (record->state != RequestState::PENDING_UNASSIGNED)
       return Status(ErrorCode::BUSY);
-    if (record->claimState == ClaimState::WITHDRAWN &&
-        record->claimCartId == cartId &&
+    if (record->claimState == ClaimState::WITHDRAWN && record->claimCartId == cartId &&
         record->claimTransactionId == transactionId)
       return Status(ErrorCode::STALE_EVENT);
     if (record->claimState != ClaimState::IDLE &&
