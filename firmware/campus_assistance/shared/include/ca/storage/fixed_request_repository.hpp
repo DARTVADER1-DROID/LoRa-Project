@@ -281,6 +281,23 @@ public:
     return Status();
   }
 
+  // Without a persistent wall clock, elapsed millis cannot be trusted across
+  // a station reboot. Fail closed by expiring only unassigned requests; an
+  // already committed ride remains assigned and recoverable.
+  Status expireUnassignedForRecovery() {
+    if (!configured_)
+      return Status(ErrorCode::INVALID_STATE);
+    for (uint16_t i = 0; i < count_; ++i) {
+      if (records_[i].state == RequestState::PENDING_UNASSIGNED ||
+          records_[i].state == RequestState::CLAIM_PENDING) {
+        records_[i].state = RequestState::EXPIRED;
+        if (records_[i].claimState == ClaimState::PENDING)
+          records_[i].claimState = ClaimState::WITHDRAWN;
+      }
+    }
+    return Status();
+  }
+
   uint32_t nextSequence() const { return nextSequence_; }
   uint16_t nextGeneration() const { return nextGeneration_; }
   bool identifiersExhausted() const { return identifiersExhausted_; }
