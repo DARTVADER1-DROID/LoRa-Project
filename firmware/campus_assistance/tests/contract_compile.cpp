@@ -30,5 +30,7 @@ int main() {
   record.claimState = ClaimState::IDLE;
   record.state = RequestState::PENDING_UNASSIGNED;
   return (record.claimState == ClaimState::IDLE &&
-          record.state == RequestState::PENDING_UNASSIGNED) ? 0 : 1;
+          record.state == RequestState::PENDING_UNASSIGNED)
+             ? 0
+             : 1;
 }
