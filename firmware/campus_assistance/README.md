@@ -78,3 +78,14 @@ No radio library, pin map, final ESP32 board, legal RF profile, numeric wire-fie
 encoding, queue capacity or persistence layout is frozen. RA-02/SX1278 integration
 must retain 3.3 V logic/power requirements and pass Indian WPC verification before
 transmission. Hardware adapters and runtime behavior remain future work.
+
+### Host contract tests
+
+The CMake/CTest suite includes:
+- public-header C++11 compile checks and compile-time ownership/API assertions;
+- a fixed-capacity reference repository suite for claim-withdraw/commit ordering,
+  delayed withdrawal, cancellation/expiry races and expiry-boundary claim rejection.
+
+The reference repository is a test double for the contract, not a production
+storage implementation. It does not establish flash atomicity, reboot recovery,
+radio behavior or target-MCU correctness.
