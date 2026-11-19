@@ -12,11 +12,13 @@ namespace ca {
 // conditional state transitions.
 class StationRequestLifecycle final : public RequestLifecycle {
 public:
-  StationRequestLifecycle(IRequestRepository& repository,
-                          const DestinationCatalog& destinations,
-                          const IClock& clock,
-                          DeviceId stationId,
-                          uint32_t requestLifetimeMs);
+  StationRequestLifecycle(
+      IRequestRepository& repository,
+      const DestinationCatalog& destinations,
+      const IClock& clock,
+      DeviceId stationId,
+      uint32_t requestLifetimeMs,
+      uint32_t terminalRetentionMs = kDefaultTerminalRetentionMs);
 
   Status configure() override;
   Status create(const NewRequest& input, RequestRecord& created) override;
@@ -31,6 +33,7 @@ private:
   const IClock& clock_;
   DeviceId stationId_;
   uint32_t requestLifetimeMs_;
+  uint32_t terminalRetentionMs_;
   bool configured_;
 
   bool isExpiryEligible(RequestState state) const;
