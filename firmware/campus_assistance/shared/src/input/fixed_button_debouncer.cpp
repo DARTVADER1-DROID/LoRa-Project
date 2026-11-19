@@ -84,6 +84,11 @@ Status FixedButtonDebouncer::updateButton(uint8_t index, bool pressed, uint32_t 
 
   if (state.rawPressed != state.stablePressed &&
       hasElapsed(nowMs, state.rawChangedAtMs, config_.debounceMs)) {
+    if (state.stablePressed && !state.rawPressed && state.armed) {
+      const uint8_t requiredEvents = state.longReported ? 1 : 2;
+      if (eventCount_ > kEventCapacity - requiredEvents)
+        return Status(ErrorCode::BUFFER_FULL);
+    }
     state.stablePressed = state.rawPressed;
     if (state.stablePressed) {
       if (state.armed) {
