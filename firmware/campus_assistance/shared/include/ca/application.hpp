@@ -2,11 +2,12 @@
 
 #include "domain.hpp"
 #include "protocol.hpp"
+#include "station_request_controller.hpp"
 #include "ui.hpp"
 
 namespace ca {
 
-// Composition roots receive all collaborators explicitly. They own orchestration,
+// Composition roots receive collaborators explicitly. They own orchestration,
 // not hardware construction, request truth, or protocol encoding.
 struct StationDependencies {
   IClock& clock;
@@ -15,8 +16,7 @@ struct StationDependencies {
   IBuzzer& buzzer;
   IDiagnostics& diagnostics;
   ProtocolEndpoint& protocol;
-  DestinationCatalog& destinations;
-  RequestLifecycle& requests;
+  StationRequestController& requestController;
   StationClaimCoordinator& claims;
   StationUserInterface& ui;
 };
