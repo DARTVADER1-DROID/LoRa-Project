@@ -55,3 +55,9 @@ persistence adapters remain to be implemented.
 These adapters are guarded by `ARDUINO` and remain outside the shared library. They
 have not yet been compiled against a selected Arduino-ESP32 / AVR core version or
 validated on physical boards.
+
+`platform/include/ca/platform/arduino_pcf8574_lcd.hpp` provides a configurable
+HD44780 16×2 LCD adapter over a PCF8574 I2C backpack. The I2C address and expander
+bit mapping are constructor inputs because common backpack clones differ. It pads
+short text rows and refreshes only when a row changes. The adapter still requires
+compile and electrical verification with the actual backpack and Arduino core.
