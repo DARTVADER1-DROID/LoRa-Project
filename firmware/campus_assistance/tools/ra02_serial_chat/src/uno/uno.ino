@@ -19,7 +19,8 @@ static char inputLine[MAX_MESSAGE + 1];
 static size_t inputLength = 0;
 
 static void sendLine() {
-  if (inputLength == 0) return;
+  if (inputLength == 0)
+    return;
   LoRa.beginPacket();
   LoRa.write(reinterpret_cast<const uint8_t*>(inputLine), inputLength);
   const int result = LoRa.endPacket();
@@ -30,13 +31,16 @@ static void sendLine() {
 
 void setup() {
   Serial.begin(115200);
-  while (!Serial) { }
+  while (!Serial) {
+  }
   LoRa.setPins(LORA_SS, LORA_RESET, LORA_DIO0);
   Serial.println(F("\nRA-02 serial chat - Arduino Uno R3"));
   Serial.println(F("Starting radio..."));
   if (!LoRa.begin(LORA_FREQUENCY)) {
-    Serial.println(F("ERROR: RA-02 not detected. Check power, wiring and level shifters."));
-    while (true) delay(1000);
+    Serial.println(
+        F("ERROR: RA-02 not detected. Check power, wiring and level shifters."));
+    while (true)
+      delay(1000);
   }
   LoRa.setSpreadingFactor(7);
   LoRa.setSignalBandwidth(125E3);
@@ -63,7 +67,8 @@ void loop() {
   const int packetSize = LoRa.parsePacket();
   if (packetSize > 0) {
     Serial.print(F("RX: "));
-    while (LoRa.available()) Serial.write(LoRa.read());
+    while (LoRa.available())
+      Serial.write(LoRa.read());
     Serial.println();
   }
 }

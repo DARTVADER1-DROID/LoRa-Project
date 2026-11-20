@@ -19,7 +19,8 @@ static char inputLine[MAX_MESSAGE + 1];
 static size_t inputLength = 0;
 
 static void sendLine() {
-  if (inputLength == 0) return;
+  if (inputLength == 0)
+    return;
   LoRa.beginPacket();
   LoRa.write(reinterpret_cast<const uint8_t*>(inputLine), inputLength);
   const int result = LoRa.endPacket();
@@ -37,7 +38,8 @@ void setup() {
   Serial.println("Starting radio...");
   if (!LoRa.begin(LORA_FREQUENCY)) {
     Serial.println("ERROR: RA-02 not detected. Check 3.3 V power and SPI wiring.");
-    while (true) delay(1000);
+    while (true)
+      delay(1000);
   }
   LoRa.setSpreadingFactor(7);
   LoRa.setSignalBandwidth(125E3);
@@ -64,7 +66,8 @@ void loop() {
   const int packetSize = LoRa.parsePacket();
   if (packetSize > 0) {
     Serial.print("RX: ");
-    while (LoRa.available()) Serial.write(LoRa.read());
+    while (LoRa.available())
+      Serial.write(LoRa.read());
     Serial.println();
   }
 }
