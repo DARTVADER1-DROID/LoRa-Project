@@ -51,8 +51,8 @@ static void sendLine() {
     return;
   }
 
-  const size_t written = LoRa.write(
-      reinterpret_cast<const uint8_t*>(inputLine), inputLength);
+  const size_t written =
+      LoRa.write(reinterpret_cast<const uint8_t*>(inputLine), inputLength);
   const int txResult = LoRa.endPacket();
 
   if (txResult == 1 && written == inputLength) {
@@ -111,7 +111,8 @@ static void receivePacket() {
 
 void setup() {
   Serial.begin(115200);
-  while (!Serial) { }
+  while (!Serial) {
+  }
   LoRa.setPins(LORA_SS, LORA_RESET, LORA_DIO0);
 
   Serial.println();
@@ -119,7 +120,8 @@ void setup() {
   Serial.println(F("Starting radio..."));
 
   if (!LoRa.begin(LORA_FREQUENCY)) {
-    Serial.println(F("ERROR: RA-02 not detected. Check 3.3 V power, common GND, CS/RESET and SPI wiring."));
+    Serial.println(F("ERROR: RA-02 not detected. Check 3.3 V power, common GND, "
+                     "CS/RESET and SPI wiring."));
     while (true)
       delay(1000);
   }
@@ -147,7 +149,8 @@ void loop() {
       if (inputLength < MAX_MESSAGE) {
         inputLine[inputLength++] = c;
       } else {
-        Serial.println(F("ERROR: message exceeds 200 bytes; discarding until newline."));
+        Serial.println(
+            F("ERROR: message exceeds 200 bytes; discarding until newline."));
         inputLength = 0;
         discardUntilNewline = true;
       }

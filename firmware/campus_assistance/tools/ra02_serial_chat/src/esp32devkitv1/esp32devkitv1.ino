@@ -54,8 +54,8 @@ static void sendLine() {
     return;
   }
 
-  const size_t written = LoRa.write(
-      reinterpret_cast<const uint8_t*>(inputLine), inputLength);
+  const size_t written =
+      LoRa.write(reinterpret_cast<const uint8_t*>(inputLine), inputLength);
   const int txResult = LoRa.endPacket();
 
   if (txResult == 1 && written == inputLength) {
@@ -123,7 +123,8 @@ void setup() {
   Serial.println("Starting radio...");
 
   if (!LoRa.begin(LORA_FREQUENCY)) {
-    Serial.println("ERROR: RA-02 not detected. Check 3.3 V power, common GND, CS/RESET and SPI wiring.");
+    Serial.println("ERROR: RA-02 not detected. Check 3.3 V power, common GND, CS/RESET "
+                   "and SPI wiring.");
     while (true)
       delay(1000);
   }
